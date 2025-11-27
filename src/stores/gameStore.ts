@@ -1,12 +1,24 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Dog, UserProfile } from '../types';
+import {
+  loadUserData,
+  saveUserProfile,
+  saveDog,
+  deleteDog as deleteDogFromDb,
+  debouncedSave
+} from '../lib/supabaseService';
 
 interface GameState {
   user: UserProfile | null;
   dogs: Dog[];
   selectedDog: Dog | null;
   hasAdoptedFirstDog: boolean;
+  syncEnabled: boolean;
+
+  // Supabase sync methods
+  loadFromSupabase: (userId: string) => Promise<void>;
+  setSyncEnabled: (enabled: boolean) => void;
 
   setUser: (user: UserProfile) => void;
   addDog: (dog: Dog) => void;
@@ -55,41 +67,106 @@ export const useGameStore = create<GameState>()(
       dogs: [],
       selectedDog: null,
       hasAdoptedFirstDog: false,
+      syncEnabled: false,
 
-      setUser: (user) => set({ user }),
+      // Supabase sync methods
+      loadFromSupabase: async (userId: string) => {
+        try {
+          const { profile, dogs } = await loadUserData(userId);
+          if (profile) {
+            set({
+              user: profile,
+              dogs: dogs || [],
+              syncEnabled: true,
+              hasAdoptedFirstDog: dogs.length > 0
+            });
+          }
+        } catch (error) {
+          console.error('Error loading from Supabase:', error);
+        }
+      },
+
+      setSyncEnabled: (enabled: boolean) => set({ syncEnabled: enabled }),
+
+      setUser: (user) => {
+        set({ user });
+        // Save to Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled && user) {
+          debouncedSave(() => saveUserProfile(user));
+        }
+      },
       
-      addDog: (dog) => set((state) => ({ 
-        dogs: [...state.dogs, dog],
-        selectedDog: dog 
-      })),
-      
-      updateDog: (dogId, updates) => set((state) => ({
-        dogs: state.dogs.map(dog => 
-          dog.id === dogId ? { ...dog, ...updates } : dog
-        ),
-        selectedDog: state.selectedDog?.id === dogId 
-          ? { ...state.selectedDog, ...updates }
-          : state.selectedDog
-      })),
+      addDog: (dog) => {
+        set((state) => ({
+          dogs: [...state.dogs, dog],
+          selectedDog: dog
+        }));
+        // Save to Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled) {
+          saveDog(dog);
+        }
+      },
+
+      updateDog: (dogId, updates) => {
+        set((state) => ({
+          dogs: state.dogs.map(dog =>
+            dog.id === dogId ? { ...dog, ...updates } : dog
+          ),
+          selectedDog: state.selectedDog?.id === dogId
+            ? { ...state.selectedDog, ...updates }
+            : state.selectedDog
+        }));
+        // Save to Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled) {
+          const updatedDog = state.dogs.find(d => d.id === dogId);
+          if (updatedDog) {
+            debouncedSave(() => saveDog(updatedDog));
+          }
+        }
+      },
       
       selectDog: (dog) => set({ selectedDog: dog }),
       
-      updateUserCash: (amount) => set((state) => ({
-        user: state.user ? { ...state.user, cash: state.user.cash + amount } : null
-      })),
-      
-      updateUserGems: (amount) => set((state) => ({
-        user: state.user ? { ...state.user, gems: state.user.gems + amount } : null
-      })),
+      updateUserCash: (amount) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, cash: state.user.cash + amount } : null
+        }));
+        // Save to Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled && state.user) {
+          debouncedSave(() => saveUserProfile(state.user!));
+        }
+      },
 
-      updateCompetitionWins: (tier) => set((state) => {
-        if (!state.user) return {};
-        const updates: Partial<UserProfile> = {};
-        if (tier === 'local') updates.competition_wins_local = (state.user.competition_wins_local || 0) + 1;
-        if (tier === 'regional') updates.competition_wins_regional = (state.user.competition_wins_regional || 0) + 1;
-        if (tier === 'national') updates.competition_wins_national = (state.user.competition_wins_national || 0) + 1;
-        return { user: { ...state.user, ...updates } };
-      }),
+      updateUserGems: (amount) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, gems: state.user.gems + amount } : null
+        }));
+        // Save to Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled && state.user) {
+          debouncedSave(() => saveUserProfile(state.user!));
+        }
+      },
+
+      updateCompetitionWins: (tier) => {
+        set((state) => {
+          if (!state.user) return {};
+          const updates: Partial<UserProfile> = {};
+          if (tier === 'local') updates.competition_wins_local = (state.user.competition_wins_local || 0) + 1;
+          if (tier === 'regional') updates.competition_wins_regional = (state.user.competition_wins_regional || 0) + 1;
+          if (tier === 'national') updates.competition_wins_national = (state.user.competition_wins_national || 0) + 1;
+          return { user: { ...state.user, ...updates } };
+        });
+        // Save to Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled && state.user) {
+          debouncedSave(() => saveUserProfile(state.user!));
+        }
+      },
 
       setHasAdoptedFirstDog: (value) => set({ hasAdoptedFirstDog: value }),
 
@@ -148,10 +225,17 @@ export const useGameStore = create<GameState>()(
         };
       }),
 
-      removeDog: (dogId) => set((state) => ({
-        dogs: state.dogs.filter(dog => dog.id !== dogId),
-        selectedDog: state.selectedDog?.id === dogId ? null : state.selectedDog,
-      })),
+      removeDog: (dogId) => {
+        set((state) => ({
+          dogs: state.dogs.filter(dog => dog.id !== dogId),
+          selectedDog: state.selectedDog?.id === dogId ? null : state.selectedDog,
+        }));
+        // Delete from Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled) {
+          deleteDogFromDb(dogId);
+        }
+      },
 
       // Shop actions
       purchaseBreed: (dog, cashCost, gemCost) => set((state) => {

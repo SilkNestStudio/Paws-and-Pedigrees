@@ -113,9 +113,9 @@ export default function AgilityMiniGame({ onComplete, dogName }: AgilityMiniGame
         <div className="mb-6 text-earth-700 max-w-md mx-auto">
           <div className="bg-earth-50 rounded-lg p-4 mb-4">
             <p className="font-bold mb-2">How to Play:</p>
-            <p className="text-sm mb-2">🎯 A bar will move left and right across the track</p>
+            <p className="text-sm mb-2">🐕 Your dog will run left and right across the track</p>
             <p className="text-sm mb-2">🎨 The green zone is your target</p>
-            <p className="text-sm mb-2">👆 Click anywhere when the bar is in the green zone!</p>
+            <p className="text-sm mb-2">👆 Click anywhere when your dog is in the green zone!</p>
           </div>
           <p className="mb-2 text-sm">🎯 Perfect (±5%) = No penalty</p>
           <p className="mb-2 text-sm">✓ Good (±10%) = -5 points</p>
@@ -178,18 +178,18 @@ export default function AgilityMiniGame({ onComplete, dogName }: AgilityMiniGame
                 }}
               />
               
-              {/* Moving Indicator */}
+              {/* Running Dog */}
               <div
-                className="absolute top-0 w-1 h-full bg-kennel-700 transition-none"
-                style={{ left: `${indicatorPosition}%` }}
+                className="absolute top-1/2 -translate-y-1/2 transition-none"
+                style={{ left: `${indicatorPosition}%`, transform: `translateY(-50%) translateX(-50%) ${movingRight ? '' : 'scaleX(-1)'}` }}
               >
-                <div className="absolute -top-2 -left-3 w-8 h-8 bg-kennel-700 rounded-full flex items-center justify-center text-white font-bold">
-                  ↓
+                <div className="text-4xl drop-shadow-lg">
+                  🐕
                 </div>
               </div>
             </div>
 
-            <p className="text-earth-600 mb-4">Click when the arrow is in the green zone!</p>
+            <p className="text-earth-600 mb-4">Click when your dog is in the green zone!</p>
             <button
               onClick={handleClick}
               className="w-full py-4 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 transition-all font-bold text-xl"

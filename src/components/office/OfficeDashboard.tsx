@@ -1,14 +1,17 @@
+import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { getWeeksRemaining } from '../../utils/breedingCalculations';
+import { rescueBreeds } from '../../data/rescueBreeds';
 
-type View = 'kennel' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
+type View = 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
 
 interface OfficeDashboardProps {
   onNavigate: (view: View) => void;
 }
 
 export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
-  const { user, dogs } = useGameStore();
+  const { user, dogs, selectDog } = useGameStore();
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   // Calculate stats
   const totalDogs = dogs.length;
@@ -73,12 +76,14 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
 
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-earth-600">Total Wins</p>
               <p className="text-3xl font-bold text-yellow-600">{totalWins}</p>
-              <p className="text-xs text-earth-500 mt-1">
-                All competitions
-              </p>
+              <div className="text-xs text-earth-500 mt-1 space-y-0.5">
+                <div>🥉 Local: {user?.competition_wins_local || 0}</div>
+                <div>🥈 Regional: {user?.competition_wins_regional || 0}</div>
+                <div>🥇 National: {user?.competition_wins_national || 0}</div>
+              </div>
             </div>
             <span className="text-4xl">🏆</span>
           </div>
@@ -151,18 +156,57 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* To-Do Summary */}
+        {/* Quick Actions Panel */}
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold text-earth-900 mb-4">📋 Quick Actions</h3>
           <div className="space-y-3">
-            <button
-              onClick={() => onNavigate('kennel')}
-              className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
-            >
-              <p className="font-semibold text-earth-900">🐕 View My Dogs</p>
-              <p className="text-sm text-earth-600">Check on your {totalDogs} dogs</p>
-            </button>
+            {/* View My Dogs - Expandable */}
+            <div className="border border-earth-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setExpandedSection(expandedSection === 'dogs' ? null : 'dogs')}
+                className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 transition-all flex justify-between items-center"
+              >
+                <div>
+                  <p className="font-semibold text-earth-900">🐕 View My Dogs</p>
+                  <p className="text-sm text-earth-600">{totalDogs} {totalDogs === 1 ? 'dog' : 'dogs'}</p>
+                </div>
+                <span className="text-earth-600">{expandedSection === 'dogs' ? '▼' : '▶'}</span>
+              </button>
+              {expandedSection === 'dogs' && (
+                <div className="p-3 bg-white border-t border-earth-200 space-y-2">
+                  {dogs.length === 0 ? (
+                    <p className="text-sm text-earth-500 text-center py-2">No dogs yet</p>
+                  ) : (
+                    dogs.map((dog) => {
+                      const breedData = rescueBreeds.find(b => b.id === dog.breed_id);
+                      return (
+                        <button
+                          key={dog.id}
+                          onClick={() => {
+                            selectDog(dog);
+                            onNavigate('dogDetail');
+                          }}
+                          className="w-full text-left p-2 bg-earth-50 hover:bg-kennel-100 rounded transition-all flex items-center gap-3"
+                        >
+                          <img
+                            src={breedData?.img_sitting || ''}
+                            alt={dog.name}
+                            className="w-12 h-12 object-contain"
+                          />
+                          <div className="flex-1">
+                            <p className="font-semibold text-earth-900">{dog.name}</p>
+                            <p className="text-xs text-earth-600 capitalize">{breedData?.name}</p>
+                          </div>
+                          <span className="text-earth-400">→</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
 
+            {/* Quick Training */}
             <button
               onClick={() => onNavigate('training')}
               className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
@@ -171,6 +215,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
               <p className="text-sm text-earth-600">Improve your dogs' skills</p>
             </button>
 
+            {/* Quick Competition */}
             <button
               onClick={() => onNavigate('competition')}
               className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
@@ -179,6 +224,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
               <p className="text-sm text-earth-600">Compete for prizes</p>
             </button>
 
+            {/* Quick Jobs */}
             <button
               onClick={() => onNavigate('jobs')}
               className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
@@ -193,7 +239,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold text-earth-900 mb-4">🏠 Adopt from Pound</h3>
           <div
-            onClick={() => onNavigate('kennel')}
+            onClick={() => onNavigate('shop')}
             className="cursor-pointer group"
           >
             <div className="bg-earth-100 rounded-lg p-8 mb-4 text-center group-hover:bg-earth-200 transition-all">
@@ -209,30 +255,36 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
         </div>
       </div>
 
-      {/* Training Points Info */}
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-        <h3 className="text-xl font-bold text-earth-900 mb-4">ℹ️ Training Points (TP) System</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="font-semibold text-blue-900 mb-1">Daily Regeneration</p>
-            <p className="text-sm text-blue-700">
-              Each dog gets 100 TP daily at midnight
-            </p>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="font-semibold text-blue-900 mb-1">Training Cost</p>
-            <p className="text-sm text-blue-700">
-              Each training session costs 20 TP
-            </p>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="font-semibold text-blue-900 mb-1">Bonus TP</p>
-            <p className="text-sm text-blue-700">
-              Buy training items from the shop for extra TP
-            </p>
+      {/* Training Points Summary */}
+      {dogs.length > 0 && (
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
+          <h3 className="text-xl font-bold text-earth-900 mb-4">🎯 Training Points</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {dogs.map((dog) => {
+              const lastReset = new Date(dog.last_training_reset);
+              const nextReset = new Date(lastReset);
+              nextReset.setDate(nextReset.getDate() + 1);
+              nextReset.setHours(0, 0, 0, 0);
+              const now = new Date();
+              const hoursUntilReset = Math.max(0, Math.ceil((nextReset.getTime() - now.getTime()) / (1000 * 60 * 60)));
+
+              return (
+                <div key={dog.id} className="bg-blue-50 p-4 rounded-lg">
+                  <p className="font-semibold text-blue-900 mb-2">{dog.name}</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {dog.training_points}/100 TP
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {hoursUntilReset > 0
+                      ? `Regenerates in ${hoursUntilReset}h`
+                      : 'Regenerating now...'}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 interface SceneBackgroundProps {
-  scene: 'kennel' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
+  scene: 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
   children: React.ReactNode;
 }
 
 export default function SceneBackground({ scene, children }: SceneBackgroundProps) {
   const backgrounds = {
     kennel: '/src/assets/images/backgrounds/kennel-background.png',
+    dogDetail: '/src/assets/images/backgrounds/kennel-background.png',
     office: '/src/assets/images/backgrounds/office-background.png',
     training: '/src/assets/images/backgrounds/training-background.png',
     competition: '/src/assets/images/backgrounds/competition-background.png',

@@ -4,6 +4,9 @@ import { competitionTypes, competitionTiers } from '../../data/competitionTypes'
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { calculateCompetitionScore, generateAICompetitors, determineWinner } from '../../utils/competitionCalculations';
 import AgilityMiniGame from './AgilityMiniGame';
+import ObedienceMiniGame from './ObedienceMiniGame';
+import WeightPullMiniGame from './WeightPullMiniGame';
+import RacingMiniGame from './RacingMiniGame';
 
 // Derive the types from the data exports so we don't depend on separate type-only imports
 type CompetitionType = (typeof competitionTypes)[number];
@@ -69,12 +72,12 @@ export default function CompetitionView() {
     // Deduct entry fee
     updateUserCash(-tier.entryFee);
 
-    if (manual && selectedCompType === 'agility') {
-      // Show mini-game for manual agility
+    if (manual) {
+      // Show mini-game for all competition types
       setShowMiniGame(true);
     } else {
-      // Auto-compete or manual for other types (not implemented yet)
-      runCompetition(manual ? (user?.competition_strategy || 1) : 0);
+      // Auto-compete
+      runCompetition(0);
     }
   };
 
@@ -411,11 +414,31 @@ export default function CompetitionView() {
       {/* Mini-Game Modal */}
         {showMiniGame && selectedDog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <AgilityMiniGame
-                dogName={selectedDog.name}
-                onComplete={handleMiniGameComplete}
-            />
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {selectedCompType === 'agility' && (
+              <AgilityMiniGame
+                  dogName={selectedDog.name}
+                  onComplete={handleMiniGameComplete}
+              />
+            )}
+            {selectedCompType === 'obedience' && (
+              <ObedienceMiniGame
+                  dogName={selectedDog.name}
+                  onComplete={handleMiniGameComplete}
+              />
+            )}
+            {selectedCompType === 'weight_pull' && (
+              <WeightPullMiniGame
+                  dogName={selectedDog.name}
+                  onComplete={handleMiniGameComplete}
+              />
+            )}
+            {selectedCompType === 'racing' && (
+              <RacingMiniGame
+                  dogName={selectedDog.name}
+                  onComplete={handleMiniGameComplete}
+              />
+            )}
             </div>
         </div>
         )}

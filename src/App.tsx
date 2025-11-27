@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PoundScene from './components/kennel/PoundScene';
 import KennelView from './components/kennel/KennelView';
-import DogCarePanel from './components/kennel/DogCarePanel';
+import DogDetailView from './components/kennel/DogDetailView';
 import Sidebar from './components/layout/Sidebar';
 import { Breed } from './types';
 import { useGameStore } from './stores/gameStore';
 import { generateDog } from './utils/dogGenerator';
 import SceneBackground from './components/layout/SceneBackground';
 import TrainingView from './components/training/TrainingView';
-import { useEffect } from 'react';
 import { regenerateTP, shouldRegenerateTP } from './utils/tpRegeneration';
 import CompetitionView from './components/competitions/CompetitionView';
 import JobsBoard from './components/jobs/JobsBoard';
@@ -17,9 +16,12 @@ import PuppyNursery from './components/breeding/PuppyNursery';
 import ShopView from './components/shop/ShopView';
 import { shouldAgeDog, ageDog } from './utils/puppyAging';
 import OfficeDashboard from './components/office/OfficeDashboard';
+import AuthView from './components/auth/AuthView';
+import { useAuth } from './hooks/useAuth';
 
 type View =
   | 'kennel'
+  | 'dogDetail'
   | 'office'
   | 'training'
   | 'competition'
@@ -28,8 +30,16 @@ type View =
   | 'shop';
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('kennel');
-  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog } = useGameStore();
+  const [currentView, setCurrentView] = useState<View>('office');
+  const { user: authUser, loading: authLoading, signOut } = useAuth();
+  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase } = useGameStore();
+
+  // Load user data from Supabase when authenticated
+  useEffect(() => {
+    if (authUser) {
+      loadFromSupabase(authUser.id);
+    }
+  }, [authUser, loadFromSupabase]);
 
   const handleDogAdopted = (breed: Breed, name: string) => {
     const newDog = generateDog(breed, name, user?.id || 'temp-user-id', true);
@@ -38,28 +48,42 @@ function App() {
   };
 
   useEffect(() => {
-  // Check all dogs for TP regeneration and aging on mount
-  dogs.forEach(dog => {
-    const updates: any = {};
+    // Check all dogs for TP regeneration and aging on mount
+    dogs.forEach(dog => {
+      const updates: any = {};
 
-    // Check TP regeneration
-    if (shouldRegenerateTP(dog)) {
-      const tpUpdates = regenerateTP(dog);
-      Object.assign(updates, tpUpdates);
-    }
+      // Check TP regeneration
+      if (shouldRegenerateTP(dog)) {
+        const tpUpdates = regenerateTP(dog);
+        Object.assign(updates, tpUpdates);
+      }
 
-    // Check puppy aging
-    if (shouldAgeDog(dog)) {
-      const ageUpdates = ageDog(dog);
-      Object.assign(updates, ageUpdates);
-    }
+      // Check puppy aging
+      if (shouldAgeDog(dog)) {
+        const ageUpdates = ageDog(dog);
+        Object.assign(updates, ageUpdates);
+      }
 
-    // Apply updates if any
-    if (Object.keys(updates).length > 0) {
-      updateDog(dog.id, updates);
-    }
-  });
-}, []);
+      // Apply updates if any
+      if (Object.keys(updates).length > 0) {
+        updateDog(dog.id, updates);
+      }
+    });
+  }, []);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
+        <div className="text-2xl font-bold text-kennel-700">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show auth screen if not logged in
+  if (!authUser) {
+    return <AuthView onAuthSuccess={() => {}} />;
+  }
 
   if (!hasAdoptedFirstDog) {
     return <PoundScene onDogSelected={handleDogAdopted} />;
@@ -76,8 +100,13 @@ function App() {
       <div className="flex-1 flex flex-col">
         <header className="bg-kennel-700 text-white p-4 shadow-lg">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Paws & Pedigrees</h1>
-            <div className="flex gap-6">
+            <div>
+              <h1 className="text-2xl font-bold">Paws & Pedigrees</h1>
+              <p className="text-xs text-kennel-200">
+                {user?.username || 'Player'}
+              </p>
+            </div>
+            <div className="flex gap-6 items-center">
               <div className="text-right">
                 <p className="text-xs text-kennel-200">Cash</p>
                 <p className="text-lg font-bold">${user?.cash}</p>
@@ -90,6 +119,12 @@ function App() {
                 <p className="text-xs text-kennel-200">Level</p>
                 <p className="text-lg font-bold">{user?.level}</p>
               </div>
+              <button
+                onClick={signOut}
+                className="ml-4 px-4 py-2 bg-kennel-800 hover:bg-kennel-900 rounded-lg text-sm font-medium transition-colors"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </header>
@@ -97,16 +132,9 @@ function App() {
         <main className="flex-1 overflow-y-auto">
           <SceneBackground scene={currentView}>
             <div className="p-6">
-              {currentView === 'kennel' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <KennelView />
-                  </div>
-                  <div>
-                    <DogCarePanel />
-                  </div>
-                </div>
-              )}
+              {currentView === 'kennel' && <KennelView onViewDog={() => setCurrentView('dogDetail')} />}
+
+              {currentView === 'dogDetail' && <DogDetailView onBack={() => setCurrentView('kennel')} />}
 
               {currentView === 'office' && (
                 <OfficeDashboard onNavigate={setCurrentView} />

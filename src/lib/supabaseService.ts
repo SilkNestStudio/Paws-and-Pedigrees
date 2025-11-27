@@ -1,0 +1,138 @@
+import { supabase } from './supabase';
+import { Dog, UserProfile } from '../types';
+
+// ============ USER PROFILE ============
+
+export async function loadUserProfile(userId: string): Promise<UserProfile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error loading user profile:', error);
+    return null;
+  }
+
+  return data as UserProfile;
+}
+
+export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
+  const { error } = await supabase
+    .from('profiles')
+    .upsert(profile, { onConflict: 'id' });
+
+  if (error) {
+    console.error('Error saving user profile:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// ============ DOGS ============
+
+export async function loadUserDogs(userId: string): Promise<Dog[]> {
+  const { data, error } = await supabase
+    .from('dogs')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error loading dogs:', error);
+    return [];
+  }
+
+  return data as Dog[];
+}
+
+export async function saveDog(dog: Dog): Promise<boolean> {
+  const { error } = await supabase
+    .from('dogs')
+    .upsert(dog, { onConflict: 'id' });
+
+  if (error) {
+    console.error('Error saving dog:', error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function deleteDog(dogId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('dogs')
+    .delete()
+    .eq('id', dogId);
+
+  if (error) {
+    console.error('Error deleting dog:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// ============ COMPETITION RESULTS ============
+
+export async function saveCompetitionResult(result: {
+  user_id: string;
+  dog_id: string;
+  competition_type: string;
+  tier: string;
+  placement: number;
+  score: number;
+  prize_money: number;
+}): Promise<boolean> {
+  const { error } = await supabase
+    .from('competition_results')
+    .insert(result);
+
+  if (error) {
+    console.error('Error saving competition result:', error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function loadCompetitionResults(userId: string) {
+  const { data, error } = await supabase
+    .from('competition_results')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Error loading competition results:', error);
+    return [];
+  }
+
+  return data;
+}
+
+// ============ SYNC HELPERS ============
+
+/**
+ * Load all user data from Supabase
+ */
+export async function loadUserData(userId: string) {
+  const [profile, dogs] = await Promise.all([
+    loadUserProfile(userId),
+    loadUserDogs(userId),
+  ]);
+
+  return { profile, dogs };
+}
+
+/**
+ * Sync local state to Supabase (debounced save)
+ */
+let saveTimeout: NodeJS.Timeout;
+export function debouncedSave(fn: () => Promise<void>, delay: number = 1000) {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(fn, delay);
+}

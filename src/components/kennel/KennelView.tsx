@@ -1,8 +1,17 @@
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 
-export default function KennelView() {
-  const { user, dogs, selectedDog, selectDog } = useGameStore();
+interface KennelViewProps {
+  onViewDog: () => void;
+}
+
+export default function KennelView({ onViewDog }: KennelViewProps) {
+  const { user, dogs, selectDog } = useGameStore();
+
+  const handleDogClick = (dog: typeof dogs[0]) => {
+    selectDog(dog);
+    onViewDog();
+  };
 
   if (dogs.length === 0) {
     return (
@@ -48,10 +57,8 @@ export default function KennelView() {
         return (
           <div
             key={dog.id}
-            onClick={() => selectDog(dog)}
-            className={`relative bg-white/95 backdrop-blur-sm rounded-lg shadow-xl overflow-hidden cursor-pointer transition-all hover:shadow-2xl hover:scale-[1.02] ${
-              selectedDog?.id === dog.id ? 'ring-4 ring-kennel-500' : ''
-            }`}
+            onClick={() => handleDogClick(dog)}
+            className="relative bg-white/95 backdrop-blur-sm rounded-lg shadow-xl overflow-hidden cursor-pointer transition-all hover:shadow-2xl hover:scale-[1.02]"
           >
             {/* Kennel Pen Frame */}
             <div className="relative h-64 bg-gradient-to-b from-earth-100 to-earth-200 overflow-hidden">
@@ -165,50 +172,6 @@ export default function KennelView() {
         );
       })}
     </div>
-
-    {selectedDog && (
-      <div className="mt-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-        <h3 className="text-xl font-bold text-earth-900 mb-4">{selectedDog.name}'s Performance Stats</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="text-center">
-            <p className="text-sm text-earth-600">Speed</p>
-            <p className="text-3xl font-bold text-earth-900">{selectedDog.speed}</p>
-            {selectedDog.speed_trained > 0 && (
-              <p className="text-xs text-green-600">+{selectedDog.speed_trained.toFixed(1)} trained</p>
-            )}
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-earth-600">Agility</p>
-            <p className="text-3xl font-bold text-earth-900">{selectedDog.agility}</p>
-            {selectedDog.agility_trained > 0 && (
-              <p className="text-xs text-green-600">+{selectedDog.agility_trained.toFixed(1)} trained</p>
-            )}
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-earth-600">Strength</p>
-            <p className="text-3xl font-bold text-earth-900">{selectedDog.strength}</p>
-            {selectedDog.strength_trained > 0 && (
-              <p className="text-xs text-green-600">+{selectedDog.strength_trained.toFixed(1)} trained</p>
-            )}
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-earth-600">Intelligence</p>
-            <p className="text-3xl font-bold text-earth-900">{selectedDog.intelligence}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-earth-600">Trainability</p>
-            <p className="text-3xl font-bold text-earth-900">{selectedDog.trainability}</p>
-          </div>
-        </div>
-
-        {selectedDog.is_rescue && selectedDog.rescue_story && (
-          <div className="mt-4 p-4 bg-kennel-50 rounded-lg border-l-4 border-kennel-500">
-            <p className="text-xs font-semibold text-kennel-800 mb-1">Rescue Story:</p>
-            <p className="text-sm text-earth-700 italic">"{selectedDog.rescue_story}"</p>
-          </div>
-        )}
-      </div>
-    )}
   </div>
 );
 }
