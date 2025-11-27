@@ -1,5 +1,5 @@
 interface SceneBackgroundProps {
-  scene: 'kennel' | 'training' | 'competition' | 'jobs' | 'shop';
+  scene: 'kennel' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
   children: React.ReactNode;
 }
 
@@ -8,6 +8,7 @@ export default function SceneBackground({ scene, children }: SceneBackgroundProp
     kennel: '/src/assets/images/backgrounds/kennel-background.png',
     training: '/src/assets/images/backgrounds/training-background.png',
     competition: '/src/assets/images/backgrounds/competition-background.png',
+    breeding: '/src/assets/images/backgrounds/kennel-background.png',
     jobs: '/src/assets/images/backgrounds/jobs-background.png',
     shop: '/src/assets/images/backgrounds/shop-background.png',
   };
