@@ -31,6 +31,7 @@ interface GameState {
   updateUserXP: (amount: number) => void;
   updateCompetitionWins: (tier: 'local' | 'regional' | 'national') => void;
   setHasAdoptedFirstDog: (value: boolean) => void;
+  claimDailyReward: () => void;
 
   // Breeding actions
   breedDogs: (sireId: string, damId: string, litterSize: number, pregnancyDue: string) => void;
@@ -332,6 +333,33 @@ export const useGameStore = create<GameState>()(
             gems: state.user.gems - gemCost,
           },
         };
+      }),
+
+      claimDailyReward: () => set((state) => {
+        if (!state.user) return {};
+
+        const { calculateLoginStreak, getDailyReward } = require('../utils/dailyRewards');
+
+        // Calculate new streak
+        const newStreak = calculateLoginStreak(state.user) + 1;
+        const reward = getDailyReward(newStreak);
+
+        const updatedUser = {
+          ...state.user,
+          cash: state.user.cash + reward.cash,
+          gems: state.user.gems + reward.gems,
+          xp: state.user.xp + reward.xp,
+          login_streak: newStreak,
+          last_login: new Date().toISOString(),
+          last_streak_claim: new Date().toISOString(),
+        };
+
+        // Save to Supabase if sync is enabled
+        if (state.syncEnabled) {
+          debouncedSave(() => saveUserProfile(updatedUser));
+        }
+
+        return { user: updatedUser };
       }),
 
       // Reset game

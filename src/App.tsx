@@ -20,6 +20,8 @@ import AuthView from './components/auth/AuthView';
 import { useAuth } from './hooks/useAuth';
 import IntroStory from './components/intro/IntroStory';
 import SettingsDropdown from './components/layout/SettingsDropdown';
+import DailyRewardModal from './components/rewards/DailyRewardModal';
+import { canClaimDailyReward } from './utils/dailyRewards';
 
 type View =
   | 'kennel'
@@ -35,6 +37,7 @@ function App() {
   const [currentView, setCurrentView] = useState<View>('office');
   const [shopTab, setShopTab] = useState<'breeds' | 'items' | 'pound'>('breeds');
   const [showIntroStory, setShowIntroStory] = useState(true);
+  const [showDailyReward, setShowDailyReward] = useState(false);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
   const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError } = useGameStore();
 
@@ -44,6 +47,13 @@ function App() {
       loadFromSupabase(authUser.id);
     }
   }, [authUser, loadFromSupabase]);
+
+  // Check for daily reward after game loads
+  useEffect(() => {
+    if (user && !gameLoading && hasAdoptedFirstDog && canClaimDailyReward(user)) {
+      setShowDailyReward(true);
+    }
+  }, [user, gameLoading, hasAdoptedFirstDog]);
 
   const handleDogAdopted = (breed: Breed, name: string, gender: 'male' | 'female') => {
     const newDog = generateDog(breed, name, user?.id || 'temp-user-id', true, gender);
@@ -160,6 +170,10 @@ function App() {
                 <p className="text-xs text-kennel-200 hidden md:block">Level</p>
                 <p className="text-sm md:text-lg font-bold">{user?.level}</p>
               </div>
+              <div className="text-right hidden sm:block">
+                <p className="text-xs text-kennel-200 hidden md:block">Streak</p>
+                <p className="text-sm md:text-lg font-bold">🔥 {user?.login_streak || 0}</p>
+              </div>
               <div className="ml-2 md:ml-4">
                 <SettingsDropdown onSignOut={signOut} />
               </div>
@@ -197,6 +211,11 @@ function App() {
         </main>
 
       </div>
+
+      {/* Daily Reward Modal */}
+      {showDailyReward && user && (
+        <DailyRewardModal onClose={() => setShowDailyReward(false)} />
+      )}
     </div>
   );
 }
