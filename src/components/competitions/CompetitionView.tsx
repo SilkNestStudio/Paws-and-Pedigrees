@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import { competitionTypes, competitionTiers, type CompetitionType, type CompetitionTier } from '../../data/competitionTypes';
+import { competitionTypes, competitionTiers } from '../../data/competitionTypes';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { calculateCompetitionScore, generateAICompetitors, determineWinner } from '../../utils/competitionCalculations';
 import AgilityMiniGame from './AgilityMiniGame';
+
+// Derive the types from the data exports so we don't depend on separate type-only imports
+type CompType = (typeof competitionTypes)[number];
+type CompTier = (typeof competitionTiers)[number];
 
 interface CompetitionResult {
   name: string;
@@ -145,7 +149,7 @@ export default function CompetitionView() {
   };
 
   // Check if dog meets stat requirements for competition
-  const meetsStatRequirement = (dog: any, competition: CompetitionType, tier: CompetitionTier): { meets: boolean; total: number } => {
+  const meetsStatRequirement = (dog: any, competition: CompType, tier: CompTier): { meets: boolean; total: number } => {
     let totalRelevantStats = 0;
 
     Object.keys(competition.statWeights).forEach((stat) => {
