@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import HelpPopover from './HelpPopover';
+import { useGameStore } from '../../stores/gameStore';
 
 interface HelpButtonProps {
   helpId: string;
@@ -9,8 +10,14 @@ interface HelpButtonProps {
 
 export default function HelpButton({ helpId, size = 'small', tooltip }: HelpButtonProps) {
   const [showPopover, setShowPopover] = useState(false);
+  const { tutorialProgress } = useGameStore();
 
   const sizeClasses = size === 'small' ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm';
+
+  // Don't render if help icons are hidden
+  if (!tutorialProgress.showHelpIcons) {
+    return null;
+  }
 
   return (
     <div className="relative inline-block">

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
+import { TUTORIALS } from '../../data/tutorials/tutorialSteps';
 
 interface SettingsDropdownProps {
   onSignOut: () => void;
@@ -8,10 +9,11 @@ interface SettingsDropdownProps {
 export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showTutorialMenu, setShowTutorialMenu] = useState(false);
   const [resetStep, setResetStep] = useState(0);
   const [confirmText, setConfirmText] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { resetGame } = useGameStore();
+  const { resetGame, tutorialProgress, startTutorial, toggleHelpIcons } = useGameStore();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -84,6 +86,52 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
               >
                 <span className="text-lg">🚪</span>
                 <span className="font-medium">Logout</span>
+              </button>
+
+              {/* Divider */}
+              <div className="border-t border-slate-200 my-1"></div>
+
+              {/* Tutorial Settings */}
+              <div className="px-4 py-2">
+                <p className="text-xs font-bold text-slate-500 uppercase">Tutorials</p>
+              </div>
+
+              {/* Replay Tutorials */}
+              <button
+                onClick={() => setShowTutorialMenu(!showTutorialMenu)}
+                className="w-full text-left px-4 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 text-slate-700"
+              >
+                <span className="text-lg">🎓</span>
+                <span className="font-medium">Replay Tutorials</span>
+                <span className="ml-auto text-slate-400">{showTutorialMenu ? '▼' : '▶'}</span>
+              </button>
+
+              {/* Tutorial Submenu */}
+              {showTutorialMenu && (
+                <div className="bg-slate-50 border-t border-b border-slate-200">
+                  {Object.values(TUTORIALS).map((tutorial) => (
+                    <button
+                      key={tutorial.id}
+                      onClick={() => {
+                        startTutorial(tutorial.id);
+                        setIsOpen(false);
+                        setShowTutorialMenu(false);
+                      }}
+                      className="w-full text-left px-8 py-2 hover:bg-slate-200 transition-colors text-sm text-slate-700"
+                    >
+                      {tutorial.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Toggle Help Icons */}
+              <button
+                onClick={() => toggleHelpIcons(!tutorialProgress.showHelpIcons)}
+                className="w-full text-left px-4 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 text-slate-700"
+              >
+                <span className="text-lg">{tutorialProgress.showHelpIcons ? '👁️' : '🚫'}</span>
+                <span className="font-medium">{tutorialProgress.showHelpIcons ? 'Hide' : 'Show'} Help Icons</span>
               </button>
 
               {/* Divider */}
