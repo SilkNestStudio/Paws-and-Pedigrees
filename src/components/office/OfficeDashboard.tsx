@@ -30,11 +30,46 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-3xl font-bold text-earth-900">Office</h2>
-          <HelpButton helpId="office-overview" tooltip="Learn about the Office" />
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-3xl font-bold text-earth-900">Office</h2>
+              <HelpButton helpId="office-overview" tooltip="Learn about the Office" />
+            </div>
+            <p className="text-earth-600">Kennel management dashboard</p>
+          </div>
+
+          {/* Training Points Summary */}
+          {dogs.length > 0 && (
+            <div className="flex-shrink-0">
+              <h3 className="text-sm font-bold text-earth-600 mb-3">🎯 Training Points</h3>
+              <div className="flex gap-3 flex-wrap max-w-md">
+                {dogs.map((dog) => {
+                  const lastReset = new Date(dog.last_training_reset);
+                  const nextReset = new Date(lastReset);
+                  nextReset.setDate(nextReset.getDate() + 1);
+                  nextReset.setHours(0, 0, 0, 0);
+                  const now = new Date();
+                  const hoursUntilReset = Math.max(0, Math.ceil((nextReset.getTime() - now.getTime()) / (1000 * 60 * 60)));
+
+                  return (
+                    <div key={dog.id} className="bg-blue-50 border border-blue-200 p-3 rounded-lg min-w-[140px]">
+                      <p className="font-semibold text-blue-900 text-sm mb-1 truncate">{dog.name}</p>
+                      <p className="text-xl font-bold text-blue-700">
+                        {dog.training_points}/100
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        {hoursUntilReset > 0
+                          ? `Resets in ${hoursUntilReset}h`
+                          : 'Resetting...'}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-        <p className="text-earth-600">Kennel management dashboard</p>
       </div>
 
       {/* Overview Stats */}
@@ -259,36 +294,6 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
         </div>
       </div>
 
-      {/* Training Points Summary */}
-      {dogs.length > 0 && (
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold text-earth-900 mb-4">🎯 Training Points</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {dogs.map((dog) => {
-              const lastReset = new Date(dog.last_training_reset);
-              const nextReset = new Date(lastReset);
-              nextReset.setDate(nextReset.getDate() + 1);
-              nextReset.setHours(0, 0, 0, 0);
-              const now = new Date();
-              const hoursUntilReset = Math.max(0, Math.ceil((nextReset.getTime() - now.getTime()) / (1000 * 60 * 60)));
-
-              return (
-                <div key={dog.id} className="bg-blue-50 p-4 rounded-lg">
-                  <p className="font-semibold text-blue-900 mb-2">{dog.name}</p>
-                  <p className="text-2xl font-bold text-blue-700">
-                    {dog.training_points}/100 TP
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    {hoursUntilReset > 0
-                      ? `Regenerates in ${hoursUntilReset}h`
-                      : 'Regenerating now...'}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
