@@ -7,6 +7,7 @@ import AgilityMiniGame from './AgilityMiniGame';
 import ObedienceMiniGame from './ObedienceMiniGame';
 import WeightPullMiniGame from './WeightPullMiniGame';
 import RacingMiniGame from './RacingMiniGame';
+import HelpButton from '../tutorial/HelpButton';
 
 // Derive the types from the data exports so we don't depend on separate type-only imports
 type CompetitionType = (typeof competitionTypes)[number];
@@ -244,7 +245,10 @@ export default function CompetitionView() {
 
           {/* Tier Selection */}
           <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
-            <h3 className="text-xl font-bold text-earth-900 mb-4">Competition Tier</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="text-xl font-bold text-earth-900">Competition Tier</h3>
+              <HelpButton helpId="competition-tiers" tooltip="Learn about competition tiers" />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {competitionTiers.map((tier) => {
                 const isUnlocked = isTierUnlocked(tier);

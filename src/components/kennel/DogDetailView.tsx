@@ -1,6 +1,7 @@
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import DogCarePanel from './DogCarePanel';
+import HelpButton from '../tutorial/HelpButton';
 
 interface DogDetailViewProps {
   onBack: () => void;
@@ -156,7 +157,10 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
               {/* Bond Level */}
               <div className="pt-3 border-t border-earth-200">
                 <div className="flex justify-between items-center mb-1">
-                  <p className="text-sm font-semibold text-kennel-800">Bond Level {selectedDog.bond_level}/10</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-semibold text-kennel-800">Bond Level {selectedDog.bond_level}/10</p>
+                    <HelpButton helpId="bond-level" size="small" tooltip="What is Bond Level?" />
+                  </div>
                   <p className="text-sm text-kennel-600">{selectedDog.bond_xp}/50 XP</p>
                 </div>
                 <div className="w-full bg-kennel-200 rounded-full h-2">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { jobTypes } from '../../data/jobTypes';
+import HelpButton from '../tutorial/HelpButton';
 
 export default function JobsBoard() {
   const { user, updateUserCash } = useGameStore();
@@ -43,7 +44,10 @@ export default function JobsBoard() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
-        <h2 className="text-2xl font-bold text-earth-900 mb-2">Jobs Board</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-2xl font-bold text-earth-900">Jobs Board</h2>
+          <HelpButton helpId="jobs-daily-limits" tooltip="Learn about jobs" />
+        </div>
         <p className="text-earth-600">Earn extra cash between competitions</p>
       </div>
 

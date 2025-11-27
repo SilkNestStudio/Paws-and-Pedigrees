@@ -5,6 +5,7 @@ import { shopItems } from '../../data/shopItems';
 import { generateDog } from '../../utils/dogGenerator';
 import { Breed, ShopItem } from '../../types';
 import PoundView from '../pound/PoundView';
+import HelpButton from '../tutorial/HelpButton';
 
 interface ShopViewProps {
   initialTab?: 'breeds' | 'items' | 'pound';
@@ -162,7 +163,10 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
           {/* Available Breeds */}
           {availableBreeds.length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-white drop-shadow-lg mb-4">Available Breeds</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-xl font-bold text-white drop-shadow-lg">Available Breeds</h3>
+                <HelpButton helpId="shop-breeds" tooltip="Learn about buying breeds" />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {availableBreeds.map((breed) => (
                   <div
@@ -290,7 +294,10 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
           {/* Available Items */}
           {availableItems.length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-white drop-shadow-lg mb-4">Available Items</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-xl font-bold text-white drop-shadow-lg">Available Items</h3>
+                <HelpButton helpId="shop-items" tooltip="Learn about shop items" />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {availableItems.map((item) => (
                   <div

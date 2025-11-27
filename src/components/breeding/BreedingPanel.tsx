@@ -6,6 +6,7 @@ import {
   calculatePregnancyDueDate,
 } from '../../utils/breedingCalculations';
 import { BREEDING_CONSTANTS } from '../../data/breedingConstants';
+import HelpButton from '../tutorial/HelpButton';
 
 export default function BreedingPanel() {
   const { dogs, user, updateUserCash, breedDogs } = useGameStore();
@@ -63,7 +64,10 @@ export default function BreedingPanel() {
     <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
-        <h2 className="text-2xl font-bold text-earth-900 mb-2">Breeding Center</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-2xl font-bold text-earth-900">Breeding Center</h2>
+          <HelpButton helpId="breeding-genetics" tooltip="Learn about breeding" />
+        </div>
         <p className="text-earth-600">
           Breed your dogs to create puppies with inherited traits. Breeding fee: ${BREEDING_CONSTANTS.BREEDING_FEE}
         </p>
