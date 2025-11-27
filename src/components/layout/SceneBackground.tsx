@@ -1,9 +1,11 @@
+import { memo } from 'react';
+
 interface SceneBackgroundProps {
   scene: 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
   children: React.ReactNode;
 }
 
-export default function SceneBackground({ scene, children }: SceneBackgroundProps) {
+function SceneBackground({ scene, children }: SceneBackgroundProps) {
   const backgrounds = {
     kennel: '/src/assets/images/backgrounds/kennel-background.png',
     dogDetail: '/src/assets/images/backgrounds/kennel-background.png',
@@ -29,3 +31,5 @@ export default function SceneBackground({ scene, children }: SceneBackgroundProp
     </div>
   );
 }
+
+export default memo(SceneBackground);

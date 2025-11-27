@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { checkBondLevelUp, getRescueDogBonusDescription } from '../../utils/bondSystem';
 
-export default function DogCarePanel() {
+function DogCarePanel() {
   const { selectedDog, updateDog, updateUserCash } = useGameStore();
 
   if (!selectedDog) {
@@ -166,3 +167,5 @@ export default function DogCarePanel() {
     </div>
   );
 }
+
+export default memo(DogCarePanel);

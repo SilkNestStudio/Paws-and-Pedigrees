@@ -1,10 +1,12 @@
+import { memo } from 'react';
+
 interface SidebarProps {
   currentView: string;
   onViewChange: (view: string) => void;
 }
 
 // Navigation sidebar (desktop) / bottom nav (mobile)
-export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
+function Sidebar({ currentView, onViewChange }: SidebarProps) {
   const menuItems = [
     { id: 'office', label: 'Office', icon: '📋' },
     { id: 'kennel', label: 'Kennel', icon: '🏠' },
@@ -57,3 +59,5 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
     </>
   );
 }
+
+export default memo(Sidebar);
