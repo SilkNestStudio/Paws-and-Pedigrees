@@ -5,8 +5,9 @@
 CREATE TABLE public.profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
-  cash INTEGER DEFAULT 5000,
-  gems INTEGER DEFAULT 0,
+  kennel_name TEXT NOT NULL,
+  cash INTEGER DEFAULT 500,
+  gems INTEGER DEFAULT 50,
   level INTEGER DEFAULT 1,
   xp INTEGER DEFAULT 0,
   kennel_level INTEGER DEFAULT 1,
@@ -190,10 +191,11 @@ CREATE TRIGGER profiles_updated_at
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username)
+  INSERT INTO public.profiles (id, username, kennel_name)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'username', NEW.email)
+    COALESCE(NEW.raw_user_meta_data->>'username', NEW.email),
+    COALESCE(NEW.raw_user_meta_data->>'kennel_name', 'My Kennel')
   );
   RETURN NEW;
 END;

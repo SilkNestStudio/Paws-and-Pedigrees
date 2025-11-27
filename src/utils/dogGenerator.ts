@@ -1,7 +1,13 @@
 import { Dog, Breed } from '../types';
 
-export function generateDog(breed: Breed, name: string, userId: string, isRescue: boolean = false): Dog {
-  const gender: 'male' | 'female' = Math.random() > 0.5 ? 'male' : 'female';
+export function generateDog(
+  breed: Breed,
+  name: string,
+  userId: string,
+  isRescue: boolean = false,
+  preferredGender?: 'male' | 'female'
+): Dog {
+  const gender: 'male' | 'female' = preferredGender || (Math.random() > 0.5 ? 'male' : 'female');
 
   // Generate random stats within breed ranges (rescue dogs get slightly lower stats)
   const statMultiplier = isRescue ? 0.6 : 1.0;

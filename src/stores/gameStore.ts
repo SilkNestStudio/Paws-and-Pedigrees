@@ -39,6 +39,9 @@ interface GameState {
   // Shop actions
   purchaseBreed: (dog: Dog, cashCost: number, gemCost: number) => void;
   purchaseItem: (dogId: string, effects: any, cashCost: number, gemCost: number) => void;
+
+  // Reset game
+  resetGame: () => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -47,6 +50,7 @@ export const useGameStore = create<GameState>()(
       user: {
         id: 'temp-user-id',
         username: 'Player',
+        kennel_name: 'My Kennel',
         cash: 500,
         gems: 50,
         level: 1,
@@ -302,6 +306,41 @@ export const useGameStore = create<GameState>()(
             cash: state.user.cash - cashCost,
             gems: state.user.gems - gemCost,
           },
+        };
+      }),
+
+      // Reset game
+      resetGame: () => set((state) => {
+        // Keep user id, username, and kennel_name but reset everything else
+        const userId = state.user?.id || 'temp-user-id';
+        const username = state.user?.username || 'Player';
+        const kennelName = state.user?.kennel_name || 'My Kennel';
+
+        return {
+          user: {
+            id: userId,
+            username: username,
+            kennel_name: kennelName,
+            cash: 500,
+            gems: 50,
+            level: 1,
+            xp: 0,
+            training_skill: 1,
+            care_knowledge: 1,
+            breeding_expertise: 1,
+            competition_strategy: 1,
+            business_acumen: 1,
+            kennel_level: 1,
+            created_at: new Date().toISOString(),
+            last_login: new Date().toISOString(),
+            login_streak: 1,
+            competition_wins_local: 0,
+            competition_wins_regional: 0,
+            competition_wins_national: 0,
+          },
+          dogs: [],
+          selectedDog: null,
+          hasAdoptedFirstDog: false,
         };
       }),
     }),

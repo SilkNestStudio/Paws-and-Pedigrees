@@ -25,18 +25,32 @@ export default function PoundView() {
       return;
     }
 
+    // Ask for gender
+    const genderChoice = prompt(
+      `Choose gender for your ${breed.name}:\nType "male" or "female"`,
+      'male'
+    )?.toLowerCase();
+
+    if (!genderChoice || (genderChoice !== 'male' && genderChoice !== 'female')) {
+      alert('Invalid gender choice. Please type "male" or "female".');
+      return;
+    }
+
     // Ask for dog name
-    const dogName = prompt(`What would you like to name your ${breed.name}?`, breed.name);
+    const dogName = prompt(
+      `What would you like to name your ${genderChoice} ${breed.name}?`,
+      breed.name
+    );
     if (!dogName) return;
 
-    // Generate rescue dog
-    const newDog = generateDog(breed, dogName, user.id, true);
+    // Generate rescue dog with chosen gender
+    const newDog = generateDog(breed, dogName, user.id, true, genderChoice as 'male' | 'female');
 
     // Add dog and deduct fee
     addDog(newDog);
     useGameStore.getState().updateUserCash(-ADOPTION_FEE);
 
-    alert(`🎉 You adopted ${dogName}! Welcome to your kennel.`);
+    alert(`🎉 You adopted ${dogName} (${genderChoice === 'male' ? '♂️ Male' : '♀️ Female'})! Welcome to your kennel.`);
 
     // Refresh available dogs
     setAvailableDogs(getThreeDogs());

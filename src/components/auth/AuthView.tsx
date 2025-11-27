@@ -10,6 +10,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [kennelName, setKennelName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -42,12 +43,19 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
           return;
         }
 
+        if (!kennelName.trim()) {
+          setError('Kennel name is required');
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
               username: username.trim(),
+              kennel_name: kennelName.trim(),
             },
           },
         });
@@ -81,19 +89,41 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
 
         <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-earth-700 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 border border-earth-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-kennel-500"
-                placeholder="Enter username"
-                required={!isLogin}
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-earth-700 mb-2">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-2 border border-earth-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-kennel-500"
+                  placeholder="Enter username"
+                  required={!isLogin}
+                />
+                <p className="text-xs text-earth-500 mt-1">
+                  Your player name - visible to other players
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-earth-700 mb-2">
+                  Kennel Name
+                </label>
+                <input
+                  type="text"
+                  value={kennelName}
+                  onChange={(e) => setKennelName(e.target.value)}
+                  className="w-full px-4 py-2 border border-earth-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-kennel-500"
+                  placeholder="e.g., Sunshine Kennels"
+                  required={!isLogin}
+                />
+                <p className="text-xs text-earth-500 mt-1">
+                  Your kennel's name - shown in your profile
+                </p>
+              </div>
+            </>
           )}
 
           <div>

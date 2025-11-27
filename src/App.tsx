@@ -18,6 +18,8 @@ import { shouldAgeDog, ageDog } from './utils/puppyAging';
 import OfficeDashboard from './components/office/OfficeDashboard';
 import AuthView from './components/auth/AuthView';
 import { useAuth } from './hooks/useAuth';
+import IntroStory from './components/intro/IntroStory';
+import SettingsDropdown from './components/layout/SettingsDropdown';
 
 type View =
   | 'kennel'
@@ -31,6 +33,8 @@ type View =
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('office');
+  const [shopTab, setShopTab] = useState<'breeds' | 'items' | 'pound'>('breeds');
+  const [showIntroStory, setShowIntroStory] = useState(true);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
   const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase } = useGameStore();
 
@@ -86,52 +90,55 @@ function App() {
   }
 
   if (!hasAdoptedFirstDog) {
+    if (showIntroStory) {
+      return <IntroStory onComplete={() => setShowIntroStory(false)} />;
+    }
     return <PoundScene onDogSelected={handleDogAdopted} />;
   }
 
-  const handleViewChange = (view: string) => {
+  const handleViewChange = (view: string, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => {
     setCurrentView(view as View);
+    if (view === 'shop' && options?.shopTab) {
+      setShopTab(options.shopTab);
+    }
   };
 
   return (
-    <div className="flex h-screen bg-earth-50">
+    <div className="md:flex h-screen bg-earth-50">
       <Sidebar currentView={currentView} onViewChange={handleViewChange} />
-      
-      <div className="flex-1 flex flex-col">
-        <header className="bg-kennel-700 text-white p-4 shadow-lg">
+
+      <div className="flex-1 flex flex-col h-screen">
+        <header className="bg-kennel-700 text-white p-3 md:p-4 shadow-lg">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">Paws & Pedigrees</h1>
-              <p className="text-xs text-kennel-200">
-                {user?.username || 'Player'}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg md:text-2xl font-bold truncate">{user?.kennel_name || 'My Kennel'}</h1>
+              <p className="text-xs text-kennel-200 truncate">
+                Owner: {user?.username || 'Player'}
               </p>
             </div>
-            <div className="flex gap-6 items-center">
+            <div className="flex gap-2 md:gap-6 items-center">
               <div className="text-right">
-                <p className="text-xs text-kennel-200">Cash</p>
-                <p className="text-lg font-bold">${user?.cash}</p>
+                <p className="text-xs text-kennel-200 hidden md:block">Cash</p>
+                <p className="text-sm md:text-lg font-bold">${user?.cash}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-kennel-200">Gems</p>
-                <p className="text-lg font-bold">💎 {user?.gems}</p>
+                <p className="text-xs text-kennel-200 hidden md:block">Gems</p>
+                <p className="text-sm md:text-lg font-bold">💎 {user?.gems}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-kennel-200">Level</p>
-                <p className="text-lg font-bold">{user?.level}</p>
+              <div className="text-right hidden sm:block">
+                <p className="text-xs text-kennel-200 hidden md:block">Level</p>
+                <p className="text-sm md:text-lg font-bold">{user?.level}</p>
               </div>
-              <button
-                onClick={signOut}
-                className="ml-4 px-4 py-2 bg-kennel-800 hover:bg-kennel-900 rounded-lg text-sm font-medium transition-colors"
-              >
-                Logout
-              </button>
+              <div className="ml-2 md:ml-4">
+                <SettingsDropdown onSignOut={signOut} />
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
           <SceneBackground scene={currentView}>
-            <div className="p-6">
+            <div className="p-3 md:p-6">
               {currentView === 'kennel' && <KennelView onViewDog={() => setCurrentView('dogDetail')} />}
 
               {currentView === 'dogDetail' && <DogDetailView onBack={() => setCurrentView('kennel')} />}
@@ -153,7 +160,7 @@ function App() {
 
               {currentView === 'jobs' && <JobsBoard />}
 
-              {currentView === 'shop' && <ShopView />}
+              {currentView === 'shop' && <ShopView initialTab={shopTab} />}
             </div>
           </SceneBackground>
         </main>

@@ -93,6 +93,7 @@ export interface Dog {
 export interface UserProfile {
   id: string;
   username: string;
+  kennel_name: string;
   cash: number;
   gems: number;
   level: number;

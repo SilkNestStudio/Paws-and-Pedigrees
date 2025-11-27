@@ -6,7 +6,7 @@ import { rescueBreeds } from '../../data/rescueBreeds';
 type View = 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
 
 interface OfficeDashboardProps {
-  onNavigate: (view: View) => void;
+  onNavigate: (view: View, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => void;
 }
 
 export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
@@ -239,7 +239,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold text-earth-900 mb-4">🏠 Adopt from Pound</h3>
           <div
-            onClick={() => onNavigate('shop')}
+            onClick={() => onNavigate('shop', { shopTab: 'pound' })}
             className="cursor-pointer group"
           >
             <div className="bg-earth-100 rounded-lg p-8 mb-4 text-center group-hover:bg-earth-200 transition-all">

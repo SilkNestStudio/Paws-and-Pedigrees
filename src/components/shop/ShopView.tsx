@@ -6,9 +6,13 @@ import { generateDog } from '../../utils/dogGenerator';
 import { Breed, ShopItem } from '../../types';
 import PoundView from '../pound/PoundView';
 
-export default function ShopView() {
+interface ShopViewProps {
+  initialTab?: 'breeds' | 'items' | 'pound';
+}
+
+export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
   const { user, selectedDog, purchaseBreed, purchaseItem } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'breeds' | 'items' | 'pound'>('breeds');
+  const [activeTab, setActiveTab] = useState<'breeds' | 'items' | 'pound'>(initialTab);
 
   const handlePurchaseBreed = (breed: Breed) => {
     if (!user) return;
@@ -26,16 +30,27 @@ export default function ShopView() {
       return;
     }
 
-    const dogName = prompt(`Name your new ${breed.name}:`, `${breed.name}`);
+    // Ask for gender
+    const genderChoice = prompt(
+      `Choose gender for your ${breed.name}:\nType "male" or "female"`,
+      'male'
+    )?.toLowerCase();
+
+    if (!genderChoice || (genderChoice !== 'male' && genderChoice !== 'female')) {
+      alert('Invalid gender choice. Please type "male" or "female".');
+      return;
+    }
+
+    const dogName = prompt(`Name your new ${genderChoice} ${breed.name}:`, `${breed.name}`);
     if (!dogName) return;
 
-    // Generate the dog
-    const newDog = generateDog(breed, dogName, user.id, false);
+    // Generate the dog with chosen gender
+    const newDog = generateDog(breed, dogName, user.id, false, genderChoice as 'male' | 'female');
 
     // Purchase the dog
     purchaseBreed(newDog, cashCost, gemCost);
 
-    alert(`🎉 Purchased ${dogName}!`);
+    alert(`🎉 Purchased ${dogName} (${genderChoice === 'male' ? '♂️ Male' : '♀️ Female'})!`);
   };
 
   const handlePurchaseItem = (item: ShopItem) => {
