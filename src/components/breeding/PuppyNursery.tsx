@@ -9,7 +9,7 @@ import {
 import { BREEDING_CONSTANTS, calculatePuppyPrice, calculateSkipCost } from '../../data/breedingConstants';
 
 export default function PuppyNursery() {
-  const { dogs, user, giveBirth, sellPuppy, skipPregnancy, removeDog } = useGameStore();
+  const { dogs, user, giveBirth, sellPuppy, skipPregnancy, removeDog, updateUserXP } = useGameStore();
 
   // Check for completed pregnancies on component mount and updates
   useEffect(() => {
@@ -48,13 +48,16 @@ export default function PuppyNursery() {
     const price = calculatePuppyPrice(puppy);
     if (confirm(`Sell ${puppy.name} for $${price}?`)) {
       sellPuppy(puppy.id, price);
+      updateUserXP(20); // Gain XP for successful sale
+      alert(`${puppy.name} sold for $${price}! (+20 XP)`);
     }
   };
 
   const handleRehome = (puppy: typeof dogs[0]) => {
     if (confirm(`Rehome ${puppy.name} for free? You'll gain XP but no cash.`)) {
       removeDog(puppy.id);
-      // TODO: Add XP gain in future
+      updateUserXP(10); // Gain XP for rehoming
+      alert(`${puppy.name} rehomed to a loving family! (+10 XP)`);
     }
   };
 

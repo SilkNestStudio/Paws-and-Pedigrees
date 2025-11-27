@@ -26,6 +26,7 @@ interface GameState {
   selectDog: (dog: Dog | null) => void;
   updateUserCash: (amount: number) => void;
   updateUserGems: (amount: number) => void;
+  updateUserXP: (amount: number) => void;
   updateCompetitionWins: (tier: 'local' | 'regional' | 'national') => void;
   setHasAdoptedFirstDog: (value: boolean) => void;
 
@@ -148,6 +149,17 @@ export const useGameStore = create<GameState>()(
       updateUserGems: (amount) => {
         set((state) => ({
           user: state.user ? { ...state.user, gems: state.user.gems + amount } : null
+        }));
+        // Save to Supabase if sync is enabled
+        const state = useGameStore.getState();
+        if (state.syncEnabled && state.user) {
+          debouncedSave(() => saveUserProfile(state.user!));
+        }
+      },
+
+      updateUserXP: (amount) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, xp: state.user.xp + amount } : null
         }));
         // Save to Supabase if sync is enabled
         const state = useGameStore.getState();

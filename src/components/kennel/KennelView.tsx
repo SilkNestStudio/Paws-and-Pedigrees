@@ -158,12 +158,12 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
               <div className="pt-2 border-t border-earth-200">
                 <div className="flex justify-between items-center">
                   <p className="text-xs font-semibold text-kennel-800">Bond Level {dog.bond_level}/10</p>
-                  <p className="text-xs text-kennel-600">{dog.bond_xp}/100 XP</p>
+                  <p className="text-xs text-kennel-600">{dog.bond_xp}/50 XP</p>
                 </div>
                 <div className="w-full bg-kennel-200 rounded-full h-1.5 mt-1">
                   <div
                     className="bg-kennel-600 h-1.5 rounded-full transition-all"
-                    style={{ width: `${dog.bond_xp}%` }}
+                    style={{ width: `${(dog.bond_xp / 50) * 100}%` }}
                   />
                 </div>
               </div>

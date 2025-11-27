@@ -148,13 +148,13 @@ export default function DogCarePanel() {
             Bond Level {selectedDog.bond_level}/10
           </p>
           <p className="text-xs text-kennel-600">
-            {selectedDog.bond_xp}/100 XP
+            {selectedDog.bond_xp}/50 XP
           </p>
         </div>
         <div className="w-full bg-kennel-200 rounded-full h-2">
           <div
             className="bg-kennel-600 h-2 rounded-full transition-all"
-            style={{ width: `${selectedDog.bond_xp}%` }}
+            style={{ width: `${(selectedDog.bond_xp / 50) * 100}%` }}
           />
         </div>
         {getRescueDogBonusDescription(selectedDog) && (

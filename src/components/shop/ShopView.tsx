@@ -30,6 +30,20 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
       return;
     }
 
+    // Confirmation for purchase
+    let costText = '';
+    if (cashCost > 0 && gemCost > 0) {
+      costText = `$${cashCost} and 💎${gemCost} gems`;
+    } else if (cashCost > 0) {
+      costText = `$${cashCost}`;
+    } else if (gemCost > 0) {
+      costText = `💎${gemCost} gems`;
+    }
+
+    if (!confirm(`Purchase ${breed.name} for ${costText}?`)) {
+      return;
+    }
+
     // Ask for gender
     const genderChoice = prompt(
       `Choose gender for your ${breed.name}:\nType "male" or "female"`,
@@ -69,6 +83,20 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
     }
     if (gemCost > 0 && user.gems < gemCost) {
       alert(`Not enough gems! Need ${gemCost} gems (have ${user.gems})`);
+      return;
+    }
+
+    // Confirmation for purchase
+    let costText = '';
+    if (cashCost > 0 && gemCost > 0) {
+      costText = `$${cashCost} and 💎${gemCost} gems`;
+    } else if (cashCost > 0) {
+      costText = `$${cashCost}`;
+    } else if (gemCost > 0) {
+      costText = `💎${gemCost} gems`;
+    }
+
+    if (!confirm(`Use ${item.name} on ${selectedDog.name} for ${costText}?`)) {
       return;
     }
 

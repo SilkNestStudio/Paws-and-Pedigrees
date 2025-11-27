@@ -157,12 +157,12 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
               <div className="pt-3 border-t border-earth-200">
                 <div className="flex justify-between items-center mb-1">
                   <p className="text-sm font-semibold text-kennel-800">Bond Level {selectedDog.bond_level}/10</p>
-                  <p className="text-sm text-kennel-600">{selectedDog.bond_xp}/100 XP</p>
+                  <p className="text-sm text-kennel-600">{selectedDog.bond_xp}/50 XP</p>
                 </div>
                 <div className="w-full bg-kennel-200 rounded-full h-2">
                   <div
                     className="bg-kennel-600 h-2 rounded-full transition-all"
-                    style={{ width: `${selectedDog.bond_xp}%` }}
+                    style={{ width: `${(selectedDog.bond_xp / 50) * 100}%` }}
                   />
                 </div>
               </div>

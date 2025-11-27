@@ -136,7 +136,7 @@ function App() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <SceneBackground scene={currentView}>
             <div className="p-3 md:p-6">
               {currentView === 'kennel' && <KennelView onViewDog={() => setCurrentView('dogDetail')} />}

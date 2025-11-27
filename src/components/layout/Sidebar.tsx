@@ -6,8 +6,8 @@ interface SidebarProps {
 // Navigation sidebar (desktop) / bottom nav (mobile)
 export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
   const menuItems = [
-    { id: 'kennel', label: 'Kennel', icon: '🏠' },
     { id: 'office', label: 'Office', icon: '📋' },
+    { id: 'kennel', label: 'Kennel', icon: '🏠' },
     { id: 'training', label: 'Training', icon: '🎯' },
     { id: 'competition', label: 'Compete', icon: '🏆' },
     { id: 'breeding', label: 'Breeding', icon: '🤰' },

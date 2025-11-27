@@ -4,10 +4,10 @@ import { Dog } from '../types';
  * Check if a dog should level up their bond and return updated stats
  */
 export function checkBondLevelUp(dog: Dog): Partial<Dog> | null {
-  if (dog.bond_xp >= 100 && dog.bond_level < 10) {
+  if (dog.bond_xp >= 50 && dog.bond_level < 10) {
     return {
       bond_level: dog.bond_level + 1,
-      bond_xp: dog.bond_xp - 100, // Carry over excess XP
+      bond_xp: dog.bond_xp - 50, // Carry over excess XP
     };
   }
   return null;
