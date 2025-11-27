@@ -6,8 +6,8 @@ import { calculateCompetitionScore, generateAICompetitors, determineWinner } fro
 import AgilityMiniGame from './AgilityMiniGame';
 
 // Derive the types from the data exports so we don't depend on separate type-only imports
-type CompType = (typeof competitionTypes)[number];
-type CompTier = (typeof competitionTiers)[number];
+type CompetitionType = (typeof competitionTypes)[number];
+type CompetitionTier = (typeof competitionTiers)[number];
 
 interface CompetitionResult {
   name: string;
@@ -149,7 +149,7 @@ export default function CompetitionView() {
   };
 
   // Check if dog meets stat requirements for competition
-  const meetsStatRequirement = (dog: any, competition: CompType, tier: CompTier): { meets: boolean; total: number } => {
+  const meetsStatRequirement = (dog: any, competition: CompetitionType, tier: CompetitionTier): { meets: boolean; total: number } => {
     let totalRelevantStats = 0;
 
     Object.keys(competition.statWeights).forEach((stat) => {
