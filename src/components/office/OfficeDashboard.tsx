@@ -1,8 +1,10 @@
 import { useGameStore } from '../../stores/gameStore';
 import { getWeeksRemaining } from '../../utils/breedingCalculations';
 
+type View = 'kennel' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
+
 interface OfficeDashboardProps {
-  onNavigate: (view: string) => void;
+  onNavigate: (view: View) => void;
 }
 
 export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
@@ -36,7 +38,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
               <p className="text-sm text-earth-600">Total Dogs</p>
               <p className="text-3xl font-bold text-earth-900">{totalDogs}</p>
               <p className="text-xs text-earth-500 mt-1">
-                {adults} adults, {puppies} puppies
+                {adults.length} adults, {puppies.length} puppies
               </p>
             </div>
             <span className="text-4xl">🐕</span>
@@ -112,7 +114,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
                   )}
                 </div>
                 <button
-                  onClick={() => onNavigate('kennels')}
+                  onClick={() => onNavigate('kennel')}
                   className="mt-3 w-full py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-semibold text-sm"
                 >
                   Go to Kennels
@@ -154,7 +156,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
           <h3 className="text-xl font-bold text-earth-900 mb-4">📋 Quick Actions</h3>
           <div className="space-y-3">
             <button
-              onClick={() => onNavigate('kennels')}
+              onClick={() => onNavigate('kennel')}
               className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
             >
               <p className="font-semibold text-earth-900">🐕 View My Dogs</p>
@@ -191,7 +193,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold text-earth-900 mb-4">🏠 Adopt from Pound</h3>
           <div
-            onClick={() => onNavigate('pound')}
+            onClick={() => onNavigate('kennel')}
             className="cursor-pointer group"
           >
             <div className="bg-earth-100 rounded-lg p-8 mb-4 text-center group-hover:bg-earth-200 transition-all">

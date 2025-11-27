@@ -16,9 +16,19 @@ import BreedingPanel from './components/breeding/BreedingPanel';
 import PuppyNursery from './components/breeding/PuppyNursery';
 import ShopView from './components/shop/ShopView';
 import { shouldAgeDog, ageDog } from './utils/puppyAging';
+import OfficeDashboard from './components/office/OfficeDashboard';
+
+type View =
+  | 'kennel'
+  | 'office'
+  | 'training'
+  | 'competition'
+  | 'breeding'
+  | 'jobs'
+  | 'shop';
 
 function App() {
-  const [currentView, setCurrentView] = useState('kennel');
+  const [currentView, setCurrentView] = useState<View>('kennel');
   const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog } = useGameStore();
 
   const handleDogAdopted = (breed: Breed, name: string) => {
@@ -55,9 +65,13 @@ function App() {
     return <PoundScene onDogSelected={handleDogAdopted} />;
   }
 
+  const handleViewChange = (view: string) => {
+    setCurrentView(view as View);
+  };
+
   return (
     <div className="flex h-screen bg-earth-50">
-      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+      <Sidebar currentView={currentView} onViewChange={handleViewChange} />
       
       <div className="flex-1 flex flex-col">
         <header className="bg-kennel-700 text-white p-4 shadow-lg">
@@ -81,36 +95,40 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto">
-            <SceneBackground scene={currentView as 'kennel' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop'}>
-              <div className="p-6">
-                {currentView === 'kennel' && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                      <KennelView />
-                    </div>
-                    <div>
-                      <DogCarePanel />
-                    </div>
+          <SceneBackground scene={currentView}>
+            <div className="p-6">
+              {currentView === 'kennel' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <KennelView />
                   </div>
-                )}
-                
-                {currentView === 'training' && <TrainingView />}
-                
-                {currentView === 'competition' && <CompetitionView />}
-
-                {currentView === 'breeding' && (
-                  <div className="grid grid-cols-1 gap-6">
-                    <BreedingPanel />
-                    <PuppyNursery />
+                  <div>
+                    <DogCarePanel />
                   </div>
-                )}
+                </div>
+              )}
 
-                {currentView === 'jobs' && <JobsBoard />}
+              {currentView === 'office' && (
+                <OfficeDashboard onNavigate={setCurrentView} />
+              )}
+              
+              {currentView === 'training' && <TrainingView />}
+              
+              {currentView === 'competition' && <CompetitionView />}
 
-                {currentView === 'shop' && <ShopView />}
-              </div>
-            </SceneBackground>
-          </main>
+              {currentView === 'breeding' && (
+                <div className="grid grid-cols-1 gap-6">
+                  <BreedingPanel />
+                  <PuppyNursery />
+                </div>
+              )}
+
+              {currentView === 'jobs' && <JobsBoard />}
+
+              {currentView === 'shop' && <ShopView />}
+            </div>
+          </SceneBackground>
+        </main>
 
       </div>
     </div>

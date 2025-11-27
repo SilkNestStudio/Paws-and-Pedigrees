@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import { rescueBreeds } from '../../data/rescueBreeds';
 import {
   checkBreedingEligibility,
   previewGenetics,
-  generateLitter,
   calculatePregnancyDueDate,
 } from '../../utils/breedingCalculations';
 import { BREEDING_CONSTANTS } from '../../data/breedingConstants';

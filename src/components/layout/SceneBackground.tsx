@@ -1,11 +1,12 @@
 interface SceneBackgroundProps {
-  scene: 'kennel' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
+  scene: 'kennel' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
   children: React.ReactNode;
 }
 
 export default function SceneBackground({ scene, children }: SceneBackgroundProps) {
   const backgrounds = {
     kennel: '/src/assets/images/backgrounds/kennel-background.png',
+    office: '/src/assets/images/backgrounds/office-background.png',
     training: '/src/assets/images/backgrounds/training-background.png',
     competition: '/src/assets/images/backgrounds/competition-background.png',
     breeding: '/src/assets/images/backgrounds/kennel-background.png',
@@ -13,10 +14,12 @@ export default function SceneBackground({ scene, children }: SceneBackgroundProp
     shop: '/src/assets/images/backgrounds/shop-background.png',
   };
 
+  const backgroundImage = backgrounds[scene] || backgrounds.kennel;
+
   return (
     <div 
       className="min-h-full bg-cover bg-center bg-no-repeat relative"
-      style={{ backgroundImage: `url(${backgrounds[scene]})` }}
+      style={{ backgroundImage: `url(${backgroundImage})` }}
     >
       <div className="absolute inset-0 bg-black/10" />
       <div className="relative z-10">

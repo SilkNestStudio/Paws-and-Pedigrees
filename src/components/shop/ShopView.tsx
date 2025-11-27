@@ -7,9 +7,8 @@ import { Breed, ShopItem } from '../../types';
 import PoundView from '../pound/PoundView';
 
 export default function ShopView() {
-  const { user, dogs, selectedDog, purchaseBreed, purchaseItem } = useGameStore();
+  const { user, selectedDog, purchaseBreed, purchaseItem } = useGameStore();
   const [activeTab, setActiveTab] = useState<'breeds' | 'items' | 'pound'>('breeds');
-  const [selectedBreed, setSelectedBreed] = useState<Breed | null>(null);
 
   const handlePurchaseBreed = (breed: Breed) => {
     if (!user) return;
@@ -37,7 +36,6 @@ export default function ShopView() {
     purchaseBreed(newDog, cashCost, gemCost);
 
     alert(`🎉 Purchased ${dogName}!`);
-    setSelectedBreed(null);
   };
 
   const handlePurchaseItem = (item: ShopItem) => {
@@ -188,8 +186,8 @@ export default function ShopView() {
                         onClick={() => handlePurchaseBreed(breed)}
                         disabled={
                           !user ||
-                          (breed.purchase_price && user.cash < breed.purchase_price) ||
-                          (breed.gem_price && user.gems < breed.gem_price)
+                          (!!breed.purchase_price && user.cash < breed.purchase_price) ||
+                          (!!breed.gem_price && user.gems < breed.gem_price)
                         }
                         className="w-full py-2 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold"
                       >
@@ -327,7 +325,7 @@ export default function ShopView() {
                           !user ||
                           !selectedDog ||
                           (item.price > 0 && user.cash < item.price) ||
-                          (item.gem_price && user.gems < item.gem_price)
+                          (!!item.gem_price && user.gems < item.gem_price)
                         }
                         className="w-full py-2 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
                       >

@@ -152,8 +152,8 @@ export function previewGenetics(dog1: Dog, dog2: Dog): GeneticsPreview {
 export function generatePuppy(
   sire: Dog,
   dam: Dog,
-  sireBre: Breed,
-  damBreed: Breed,
+  _sireBreed: Breed,
+  _damBreed: Breed,
   userId: string,
   name?: string
 ): Dog {
