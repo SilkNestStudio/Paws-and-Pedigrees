@@ -13,7 +13,7 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
   const [resetStep, setResetStep] = useState(0);
   const [confirmText, setConfirmText] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { resetGame, tutorialProgress, startTutorial, toggleHelpIcons } = useGameStore();
+  const { tutorialProgress, startTutorial, toggleHelpIcons } = useGameStore();
 
   // Close dropdown when clicking outside
   useEffect(() => {
