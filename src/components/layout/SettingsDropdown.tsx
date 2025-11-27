@@ -43,12 +43,10 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
 
   const handleResetStep2Confirm = () => {
     if (confirmText.toLowerCase() === 'reset') {
-      // Clear localStorage to completely reset
-      localStorage.removeItem('paws-and-pedigrees-storage');
-      // Reset the game state
-      resetGame();
-      // Force full page reload
-      alert('Game has been reset!');
+      // Set a flag to trigger reset on next page load
+      // This prevents race conditions with Zustand persist middleware
+      localStorage.setItem('reset-pending', 'true');
+      // Immediately reload - App.tsx will handle the actual reset
       window.location.href = window.location.origin;
     }
   };

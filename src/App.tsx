@@ -38,15 +38,30 @@ function App() {
   const [shopTab, setShopTab] = useState<'breeds' | 'items' | 'pound'>('breeds');
   const [showIntroStory, setShowIntroStory] = useState(true);
   const [showDailyReward, setShowDailyReward] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
   const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError } = useGameStore();
 
+  // Check for reset flag FIRST, before anything else
+  useEffect(() => {
+    const resetPending = localStorage.getItem('reset-pending');
+    if (resetPending === 'true') {
+      setIsResetting(true);
+      // Clear ALL localStorage
+      localStorage.clear();
+      // Wait a moment then reload to let everything reinitialize
+      setTimeout(() => {
+        window.location.href = window.location.origin;
+      }, 500);
+    }
+  }, []);
+
   // Load user data from Supabase when authenticated
   useEffect(() => {
-    if (authUser) {
+    if (authUser && !isResetting) {
       loadFromSupabase(authUser.id);
     }
-  }, [authUser, loadFromSupabase]);
+  }, [authUser, loadFromSupabase, isResetting]);
 
   // Check for daily reward after game loads
   useEffect(() => {
@@ -84,6 +99,18 @@ function App() {
       }
     });
   }, []);
+
+  // Show resetting screen
+  if (isResetting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-spin">🔄</div>
+          <div className="text-2xl font-bold text-kennel-700">Resetting game...</div>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading while checking auth
   if (authLoading) {
