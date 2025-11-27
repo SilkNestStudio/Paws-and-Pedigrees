@@ -155,3 +155,36 @@ export interface ShopItem {
   };
   unlock_level: number;
 }
+
+// Tutorial System Types
+export interface TutorialProgress {
+  completedTutorials: string[];
+  skippedTutorials: string[];
+  dismissedHelp: string[];
+  showHelpIcons: boolean;
+}
+
+export interface TutorialStep {
+  id: string;
+  title: string;
+  content: string;
+  targetSelector?: string;
+  spotlightMode: boolean;
+  position?: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  canSkip: boolean;
+}
+
+export interface Tutorial {
+  id: string;
+  name: string;
+  triggerType: 'auto' | 'prompt' | 'manual';
+  triggerCondition?: string;
+  steps: TutorialStep[];
+}
+
+export interface HelpContent {
+  id: string;
+  title: string;
+  content: string;
+  tutorialId?: string;
+}

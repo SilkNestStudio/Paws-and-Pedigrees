@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Dog, UserProfile } from '../types';
+import { Dog, UserProfile, TutorialProgress } from '../types';
 import {
   loadUserData,
   saveUserProfile,
@@ -19,6 +19,10 @@ interface GameState {
   loading: boolean;
   error: string | null;
 
+  // Tutorial state
+  tutorialProgress: TutorialProgress;
+  activeTutorial: string | null;
+
   // Supabase sync methods
   loadFromSupabase: (userId: string) => Promise<void>;
   setSyncEnabled: (enabled: boolean) => void;
@@ -33,6 +37,13 @@ interface GameState {
   updateCompetitionWins: (tier: 'local' | 'regional' | 'national') => void;
   setHasAdoptedFirstDog: (value: boolean) => void;
   claimDailyReward: () => void;
+
+  // Tutorial actions
+  startTutorial: (tutorialId: string) => void;
+  completeTutorial: (tutorialId: string) => void;
+  skipTutorial: (tutorialId: string) => void;
+  dismissHelp: (helpId: string) => void;
+  toggleHelpIcons: (show: boolean) => void;
 
   // Breeding actions
   breedDogs: (sireId: string, damId: string, litterSize: number, pregnancyDue: string) => void;
@@ -79,6 +90,13 @@ export const useGameStore = create<GameState>()(
       syncEnabled: false,
       loading: false,
       error: null,
+      tutorialProgress: {
+        completedTutorials: [],
+        skippedTutorials: [],
+        dismissedHelp: [],
+        showHelpIcons: true,
+      },
+      activeTutorial: null,
 
       // Supabase sync methods
       loadFromSupabase: async (userId: string) => {
@@ -361,6 +379,36 @@ export const useGameStore = create<GameState>()(
         return { user: updatedUser };
       }),
 
+      // Tutorial actions
+      startTutorial: (tutorialId) => set({ activeTutorial: tutorialId }),
+
+      completeTutorial: (tutorialId) => set((state) => ({
+        activeTutorial: null,
+        tutorialProgress: {
+          ...state.tutorialProgress,
+          completedTutorials: [...state.tutorialProgress.completedTutorials, tutorialId]
+        }
+      })),
+
+      skipTutorial: (tutorialId) => set((state) => ({
+        activeTutorial: null,
+        tutorialProgress: {
+          ...state.tutorialProgress,
+          skippedTutorials: [...state.tutorialProgress.skippedTutorials, tutorialId]
+        }
+      })),
+
+      dismissHelp: (helpId) => set((state) => ({
+        tutorialProgress: {
+          ...state.tutorialProgress,
+          dismissedHelp: [...state.tutorialProgress.dismissedHelp, helpId]
+        }
+      })),
+
+      toggleHelpIcons: (show) => set((state) => ({
+        tutorialProgress: { ...state.tutorialProgress, showHelpIcons: show }
+      })),
+
       // Reset game
       resetGame: () => set((state) => {
         // Keep user id, username, and kennel_name but reset everything else
@@ -393,6 +441,13 @@ export const useGameStore = create<GameState>()(
           dogs: [],
           selectedDog: null,
           hasAdoptedFirstDog: false,
+          tutorialProgress: {
+            completedTutorials: [],
+            skippedTutorials: [],
+            dismissedHelp: [],
+            showHelpIcons: true,
+          },
+          activeTutorial: null,
         };
       }),
     }),
