@@ -3,20 +3,30 @@ import { rescueBreeds } from '../../data/rescueBreeds';
 import { Breed } from '../../types';
 
 interface PoundSceneProps {
-  onDogSelected: (breed: Breed, name: string) => void;
+  onDogSelected: (breed: Breed, name: string, gender: 'male' | 'female') => void;
+}
+
+interface PoundDog {
+  breed: Breed;
+  gender: 'male' | 'female';
 }
 
 export default function PoundScene({ onDogSelected }: PoundSceneProps) {
-  const [selectedDog, setSelectedDog] = useState<Breed | null>(null);
+  const [selectedDog, setSelectedDog] = useState<PoundDog | null>(null);
   const [dogName, setDogName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
 
-  // Always show Staffy in center, plus 2 random others
-  const getThreeDogs = () => {
+  // Always show Staffy in center, plus 2 random others with random genders
+  const getThreeDogs = (): PoundDog[] => {
     const staffy = rescueBreeds[0]; // American Staffordshire Terrier
     const others = rescueBreeds.slice(1);
     const shuffled = others.sort(() => 0.5 - Math.random());
-    return [shuffled[0], staffy, shuffled[1]];
+
+    return [
+      { breed: shuffled[0], gender: Math.random() > 0.5 ? 'male' : 'female' },
+      { breed: staffy, gender: Math.random() > 0.5 ? 'male' : 'female' },
+      { breed: shuffled[1], gender: Math.random() > 0.5 ? 'male' : 'female' }
+    ];
   };
 
   const [availableDogs] = useState(getThreeDogs());
@@ -31,14 +41,14 @@ export default function PoundScene({ onDogSelected }: PoundSceneProps) {
     "Previous owner passed away."
   ];
 
-  const handleSelectDog = (breed: Breed) => {
-    setSelectedDog(breed);
+  const handleSelectDog = (dog: PoundDog) => {
+    setSelectedDog(dog);
     setShowNameInput(true);
   };
 
   const handleAdopt = () => {
     if (selectedDog && dogName.trim()) {
-      onDogSelected(selectedDog, dogName.trim());
+      onDogSelected(selectedDog.breed, dogName.trim(), selectedDog.gender);
     }
   };
 
@@ -54,10 +64,10 @@ export default function PoundScene({ onDogSelected }: PoundSceneProps) {
               Name Your New Champion
             </h2>
             <p className="text-lg text-slate-600">
-              You've chosen to rescue a <span className="font-bold text-kennel-600">{selectedDog.name}</span>.
+              You've chosen to rescue a <span className="font-bold text-kennel-600">{selectedDog.gender === 'male' ? '♂️ male' : '♀️ female'} {selectedDog.breed.name}</span>.
             </p>
             <p className="text-slate-600 mt-2">
-              What will you name your future champion?
+              What will you name {selectedDog.gender === 'male' ? 'him' : 'her'}?
             </p>
           </div>
 
@@ -137,18 +147,18 @@ export default function PoundScene({ onDogSelected }: PoundSceneProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-          {availableDogs.map((breed, index) => {
+          {availableDogs.map((dog, index) => {
             const story = rescueStories[Math.floor(Math.random() * rescueStories.length)];
             const isCenter = index === 1;
             const age = Math.floor(Math.random() * 6) + 4;
 
             return (
               <div
-                key={breed.id}
+                key={dog.breed.id + '-' + dog.gender}
                 className={`bg-white rounded-xl shadow-xl overflow-hidden transition-all hover:shadow-2xl hover:scale-105 cursor-pointer relative group ${
                   isCenter ? 'md:ring-4 md:ring-kennel-500 md:scale-105' : ''
                 }`}
-                onClick={() => handleSelectDog(breed)}
+                onClick={() => handleSelectDog(dog)}
               >
                 {isCenter && (
                   <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
@@ -158,11 +168,22 @@ export default function PoundScene({ onDogSelected }: PoundSceneProps) {
                   </div>
                 )}
 
+                {/* Gender badge */}
+                <div className="absolute top-3 left-3 z-10">
+                  <div className={`px-3 py-1 rounded-full text-white text-sm font-bold shadow-lg ${
+                    dog.gender === 'male'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600'
+                      : 'bg-gradient-to-r from-pink-500 to-pink-600'
+                  }`}>
+                    {dog.gender === 'male' ? '♂️ Male' : '♀️ Female'}
+                  </div>
+                </div>
+
                 <div className="h-56 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center overflow-hidden relative">
-                  {breed.img_sitting ? (
+                  {dog.breed.img_sitting ? (
                     <img
-                      src={breed.img_sitting}
-                      alt={breed.name}
+                      src={dog.breed.img_sitting}
+                      alt={dog.breed.name}
                       className="h-full w-full object-contain transform group-hover:scale-110 transition-transform duration-300"
                     />
                   ) : (
@@ -176,7 +197,7 @@ export default function PoundScene({ onDogSelected }: PoundSceneProps) {
                 <div className="p-6">
                   <div className="mb-4">
                     <h3 className="text-2xl font-bold text-slate-800 mb-1">
-                      {breed.name}
+                      {dog.breed.name}
                     </h3>
                     <p className="text-sm text-kennel-600 font-semibold">Rescue Dog</p>
                   </div>
@@ -189,7 +210,7 @@ export default function PoundScene({ onDogSelected }: PoundSceneProps) {
                   </div>
 
                   <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                    {breed.description}
+                    {dog.breed.description}
                   </p>
 
                   {/* Stats with visual bars */}
@@ -197,36 +218,36 @@ export default function PoundScene({ onDogSelected }: PoundSceneProps) {
                     <div>
                       <div className="flex justify-between text-xs mb-1">
                         <span className="text-slate-600 font-medium">Energy</span>
-                        <span className="text-slate-700 font-bold">{breed.energy_min}-{breed.energy_max}</span>
+                        <span className="text-slate-700 font-bold">{dog.breed.energy_min}-{dog.breed.energy_max}</span>
                       </div>
                       <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full"
-                          style={{ width: `${((breed.energy_min + breed.energy_max) / 2)}%` }}
+                          style={{ width: `${((dog.breed.energy_min + dog.breed.energy_max) / 2)}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-xs mb-1">
                         <span className="text-slate-600 font-medium">Intelligence</span>
-                        <span className="text-slate-700 font-bold">{breed.intelligence_min}-{breed.intelligence_max}</span>
+                        <span className="text-slate-700 font-bold">{dog.breed.intelligence_min}-{dog.breed.intelligence_max}</span>
                       </div>
                       <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full"
-                          style={{ width: `${((breed.intelligence_min + breed.intelligence_max) / 2)}%` }}
+                          style={{ width: `${((dog.breed.intelligence_min + dog.breed.intelligence_max) / 2)}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-xs mb-1">
                         <span className="text-slate-600 font-medium">Trainability</span>
-                        <span className="text-slate-700 font-bold">{breed.trainability_min}-{breed.trainability_max}</span>
+                        <span className="text-slate-700 font-bold">{dog.breed.trainability_min}-{dog.breed.trainability_max}</span>
                       </div>
                       <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full"
-                          style={{ width: `${((breed.trainability_min + breed.trainability_max) / 2)}%` }}
+                          style={{ width: `${((dog.breed.trainability_min + dog.breed.trainability_max) / 2)}%` }}
                         />
                       </div>
                     </div>

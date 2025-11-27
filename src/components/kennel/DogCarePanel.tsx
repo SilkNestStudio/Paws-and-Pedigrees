@@ -1,4 +1,5 @@
 import { useGameStore } from '../../stores/gameStore';
+import { checkBondLevelUp, getRescueDogBonusDescription } from '../../utils/bondSystem';
 
 export default function DogCarePanel() {
   const { selectedDog, updateDog, updateUserCash } = useGameStore();
@@ -42,16 +43,24 @@ export default function DogCarePanel() {
     };
 
     const activity = activities[activityType];
-    
+
     const newHappiness = Math.min(100, selectedDog.happiness + activity.happiness);
     const newEnergy = Math.max(0, selectedDog.energy_stat + activity.energy);
-    
-    updateDog(selectedDog.id, {
+
+    const updates: any = {
       happiness: newHappiness,
       energy_stat: newEnergy,
       last_played: new Date().toISOString(),
       bond_xp: selectedDog.bond_xp + 2,
-    });
+    };
+
+    // Check if dog should level up bond
+    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: selectedDog.bond_xp + 2 });
+    if (bondLevelUp) {
+      Object.assign(updates, bondLevelUp);
+    }
+
+    updateDog(selectedDog.id, updates);
   };
 
   return (
@@ -148,6 +157,11 @@ export default function DogCarePanel() {
             style={{ width: `${selectedDog.bond_xp}%` }}
           />
         </div>
+        {getRescueDogBonusDescription(selectedDog) && (
+          <p className="text-xs font-semibold text-green-600 mt-2">
+            {getRescueDogBonusDescription(selectedDog)}
+          </p>
+        )}
       </div>
     </div>
   );

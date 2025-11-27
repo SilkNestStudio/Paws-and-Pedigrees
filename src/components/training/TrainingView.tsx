@@ -9,6 +9,7 @@ import ObstacleCourseGame from './ObstacleCourseGame';
 import WeightPullTrainingGame from './WeightPullTrainingGame';
 import DistanceRunGame from './DistanceRunGame';
 import CommandDrillsGame from './CommandDrillsGame';
+import { checkBondLevelUp, getRescueDogTrainingBonus } from '../../utils/bondSystem';
 
 
 export default function TrainingView() {
@@ -56,13 +57,22 @@ export default function TrainingView() {
       user?.training_skill || 1
     );
 
-    const finalGain = baseGain * performanceMultiplier;
+    // Apply rescue dog bonus!
+    const rescueBonus = getRescueDogTrainingBonus(selectedDog);
+    const rescueBonusedGain = baseGain * (1 + rescueBonus);
+    const finalGain = rescueBonusedGain * performanceMultiplier;
 
     // Update dog's trained stat
     const updates: Partial<Dog> = {
       training_points: selectedDog.training_points - training.tpCost,
       bond_xp: selectedDog.bond_xp + 3,
     };
+
+    // Check if dog should level up bond
+    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: selectedDog.bond_xp + 3 });
+    if (bondLevelUp) {
+      Object.assign(updates, bondLevelUp);
+    }
 
     switch(training.statImproved) {
       case 'speed':
@@ -95,7 +105,15 @@ export default function TrainingView() {
       ? 'Good job! '
       : '';
 
-    alert(`${performanceText}${selectedDog.name} gained +${finalGain.toFixed(1)} ${training.statImproved}!`);
+    const rescueBonusText = rescueBonus > 0
+      ? ` (${Math.round(rescueBonus * 100)}% rescue bond bonus!)`
+      : '';
+
+    const bondLevelUpText = bondLevelUp
+      ? `\n🎉 Bond level increased to ${bondLevelUp.bond_level}!`
+      : '';
+
+    alert(`${performanceText}${selectedDog.name} gained +${finalGain.toFixed(1)} ${training.statImproved}!${rescueBonusText}${bondLevelUpText}`);
   };
 
   const handleNpcTrain = (trainingId: string, trainerType: 'basic' | 'pro') => {
@@ -206,6 +224,21 @@ updateDog(selectedDog.id, updates);
                     <p className="text-xl font-bold text-earth-900">{user?.training_skill}/100</p>
                   </div>
                 </div>
+                {selectedDog.is_rescue && getRescueDogTrainingBonus(selectedDog) > 0 && (
+                  <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+                    <p className="text-sm font-bold text-green-700 flex items-center gap-2">
+                      <span className="text-lg">🏠</span>
+                      Rescue Dog Bonus: +{Math.round(getRescueDogTrainingBonus(selectedDog) * 100)}% Training Gains!
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      {selectedDog.bond_level >= 9
+                        ? 'Unbreakable bond - Your rescue dog trains better than any purchased dog!'
+                        : selectedDog.bond_level >= 6
+                        ? 'Strong bond forming - Keep building your relationship!'
+                        : 'Bond growing - Continue training and playing together!'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

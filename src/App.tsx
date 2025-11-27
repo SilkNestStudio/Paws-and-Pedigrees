@@ -45,8 +45,8 @@ function App() {
     }
   }, [authUser, loadFromSupabase]);
 
-  const handleDogAdopted = (breed: Breed, name: string) => {
-    const newDog = generateDog(breed, name, user?.id || 'temp-user-id', true);
+  const handleDogAdopted = (breed: Breed, name: string, gender: 'male' | 'female') => {
+    const newDog = generateDog(breed, name, user?.id || 'temp-user-id', true, gender);
     addDog(newDog);
     setHasAdoptedFirstDog(true);
   };
