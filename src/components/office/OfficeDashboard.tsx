@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { getWeeksRemaining } from '../../utils/breedingCalculations';
 import { rescueBreeds } from '../../data/rescueBreeds';
+import HelpButton from '../tutorial/HelpButton';
 
 type View = 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
 
@@ -29,7 +30,10 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
-        <h2 className="text-3xl font-bold text-earth-900 mb-2">Office</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-3xl font-bold text-earth-900">Office</h2>
+          <HelpButton helpId="office-overview" tooltip="Learn about the Office" />
+        </div>
         <p className="text-earth-600">Kennel management dashboard</p>
       </div>
 
