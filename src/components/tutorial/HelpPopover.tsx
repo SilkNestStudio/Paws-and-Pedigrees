@@ -29,7 +29,7 @@ export default function HelpPopover({ helpId, onClose }: HelpPopoverProps) {
     return (
       <div
         ref={popoverRef}
-        className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-50"
+        className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[9999]"
       >
         <p className="text-sm text-red-600">Help content not found for "{helpId}"</p>
         <button
@@ -52,7 +52,7 @@ export default function HelpPopover({ helpId, onClose }: HelpPopoverProps) {
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-50 animate-fadeIn"
+      className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[9999] animate-fadeIn"
     >
       <h3 className="text-lg font-bold text-kennel-800 mb-2">{helpContent.title}</h3>
       <p className="text-sm text-earth-700 leading-relaxed whitespace-pre-line">{helpContent.content}</p>

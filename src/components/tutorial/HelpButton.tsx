@@ -20,7 +20,7 @@ export default function HelpButton({ helpId, size = 'small', tooltip }: HelpButt
   }
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block z-[9999]">
       <button
         onClick={() => setShowPopover(!showPopover)}
         className={`${sizeClasses} bg-kennel-600 text-white rounded-full hover:bg-kennel-700 hover:scale-110 transition-all shadow-md flex items-center justify-center cursor-help`}
