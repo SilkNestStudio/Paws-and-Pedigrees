@@ -132,7 +132,7 @@ export async function loadUserData(userId: string) {
  * Sync local state to Supabase (debounced save)
  */
 let saveTimeout: NodeJS.Timeout;
-export function debouncedSave(fn: () => Promise<void>, delay: number = 1000) {
+export function debouncedSave(fn: () => Promise<any>, delay: number = 1000) {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(fn, delay);
 }
