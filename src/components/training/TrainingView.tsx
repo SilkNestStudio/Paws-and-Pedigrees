@@ -4,12 +4,18 @@ import { trainingTypes } from '../../data/trainingTypes';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { calculateTrainingGain, canTrain, getUserTrainingMultiplier } from '../../utils/trainingCalculations';
 import { Dog } from '../../types';
+import SprintTrainingGame from './SprintTrainingGame';
+import ObstacleCourseGame from './ObstacleCourseGame';
+import WeightPullTrainingGame from './WeightPullTrainingGame';
+import DistanceRunGame from './DistanceRunGame';
+import CommandDrillsGame from './CommandDrillsGame';
 
 
 export default function TrainingView() {
   const { dogs, selectedDog, selectDog, updateDog, user, updateUserCash } = useGameStore();
-  const [isTraining, setIsTraining] = useState(false);
+  const [isTraining] = useState(false);
   const [currentTraining, setCurrentTraining] = useState<string | null>(null);
+  const [showMinigame, setShowMinigame] = useState(false);
 
   if (dogs.length === 0) {
     return (
@@ -30,49 +36,66 @@ export default function TrainingView() {
       return;
     }
 
-    setIsTraining(true);
     setCurrentTraining(trainingId);
+    setShowMinigame(true);
+  };
 
-    // Simulate training duration
-    setTimeout(() => {
-      const userMultiplier = getUserTrainingMultiplier(user?.training_skill || 1);
-      const gain = calculateTrainingGain(
-        selectedDog,
-        training.statImproved,
-        userMultiplier,
-        user?.training_skill || 1
-      );
+  const handleMinigameComplete = (performanceMultiplier: number) => {
+    if (!selectedDog || !currentTraining) return;
 
-      // Update dog's trained stat
-      const updates: Partial<Dog> = {
-  training_points: selectedDog.training_points - training.tpCost,
-  bond_xp: selectedDog.bond_xp + 3,
-};
+    const training = trainingTypes.find(t => t.id === currentTraining);
+    if (!training) return;
 
-switch(training.statImproved) {
-  case 'speed':
-    updates.speed_trained = (selectedDog.speed_trained || 0) + gain;
-    break;
-  case 'agility':
-    updates.agility_trained = (selectedDog.agility_trained || 0) + gain;
-    break;
-  case 'strength':
-    updates.strength_trained = (selectedDog.strength_trained || 0) + gain;
-    break;
-  case 'endurance':
-    updates.endurance_trained = (selectedDog.endurance_trained || 0) + gain;
-    break;
-  case 'obedience':
-    updates.obedience_trained = (selectedDog.obedience_trained || 0) + gain;
-    break;
-}
+    const userMultiplier = getUserTrainingMultiplier(user?.training_skill || 1);
 
-updateDog(selectedDog.id, updates);
+    // Apply performance multiplier from minigame
+    const baseGain = calculateTrainingGain(
+      selectedDog,
+      training.statImproved,
+      userMultiplier,
+      user?.training_skill || 1
+    );
 
-      setIsTraining(false);
-      setCurrentTraining(null);
-      alert(`${selectedDog.name} gained +${gain} ${training.statImproved}!`);
-    }, training.duration * 1000);
+    const finalGain = baseGain * performanceMultiplier;
+
+    // Update dog's trained stat
+    const updates: Partial<Dog> = {
+      training_points: selectedDog.training_points - training.tpCost,
+      bond_xp: selectedDog.bond_xp + 3,
+    };
+
+    switch(training.statImproved) {
+      case 'speed':
+        updates.speed_trained = (selectedDog.speed_trained || 0) + finalGain;
+        break;
+      case 'agility':
+        updates.agility_trained = (selectedDog.agility_trained || 0) + finalGain;
+        break;
+      case 'strength':
+        updates.strength_trained = (selectedDog.strength_trained || 0) + finalGain;
+        break;
+      case 'endurance':
+        updates.endurance_trained = (selectedDog.endurance_trained || 0) + finalGain;
+        break;
+      case 'obedience':
+        updates.obedience_trained = (selectedDog.obedience_trained || 0) + finalGain;
+        break;
+    }
+
+    updateDog(selectedDog.id, updates);
+
+    setShowMinigame(false);
+    setCurrentTraining(null);
+
+    const performanceText = performanceMultiplier >= 1.5
+      ? 'Perfect performance! '
+      : performanceMultiplier >= 1.2
+      ? 'Great performance! '
+      : performanceMultiplier >= 1.0
+      ? 'Good job! '
+      : '';
+
+    alert(`${performanceText}${selectedDog.name} gained +${finalGain.toFixed(1)} ${training.statImproved}!`);
   };
 
   const handleNpcTrain = (trainingId: string, trainerType: 'basic' | 'pro') => {
@@ -274,14 +297,39 @@ updateDog(selectedDog.id, updates);
             </div>
           </div>
 
-          {isTraining && currentTraining && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-8 text-center">
-                <p className="text-2xl font-bold text-earth-900 mb-4">Training in Progress...</p>
-                <p className="text-earth-600">{selectedDog.name} is working hard!</p>
-                <div className="mt-4 animate-pulse text-6xl">
-                  {trainingTypes.find(t => t.id === currentTraining)?.icon}
-                </div>
+          {showMinigame && currentTraining && selectedDog && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+                {currentTraining === 'speed' && (
+                  <SprintTrainingGame
+                    onComplete={handleMinigameComplete}
+                    dogName={selectedDog.name}
+                  />
+                )}
+                {currentTraining === 'agility' && (
+                  <ObstacleCourseGame
+                    onComplete={handleMinigameComplete}
+                    dogName={selectedDog.name}
+                  />
+                )}
+                {currentTraining === 'strength' && (
+                  <WeightPullTrainingGame
+                    onComplete={handleMinigameComplete}
+                    dogName={selectedDog.name}
+                  />
+                )}
+                {currentTraining === 'endurance' && (
+                  <DistanceRunGame
+                    onComplete={handleMinigameComplete}
+                    dogName={selectedDog.name}
+                  />
+                )}
+                {currentTraining === 'obedience' && (
+                  <CommandDrillsGame
+                    onComplete={handleMinigameComplete}
+                    dogName={selectedDog.name}
+                  />
+                )}
               </div>
             </div>
           )}
