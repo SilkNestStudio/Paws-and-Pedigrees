@@ -8,6 +8,7 @@ import {
   deleteDog as deleteDogFromDb,
   debouncedSave
 } from '../lib/supabaseService';
+import { calculateLoginStreak, getDailyReward } from '../utils/dailyRewards';
 
 interface GameState {
   user: UserProfile | null;
@@ -337,8 +338,6 @@ export const useGameStore = create<GameState>()(
 
       claimDailyReward: () => set((state) => {
         if (!state.user) return {};
-
-        const { calculateLoginStreak, getDailyReward } = require('../utils/dailyRewards');
 
         // Calculate new streak
         const newStreak = calculateLoginStreak(state.user) + 1;
