@@ -30,7 +30,21 @@ export default function KennelView() {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {dogs.map((dog) => {
         const breedData = rescueBreeds.find(b => b.id === dog.breed_id);
-        
+
+        // Dynamic image selection based on dog's status
+        const getDogImageByStatus = () => {
+          // Tired or sick dogs lay down
+          if (dog.energy_stat < 30 || dog.health < 50) {
+            return breedData?.img_playing || '';
+          }
+          // Energetic and happy dogs stand
+          if (dog.energy_stat > 70 && dog.happiness > 70) {
+            return breedData?.img_standing || '';
+          }
+          // Default: sitting
+          return breedData?.img_sitting || '';
+        };
+
         return (
           <div
             key={dog.id}
@@ -51,8 +65,8 @@ export default function KennelView() {
               
               {/* Dog Image */}
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-48 h-48 flex items-end justify-center">
-                <img 
-                  src={breedData?.img_sitting || ''} 
+                <img
+                  src={getDogImageByStatus()}
                   alt={dog.name}
                   className="w-full h-full object-contain drop-shadow-lg"
                 />

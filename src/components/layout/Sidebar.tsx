@@ -3,16 +3,16 @@ interface SidebarProps {
   onViewChange: (view: string) => void;
 }
 
-// Navigation sidebar with emoji icons (restoring visuals)
+// Navigation sidebar with emoji icons
 export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
   const menuItems = [
-    { id: 'kennel', label: 'Kennel', icon: "dY?�" },
-    { id: 'office', label: 'Office', icon: "dY?@" },
-    { id: 'training', label: 'Training', icon: "dYZ_" },
-    { id: 'competition', label: 'Compete', icon: "dY?+" },
-    { id: 'breeding', label: 'Breeding', icon: "dY?_" },
-    { id: 'jobs', label: 'Jobs', icon: "dY'�" },
-    { id: 'shop', label: 'Shop', icon: "dY>'" },
+    { id: 'kennel', label: 'Kennel', icon: '🏠' },
+    { id: 'office', label: 'Office', icon: '📋' },
+    { id: 'training', label: 'Training', icon: '🎯' },
+    { id: 'competition', label: 'Compete', icon: '🏆' },
+    { id: 'breeding', label: 'Breeding', icon: '🤰' },
+    { id: 'jobs', label: 'Jobs', icon: '💼' },
+    { id: 'shop', label: 'Shop', icon: '🛍️' },
   ];
 
   return (
