@@ -22,6 +22,7 @@ import IntroStory from './components/intro/IntroStory';
 import SettingsDropdown from './components/layout/SettingsDropdown';
 import DailyRewardModal from './components/rewards/DailyRewardModal';
 import { canClaimDailyReward } from './utils/dailyRewards';
+import TutorialManager from './components/tutorial/TutorialManager';
 
 type View =
   | 'kennel'
@@ -243,6 +244,9 @@ function App() {
       {showDailyReward && user && (
         <DailyRewardModal onClose={() => setShowDailyReward(false)} />
       )}
+
+      {/* Tutorial Manager */}
+      <TutorialManager />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
+import HelpButton from '../tutorial/HelpButton';
 
 interface KennelViewProps {
   onViewDog: () => void;
@@ -26,7 +27,10 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
     <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-earth-900">Your Kennel</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-earth-900">Your Kennel</h2>
+            <HelpButton helpId="kennel-management" tooltip="Learn about kennel management" />
+          </div>
           <p className="text-earth-600">Level {user?.kennel_level} • {dogs.length}/{user?.kennel_level === 1 ? 1 : user?.kennel_level === 2 ? 2 : 4} dogs</p>
         </div>
         <div className="text-right">

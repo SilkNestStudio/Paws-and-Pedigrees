@@ -10,6 +10,7 @@ import WeightPullTrainingGame from './WeightPullTrainingGame';
 import DistanceRunGame from './DistanceRunGame';
 import CommandDrillsGame from './CommandDrillsGame';
 import { checkBondLevelUp, getRescueDogTrainingBonus } from '../../utils/bondSystem';
+import HelpButton from '../tutorial/HelpButton';
 
 
 export default function TrainingView() {
@@ -212,7 +213,10 @@ updateDog(selectedDog.id, updates);
                 <p className="text-earth-600 mb-4">{breedData?.name}</p>
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <p className="text-earth-600">Training Points</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-earth-600">Training Points</p>
+                      <HelpButton helpId="training-points" size="small" tooltip="What are Training Points?" />
+                    </div>
                     <p className="text-xl font-bold text-kennel-700">{selectedDog.training_points}/100</p>
                   </div>
                   <div>
