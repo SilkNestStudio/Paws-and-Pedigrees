@@ -11,6 +11,11 @@ import TrainingView from './components/training/TrainingView';
 import { useEffect } from 'react';
 import { regenerateTP, shouldRegenerateTP } from './utils/tpRegeneration';
 import CompetitionView from './components/competitions/CompetitionView';
+import JobsBoard from './components/jobs/JobsBoard';
+import BreedingPanel from './components/breeding/BreedingPanel';
+import PuppyNursery from './components/breeding/PuppyNursery';
+import ShopView from './components/shop/ShopView';
+import { shouldAgeDog, ageDog } from './utils/puppyAging';
 
 function App() {
   const [currentView, setCurrentView] = useState('kennel');
@@ -23,13 +28,25 @@ function App() {
   };
 
   useEffect(() => {
-  // Check all dogs for TP regeneration on mount
+  // Check all dogs for TP regeneration and aging on mount
   dogs.forEach(dog => {
+    const updates: any = {};
+
+    // Check TP regeneration
     if (shouldRegenerateTP(dog)) {
-      const updates = regenerateTP(dog);
-      if (Object.keys(updates).length > 0) {
-        updateDog(dog.id, updates);
-      }
+      const tpUpdates = regenerateTP(dog);
+      Object.assign(updates, tpUpdates);
+    }
+
+    // Check puppy aging
+    if (shouldAgeDog(dog)) {
+      const ageUpdates = ageDog(dog);
+      Object.assign(updates, ageUpdates);
+    }
+
+    // Apply updates if any
+    if (Object.keys(updates).length > 0) {
+      updateDog(dog.id, updates);
     }
   });
 }, []);
@@ -64,7 +81,7 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto">
-            <SceneBackground scene={currentView as 'kennel' | 'training' | 'competition' | 'jobs' | 'shop'}>
+            <SceneBackground scene={currentView as 'kennel' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop'}>
               <div className="p-6">
                 {currentView === 'kennel' && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -77,55 +94,24 @@ function App() {
                   </div>
                 )}
                 
-                {currentView === 'training' && (
-                  <div className="text-center py-20">
-                    <h2 className="text-3xl font-bold text-white drop-shadow-lg mb-4">Training Yard</h2>
-                    <p className="text-white drop-shadow">Coming soon...</p>
-                  </div>
-                )}
+                {currentView === 'training' && <TrainingView />}
                 
                 {currentView === 'competition' && <CompetitionView />}
-                
-                {currentView === 'jobs' && (
-                  <div className="text-center py-20">
-                    <h2 className="text-3xl font-bold text-white drop-shadow-lg mb-4">Jobs Board</h2>
-                    <p className="text-white drop-shadow">Coming soon...</p>
+
+                {currentView === 'breeding' && (
+                  <div className="grid grid-cols-1 gap-6">
+                    <BreedingPanel />
+                    <PuppyNursery />
                   </div>
                 )}
-                
-                {currentView === 'shop' && (
-                  <div className="text-center py-20">
-                    <h2 className="text-3xl font-bold text-white drop-shadow-lg mb-4">Shop</h2>
-                    <p className="text-white drop-shadow">Coming soon...</p>
-                  </div>
-                )}
+
+                {currentView === 'jobs' && <JobsBoard />}
+
+                {currentView === 'shop' && <ShopView />}
               </div>
             </SceneBackground>
           </main>
-          
-          {currentView === 'training' && <TrainingView />}
-          
-          {currentView === 'competition' && (
-            <div className="text-center py-20">
-              <h2 className="text-3xl font-bold text-earth-800 mb-4">Competitions</h2>
-              <p className="text-earth-600">Coming soon...</p>
-            </div>
-          )}
-          
-          {currentView === 'jobs' && (
-            <div className="text-center py-20">
-              <h2 className="text-3xl font-bold text-earth-800 mb-4">Jobs Board</h2>
-              <p className="text-earth-600">Coming soon...</p>
-            </div>
-          )}
-          
-          {currentView === 'shop' && (
-            <div className="text-center py-20">
-              <h2 className="text-3xl font-bold text-earth-800 mb-4">Shop</h2>
-              <p className="text-earth-600">Coming soon...</p>
-            </div>
-          )}
-        
+
       </div>
     </div>
   );

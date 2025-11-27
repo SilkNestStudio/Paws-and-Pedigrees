@@ -77,6 +77,14 @@ export interface Dog {
   rescue_story?: string;
   parent1_id?: string;
   parent2_id?: string;
+
+  // Breeding fields
+  age_weeks: number;
+  is_pregnant?: boolean;
+  pregnancy_due?: string;
+  last_bred?: string;
+  litter_size?: number;
+
   created_at: string;
   last_fed: string;
   last_played: string;
@@ -127,4 +135,22 @@ export interface Competition {
   entry_fee: number;
   manual_play: boolean;
   completed_at: string;
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  category: 'food' | 'toy' | 'health' | 'energy' | 'training';
+  description: string;
+  price: number;
+  gem_price?: number;
+  icon: string;
+  effect: {
+    hunger?: number;
+    happiness?: number;
+    health?: number;
+    energy_stat?: number;
+    training_points?: number;
+  };
+  unlock_level: number;
 }

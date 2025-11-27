@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 interface SidebarProps {
   currentView: string;
   onViewChange: (view: string) => void;
@@ -10,6 +8,7 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
     { id: 'kennel', label: 'Kennel', icon: '🏠' },
     { id: 'training', label: 'Training', icon: '🎯' },
     { id: 'competition', label: 'Compete', icon: '🏆' },
+    { id: 'breeding', label: 'Breeding', icon: '🐾' },
     { id: 'jobs', label: 'Jobs', icon: '💼' },
     { id: 'shop', label: 'Shop', icon: '🛒' },
   ];

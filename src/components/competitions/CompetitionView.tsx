@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import { competitionTypes, competitionTiers } from '../../data/competitionTypes';
+import { competitionTypes, competitionTiers, type CompetitionType, type CompetitionTier } from '../../data/competitionTypes';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { calculateCompetitionScore, generateAICompetitors, determineWinner } from '../../utils/competitionCalculations';
 import AgilityMiniGame from './AgilityMiniGame';

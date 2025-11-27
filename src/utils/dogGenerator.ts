@@ -79,6 +79,13 @@ export function generateDog(breed: Breed, name: string, userId: string, isRescue
     is_rescue: isRescue,
     rescue_story: isRescue ? rescueStories[Math.floor(Math.random() * rescueStories.length)] : undefined,
 
+    // Breeding fields (rescue dogs are adults, bred puppies start at 0 weeks)
+    age_weeks: isRescue ? 52 : 0, // Rescues are 1 year old (52 weeks), puppies start at 0
+    is_pregnant: false,
+    pregnancy_due: undefined,
+    last_bred: undefined,
+    litter_size: undefined,
+
     created_at: new Date().toISOString(),
     last_fed: new Date().toISOString(),
     last_played: new Date().toISOString(),

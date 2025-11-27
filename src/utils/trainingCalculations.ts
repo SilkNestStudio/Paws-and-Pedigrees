@@ -1,4 +1,4 @@
-import { Dog, UserProfile } from '../types';
+import { Dog } from '../types';
 
 export function calculateTrainingGain(
   dog: Dog,
@@ -8,6 +8,8 @@ export function calculateTrainingGain(
 ): number {
   // Base gain: 0.1 to 0.3 per session
   const baseGain = 0.1 + (Math.random() * 0.2);
+  // Slightly adjust gains based on the stat being trained (obedience tends to improve slower)
+  const statDifficultyModifier = statName === 'obedience' ? 0.9 : 1;
   
   // User skill bonus (training_skill / 100 = 0.01 to 1.0 bonus)
   const skillBonus = 1 + (userTrainingSkill / 100);
@@ -16,7 +18,7 @@ export function calculateTrainingGain(
   const trainabilityBonus = 1 + (dog.trainability / 100);
   
   // Total gain
-  const totalGain = baseGain * multiplier * skillBonus * trainabilityBonus;
+  const totalGain = baseGain * multiplier * skillBonus * trainabilityBonus * statDifficultyModifier;
   
   return parseFloat(totalGain.toFixed(2));
 }

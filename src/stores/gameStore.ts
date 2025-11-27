@@ -16,6 +16,17 @@ interface GameState {
   updateUserGems: (amount: number) => void;
   updateCompetitionWins: (tier: 'local' | 'regional' | 'national') => void;
   setHasAdoptedFirstDog: (value: boolean) => void;
+
+  // Breeding actions
+  breedDogs: (sireId: string, damId: string, litterSize: number, pregnancyDue: string) => void;
+  giveBirth: (damId: string, puppies: Dog[]) => void;
+  sellPuppy: (puppyId: string, price: number) => void;
+  skipPregnancy: (damId: string, gemCost: number) => void;
+  removeDog: (dogId: string) => void;
+
+  // Shop actions
+  purchaseBreed: (dog: Dog, cashCost: number, gemCost: number) => void;
+  purchaseItem: (dogId: string, effects: any, cashCost: number, gemCost: number) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -81,6 +92,134 @@ export const useGameStore = create<GameState>()(
       }),
 
       setHasAdoptedFirstDog: (value) => set({ hasAdoptedFirstDog: value }),
+
+      // Breeding actions
+      breedDogs: (sireId, damId, litterSize, pregnancyDue) => set((state) => {
+        const now = new Date().toISOString();
+        return {
+          dogs: state.dogs.map(dog => {
+            if (dog.id === damId) {
+              return {
+                ...dog,
+                is_pregnant: true,
+                pregnancy_due: pregnancyDue,
+                last_bred: now,
+                litter_size: litterSize,
+              };
+            }
+            if (dog.id === sireId) {
+              return {
+                ...dog,
+                last_bred: now,
+              };
+            }
+            return dog;
+          }),
+        };
+      }),
+
+      giveBirth: (damId, puppies) => set((state) => ({
+        dogs: [
+          ...state.dogs.map(dog =>
+            dog.id === damId
+              ? { ...dog, is_pregnant: false, pregnancy_due: undefined, litter_size: undefined }
+              : dog
+          ),
+          ...puppies,
+        ],
+      })),
+
+      sellPuppy: (puppyId, price) => set((state) => ({
+        dogs: state.dogs.filter(dog => dog.id !== puppyId),
+        selectedDog: state.selectedDog?.id === puppyId ? null : state.selectedDog,
+        user: state.user ? { ...state.user, cash: state.user.cash + price } : null,
+      })),
+
+      skipPregnancy: (damId, gemCost) => set((state) => {
+        if (!state.user || state.user.gems < gemCost) return {};
+
+        return {
+          user: { ...state.user, gems: state.user.gems - gemCost },
+          dogs: state.dogs.map(dog =>
+            dog.id === damId
+              ? { ...dog, pregnancy_due: new Date().toISOString() } // Set due date to now
+              : dog
+          ),
+        };
+      }),
+
+      removeDog: (dogId) => set((state) => ({
+        dogs: state.dogs.filter(dog => dog.id !== dogId),
+        selectedDog: state.selectedDog?.id === dogId ? null : state.selectedDog,
+      })),
+
+      // Shop actions
+      purchaseBreed: (dog, cashCost, gemCost) => set((state) => {
+        if (!state.user) return {};
+
+        // Check if user has enough currency
+        if (cashCost > 0 && state.user.cash < cashCost) return {};
+        if (gemCost > 0 && state.user.gems < gemCost) return {};
+
+        return {
+          dogs: [...state.dogs, dog],
+          selectedDog: dog,
+          user: {
+            ...state.user,
+            cash: state.user.cash - cashCost,
+            gems: state.user.gems - gemCost,
+          },
+        };
+      }),
+
+      purchaseItem: (dogId, effects, cashCost, gemCost) => set((state) => {
+        if (!state.user) return {};
+
+        // Check if user has enough currency
+        if (cashCost > 0 && state.user.cash < cashCost) return {};
+        if (gemCost > 0 && state.user.gems < gemCost) return {};
+
+        return {
+          dogs: state.dogs.map(dog => {
+            if (dog.id !== dogId) return dog;
+
+            // Apply effects to dog
+            const updates: Partial<Dog> = {};
+            if (effects.hunger !== undefined) {
+              updates.hunger = Math.min(100, dog.hunger + effects.hunger);
+            }
+            if (effects.happiness !== undefined) {
+              updates.happiness = Math.min(100, dog.happiness + effects.happiness);
+            }
+            if (effects.health !== undefined) {
+              updates.health = Math.min(100, dog.health + effects.health);
+            }
+            if (effects.energy_stat !== undefined) {
+              updates.energy_stat = Math.min(100, dog.energy_stat + effects.energy_stat);
+            }
+            if (effects.training_points !== undefined) {
+              updates.training_points = dog.training_points + effects.training_points;
+            }
+
+            return { ...dog, ...updates };
+          }),
+          selectedDog: state.selectedDog?.id === dogId
+            ? {
+                ...state.selectedDog,
+                ...(effects.hunger !== undefined && { hunger: Math.min(100, state.selectedDog.hunger + effects.hunger) }),
+                ...(effects.happiness !== undefined && { happiness: Math.min(100, state.selectedDog.happiness + effects.happiness) }),
+                ...(effects.health !== undefined && { health: Math.min(100, state.selectedDog.health + effects.health) }),
+                ...(effects.energy_stat !== undefined && { energy_stat: Math.min(100, state.selectedDog.energy_stat + effects.energy_stat) }),
+                ...(effects.training_points !== undefined && { training_points: state.selectedDog.training_points + effects.training_points }),
+              }
+            : state.selectedDog,
+          user: {
+            ...state.user,
+            cash: state.user.cash - cashCost,
+            gems: state.user.gems - gemCost,
+          },
+        };
+      }),
     }),
     {
       name: 'paws-and-pedigrees-storage',
