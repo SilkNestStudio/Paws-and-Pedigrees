@@ -36,7 +36,7 @@ function App() {
   const [shopTab, setShopTab] = useState<'breeds' | 'items' | 'pound'>('breeds');
   const [showIntroStory, setShowIntroStory] = useState(true);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
-  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase } = useGameStore();
+  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError } = useGameStore();
 
   // Load user data from Supabase when authenticated
   useEffect(() => {
@@ -87,6 +87,37 @@ function App() {
   // Show auth screen if not logged in
   if (!authUser) {
     return <AuthView onAuthSuccess={() => {}} />;
+  }
+
+  // Show loading while game data is being fetched from Supabase
+  if (gameLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-kennel-700 mb-4">Loading your kennel...</div>
+          <div className="animate-pulse text-6xl">🐕</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if game data failed to load
+  if (gameError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-xl">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Game</h2>
+          <p className="text-earth-600 mb-4">{gameError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 font-semibold"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!hasAdoptedFirstDog) {

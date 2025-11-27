@@ -15,6 +15,8 @@ interface GameState {
   selectedDog: Dog | null;
   hasAdoptedFirstDog: boolean;
   syncEnabled: boolean;
+  loading: boolean;
+  error: string | null;
 
   // Supabase sync methods
   loadFromSupabase: (userId: string) => Promise<void>;
@@ -73,9 +75,12 @@ export const useGameStore = create<GameState>()(
       selectedDog: null,
       hasAdoptedFirstDog: false,
       syncEnabled: false,
+      loading: false,
+      error: null,
 
       // Supabase sync methods
       loadFromSupabase: async (userId: string) => {
+        set({ loading: true, error: null });
         try {
           const { profile, dogs } = await loadUserData(userId);
           if (profile) {
@@ -83,11 +88,19 @@ export const useGameStore = create<GameState>()(
               user: profile,
               dogs: dogs || [],
               syncEnabled: true,
-              hasAdoptedFirstDog: dogs.length > 0
+              hasAdoptedFirstDog: dogs.length > 0,
+              loading: false,
+              error: null
             });
+          } else {
+            set({ loading: false, error: 'Failed to load user profile' });
           }
         } catch (error) {
           console.error('Error loading from Supabase:', error);
+          set({
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to load game data'
+          });
         }
       },
 
