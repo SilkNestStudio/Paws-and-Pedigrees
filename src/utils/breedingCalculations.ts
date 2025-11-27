@@ -1,5 +1,17 @@
 import { Dog, Breed } from '../types';
 import { BREEDING_CONSTANTS } from '../data/breedingConstants';
+import { analyzeInbreeding } from './pedigreeAnalysis';
+import {
+  createGeneticsFromPhenotype,
+  getRandomAllele,
+  expressTrait,
+  calculateGeneStatModifier,
+  COAT_COLOR_DOMINANCE,
+  COAT_PATTERN_DOMINANCE,
+  EYE_COLOR_DOMINANCE,
+  COAT_LENGTH_DOMINANCE,
+  DogGenetics,
+} from '../types/genetics';
 
 export interface BreedingEligibility {
   canBreed: boolean;
@@ -18,6 +30,12 @@ export interface GeneticsPreview {
   possibleColors: string[];
   possiblePatterns: string[];
   litterSize: { min: number; max: number };
+  inbreeding: {
+    isInbred: boolean;
+    coefficient: number;
+    relationship: string | null;
+    penalty: number;
+  } | null;
 }
 
 /**
@@ -26,9 +44,18 @@ export interface GeneticsPreview {
 export function checkBreedingEligibility(
   dog1: Dog,
   dog2: Dog,
-  userCash: number
+  userCash: number,
+  allDogs?: Dog[]
 ): BreedingEligibility {
   const reasons: string[] = [];
+
+  // Check for inbreeding (warning only, doesn't prevent breeding)
+  if (allDogs && allDogs.length > 0) {
+    const inbreeding = analyzeInbreeding(dog1, dog2, allDogs);
+    if (inbreeding.isInbred && inbreeding.coefficient > 0.5) {
+      reasons.push(`⚠️ WARNING: Dogs are ${inbreeding.relationship} (${(inbreeding.coefficient * 100).toFixed(0)}% inbreeding) - puppies will have reduced stats`);
+    }
+  }
 
   // Must be different dogs
   if (dog1.id === dog2.id) {
@@ -112,8 +139,24 @@ function getWeeksSince(dateString: string): number {
 /**
  * Preview genetics of potential offspring
  */
-export function previewGenetics(dog1: Dog, dog2: Dog): GeneticsPreview {
+export function previewGenetics(dog1: Dog, dog2: Dog, allDogs?: Dog[]): GeneticsPreview {
   const statNames = ['speed', 'agility', 'strength', 'endurance', 'intelligence', 'trainability'] as const;
+
+  // Check for inbreeding
+  let inbreedingData = null;
+  let inbreedingPenalty = 0;
+  if (allDogs && allDogs.length > 0) {
+    const analysis = analyzeInbreeding(dog1, dog2, allDogs);
+    if (analysis.isInbred) {
+      inbreedingData = {
+        isInbred: analysis.isInbred,
+        coefficient: analysis.coefficient,
+        relationship: analysis.relationship,
+        penalty: analysis.penalty,
+      };
+      inbreedingPenalty = analysis.penalty;
+    }
+  }
 
   const statRanges = {} as GeneticsPreview['statRanges'];
 
@@ -123,17 +166,65 @@ export function previewGenetics(dog1: Dog, dog2: Dog): GeneticsPreview {
     const average = (parent1Stat + parent2Stat) / 2;
     const variance = average * BREEDING_CONSTANTS.STAT_VARIANCE;
 
+    // Apply inbreeding penalty to the ranges
+    const penaltyMultiplier = 1 - (inbreedingPenalty / 100);
+
     statRanges[stat] = {
-      min: Math.round(Math.max(1, average - variance)),
-      max: Math.round(Math.min(100, average + variance)),
+      min: Math.round(Math.max(1, (average - variance) * penaltyMultiplier)),
+      max: Math.round(Math.min(100, (average + variance) * penaltyMultiplier)),
     };
   });
 
-  // Possible colors - combine both parents' colors
-  const possibleColors = Array.from(new Set([dog1.coat_color, dog2.coat_color]));
+  // Get genetics from both parents (create if they don't have it)
+  const dog1Genetics = (dog1.genetics as DogGenetics) || createGeneticsFromPhenotype(
+    dog1.coat_color,
+    dog1.coat_pattern,
+    dog1.eye_color,
+    dog1.coat_type,
+    {
+      speed: dog1.speed,
+      agility: dog1.agility,
+      strength: dog1.strength,
+      endurance: dog1.endurance,
+      intelligence: dog1.intelligence,
+      friendliness: dog1.friendliness,
+      energy: dog1.energy,
+      trainability: dog1.trainability,
+    }
+  );
 
-  // Possible patterns - combine both parents' patterns
-  const possiblePatterns = Array.from(new Set([dog1.coat_pattern, dog2.coat_pattern]));
+  const dog2Genetics = (dog2.genetics as DogGenetics) || createGeneticsFromPhenotype(
+    dog2.coat_color,
+    dog2.coat_pattern,
+    dog2.eye_color,
+    dog2.coat_type,
+    {
+      speed: dog2.speed,
+      agility: dog2.agility,
+      strength: dog2.strength,
+      endurance: dog2.endurance,
+      intelligence: dog2.intelligence,
+      friendliness: dog2.friendliness,
+      energy: dog2.energy,
+      trainability: dog2.trainability,
+    }
+  );
+
+  // Possible colors based on genetics
+  const possibleColors = Array.from(new Set([
+    dog1Genetics.coatColor.allele1,
+    dog1Genetics.coatColor.allele2,
+    dog2Genetics.coatColor.allele1,
+    dog2Genetics.coatColor.allele2,
+  ]));
+
+  // Possible patterns based on genetics
+  const possiblePatterns = Array.from(new Set([
+    dog1Genetics.coatPattern.allele1,
+    dog1Genetics.coatPattern.allele2,
+    dog2Genetics.coatPattern.allele1,
+    dog2Genetics.coatPattern.allele2,
+  ]));
 
   return {
     statRanges,
@@ -143,6 +234,7 @@ export function previewGenetics(dog1: Dog, dog2: Dog): GeneticsPreview {
       min: BREEDING_CONSTANTS.LITTER_SIZE_MIN,
       max: BREEDING_CONSTANTS.LITTER_SIZE_MAX,
     },
+    inbreeding: inbreedingData,
   };
 }
 
@@ -155,24 +247,186 @@ export function generatePuppy(
   _sireBreed: Breed,
   _damBreed: Breed,
   userId: string,
-  name?: string
+  name?: string,
+  allDogs?: Dog[]
 ): Dog {
   const gender: 'male' | 'female' = Math.random() > 0.5 ? 'male' : 'female';
 
-  // Inherit stats with variance
-  const inheritStat = (stat1: number, stat2: number): number => {
+  // Check for inbreeding and calculate penalty
+  let inbreedingPenalty = 0;
+  if (allDogs && allDogs.length > 0) {
+    const analysis = analyzeInbreeding(sire, dam, allDogs);
+    inbreedingPenalty = analysis.penalty;
+  }
+
+  const penaltyMultiplier = 1 - (inbreedingPenalty / 100);
+
+  // Get genetics from both parents (create if they don't have it)
+  const sireGenetics = (sire.genetics as DogGenetics) || createGeneticsFromPhenotype(
+    sire.coat_color,
+    sire.coat_pattern,
+    sire.eye_color,
+    sire.coat_type,
+    {
+      speed: sire.speed,
+      agility: sire.agility,
+      strength: sire.strength,
+      endurance: sire.endurance,
+      intelligence: sire.intelligence,
+      friendliness: sire.friendliness,
+      energy: sire.energy,
+      trainability: sire.trainability,
+    }
+  );
+
+  const damGenetics = (dam.genetics as DogGenetics) || createGeneticsFromPhenotype(
+    dam.coat_color,
+    dam.coat_pattern,
+    dam.eye_color,
+    dam.coat_type,
+    {
+      speed: dam.speed,
+      agility: dam.agility,
+      strength: dam.strength,
+      endurance: dam.endurance,
+      intelligence: dam.intelligence,
+      friendliness: dam.friendliness,
+      energy: dam.energy,
+      trainability: dam.trainability,
+    }
+  );
+
+  // Create puppy genetics by combining parent alleles
+  const puppyGenetics: DogGenetics = {
+    coatColor: {
+      trait: 'coatColor',
+      allele1: getRandomAllele(sireGenetics.coatColor),
+      allele2: getRandomAllele(damGenetics.coatColor),
+      dominance: COAT_COLOR_DOMINANCE,
+    },
+    coatPattern: {
+      trait: 'coatPattern',
+      allele1: getRandomAllele(sireGenetics.coatPattern),
+      allele2: getRandomAllele(damGenetics.coatPattern),
+      dominance: COAT_PATTERN_DOMINANCE,
+    },
+    coatLength: {
+      trait: 'coatLength',
+      allele1: getRandomAllele(sireGenetics.coatLength),
+      allele2: getRandomAllele(damGenetics.coatLength),
+      dominance: COAT_LENGTH_DOMINANCE,
+    },
+    eyeColor: {
+      trait: 'eyeColor',
+      allele1: getRandomAllele(sireGenetics.eyeColor),
+      allele2: getRandomAllele(damGenetics.eyeColor),
+      dominance: EYE_COLOR_DOMINANCE,
+    },
+    sizeGene: {
+      trait: 'size',
+      allele1: getRandomAllele(sireGenetics.sizeGene),
+      allele2: getRandomAllele(damGenetics.sizeGene),
+      dominance: {},
+    },
+    speedGene: {
+      trait: 'speed',
+      allele1: getRandomAllele(sireGenetics.speedGene),
+      allele2: getRandomAllele(damGenetics.speedGene),
+      dominance: sireGenetics.speedGene.dominance,
+    },
+    agilityGene: {
+      trait: 'agility',
+      allele1: getRandomAllele(sireGenetics.agilityGene),
+      allele2: getRandomAllele(damGenetics.agilityGene),
+      dominance: sireGenetics.agilityGene.dominance,
+    },
+    strengthGene: {
+      trait: 'strength',
+      allele1: getRandomAllele(sireGenetics.strengthGene),
+      allele2: getRandomAllele(damGenetics.strengthGene),
+      dominance: sireGenetics.strengthGene.dominance,
+    },
+    enduranceGene: {
+      trait: 'endurance',
+      allele1: getRandomAllele(sireGenetics.enduranceGene),
+      allele2: getRandomAllele(damGenetics.enduranceGene),
+      dominance: sireGenetics.enduranceGene.dominance,
+    },
+    intelligenceGene: {
+      trait: 'intelligence',
+      allele1: getRandomAllele(sireGenetics.intelligenceGene),
+      allele2: getRandomAllele(damGenetics.intelligenceGene),
+      dominance: sireGenetics.intelligenceGene.dominance,
+    },
+    friendlinessGene: {
+      trait: 'friendliness',
+      allele1: getRandomAllele(sireGenetics.friendlinessGene),
+      allele2: getRandomAllele(damGenetics.friendlinessGene),
+      dominance: sireGenetics.friendlinessGene.dominance,
+    },
+    energyGene: {
+      trait: 'energy',
+      allele1: getRandomAllele(sireGenetics.energyGene),
+      allele2: getRandomAllele(damGenetics.energyGene),
+      dominance: sireGenetics.energyGene.dominance,
+    },
+    trainabilityGene: {
+      trait: 'trainability',
+      allele1: getRandomAllele(sireGenetics.trainabilityGene),
+      allele2: getRandomAllele(damGenetics.trainabilityGene),
+      dominance: sireGenetics.trainabilityGene.dominance,
+    },
+  };
+
+  // Express phenotype from genotype
+  const coatColor = expressTrait(
+    puppyGenetics.coatColor.allele1,
+    puppyGenetics.coatColor.allele2,
+    COAT_COLOR_DOMINANCE
+  );
+  const coatPattern = expressTrait(
+    puppyGenetics.coatPattern.allele1,
+    puppyGenetics.coatPattern.allele2,
+    COAT_PATTERN_DOMINANCE
+  );
+  const eyeColor = expressTrait(
+    puppyGenetics.eyeColor.allele1,
+    puppyGenetics.eyeColor.allele2,
+    EYE_COLOR_DOMINANCE
+  );
+  const coatLength = expressTrait(
+    puppyGenetics.coatLength.allele1,
+    puppyGenetics.coatLength.allele2,
+    COAT_LENGTH_DOMINANCE
+  );
+
+  // Map coat length to coat type
+  const coatTypeMap: Record<string, string> = {
+    'short': 'short',
+    'medium': 'medium',
+    'long': 'long',
+  };
+  const coatType = coatTypeMap[coatLength] || 'short';
+
+  // Inherit stats with genetics and variance
+  const inheritStat = (stat1: number, stat2: number, gene: { allele1: string; allele2: string }): number => {
     const average = (stat1 + stat2) / 2;
     const variance = average * BREEDING_CONSTANTS.STAT_VARIANCE;
     const min = Math.max(1, average - variance);
     const max = Math.min(100, average + variance);
-    return Math.round(min + Math.random() * (max - min));
-  };
 
-  // Randomly choose coat attributes from parents
-  const coatColor = Math.random() > 0.5 ? sire.coat_color : dam.coat_color;
-  const coatPattern = Math.random() > 0.5 ? sire.coat_pattern : dam.coat_pattern;
-  const coatType = Math.random() > 0.5 ? sire.coat_type : dam.coat_type;
-  const eyeColor = Math.random() > 0.5 ? sire.eye_color : dam.eye_color;
+    // Get base value
+    let value = Math.round(min + Math.random() * (max - min));
+
+    // Apply gene modifier
+    const geneModifier = calculateGeneStatModifier(gene.allele1, gene.allele2);
+    value = Math.round(value * geneModifier);
+
+    // Apply inbreeding penalty
+    value = Math.round(value * penaltyMultiplier);
+
+    return Math.max(1, Math.min(100, value));
+  };
 
   // Generate puppy name if not provided
   const puppyName = name || `Puppy ${crypto.randomUUID().slice(0, 4)}`;
@@ -185,18 +439,18 @@ export function generatePuppy(
     gender,
     birth_date: new Date().toISOString(),
 
-    // Inherited stats
-    size: inheritStat(sire.size, dam.size),
-    energy: inheritStat(sire.energy, dam.energy),
-    friendliness: inheritStat(sire.friendliness, dam.friendliness),
-    trainability: inheritStat(sire.trainability, dam.trainability),
-    intelligence: inheritStat(sire.intelligence, dam.intelligence),
-    speed: inheritStat(sire.speed, dam.speed),
-    agility: inheritStat(sire.agility, dam.agility),
-    strength: inheritStat(sire.strength, dam.strength),
-    endurance: inheritStat(sire.endurance, dam.endurance),
-    prey_drive: inheritStat(sire.prey_drive, dam.prey_drive),
-    protectiveness: inheritStat(sire.protectiveness, dam.protectiveness),
+    // Inherited stats using genetics
+    size: inheritStat(sire.size, dam.size, puppyGenetics.sizeGene),
+    energy: inheritStat(sire.energy, dam.energy, puppyGenetics.energyGene),
+    friendliness: inheritStat(sire.friendliness, dam.friendliness, puppyGenetics.friendlinessGene),
+    trainability: inheritStat(sire.trainability, dam.trainability, puppyGenetics.trainabilityGene),
+    intelligence: inheritStat(sire.intelligence, dam.intelligence, puppyGenetics.intelligenceGene),
+    speed: inheritStat(sire.speed, dam.speed, puppyGenetics.speedGene),
+    agility: inheritStat(sire.agility, dam.agility, puppyGenetics.agilityGene),
+    strength: inheritStat(sire.strength, dam.strength, puppyGenetics.strengthGene),
+    endurance: inheritStat(sire.endurance, dam.endurance, puppyGenetics.enduranceGene),
+    prey_drive: Math.round((inheritStat(sire.prey_drive, dam.prey_drive, puppyGenetics.energyGene))),
+    protectiveness: Math.round((inheritStat(sire.protectiveness, dam.protectiveness, puppyGenetics.strengthGene))),
 
     // Trained stats (start at 0)
     speed_trained: 0,
@@ -232,6 +486,9 @@ export function generatePuppy(
     parent1_id: sire.id,
     parent2_id: dam.id,
 
+    // Genetics (store the full genetics object)
+    genetics: puppyGenetics,
+
     // Breeding fields (puppy starts at 0 weeks)
     age_weeks: 0,
     is_pregnant: false,
@@ -253,7 +510,8 @@ export function generateLitter(
   dam: Dog,
   sireBreed: Breed,
   damBreed: Breed,
-  userId: string
+  userId: string,
+  allDogs?: Dog[]
 ): Dog[] {
   const litterSize =
     BREEDING_CONSTANTS.LITTER_SIZE_MIN +
@@ -262,7 +520,7 @@ export function generateLitter(
   const puppies: Dog[] = [];
 
   for (let i = 0; i < litterSize; i++) {
-    puppies.push(generatePuppy(sire, dam, sireBreed, damBreed, userId));
+    puppies.push(generatePuppy(sire, dam, sireBreed, damBreed, userId, undefined, allDogs));
   }
 
   return puppies;

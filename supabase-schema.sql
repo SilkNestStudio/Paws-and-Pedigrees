@@ -74,6 +74,9 @@ CREATE TABLE public.dogs (
   parent1_id UUID REFERENCES public.dogs(id),
   parent2_id UUID REFERENCES public.dogs(id),
 
+  -- Genetics
+  genetics JSONB,
+
   -- Breeding
   age_weeks INTEGER DEFAULT 0,
   is_pregnant BOOLEAN DEFAULT false,
@@ -101,10 +104,21 @@ CREATE TABLE public.competition_results (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Stud Marketplace table (player-to-player breeding)
+CREATE TABLE public.stud_listings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  dog_id UUID REFERENCES public.dogs(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  stud_fee INTEGER NOT NULL DEFAULT 100,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dogs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.competition_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stud_listings ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
 CREATE POLICY "Users can view own profile"
@@ -145,6 +159,19 @@ CREATE POLICY "Users can insert own competition results"
   ON public.competition_results FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+-- Stud listings policies
+CREATE POLICY "Anyone can view stud listings"
+  ON public.stud_listings FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can create own listings"
+  ON public.stud_listings FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own listings"
+  ON public.stud_listings FOR DELETE
+  USING (auth.uid() = user_id);
+
 -- Functions for automatic timestamps
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
@@ -182,6 +209,8 @@ CREATE INDEX dogs_user_id_idx ON public.dogs(user_id);
 CREATE INDEX dogs_breed_id_idx ON public.dogs(breed_id);
 CREATE INDEX competition_results_user_id_idx ON public.competition_results(user_id);
 CREATE INDEX competition_results_dog_id_idx ON public.competition_results(dog_id);
+CREATE INDEX stud_listings_user_id_idx ON public.stud_listings(user_id);
+CREATE INDEX stud_listings_dog_id_idx ON public.stud_listings(dog_id);
 
 -- Grant permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;

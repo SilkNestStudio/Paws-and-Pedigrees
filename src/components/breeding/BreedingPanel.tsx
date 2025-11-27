@@ -17,11 +17,11 @@ export default function BreedingPanel() {
 
   // Check eligibility
   const eligibility = dog1 && dog2 && user
-    ? checkBreedingEligibility(dog1, dog2, user.cash)
+    ? checkBreedingEligibility(dog1, dog2, user.cash, dogs)
     : { canBreed: false, reasons: ['Select two dogs'] };
 
   // Get genetics preview
-  const genetics = dog1 && dog2 ? previewGenetics(dog1, dog2) : null;
+  const genetics = dog1 && dog2 ? previewGenetics(dog1, dog2, dogs) : null;
 
   const handleBreed = () => {
     if (!dog1 || !dog2 || !eligibility.canBreed || !user) return;
@@ -191,6 +191,36 @@ export default function BreedingPanel() {
                   {genetics.litterSize.min}-{genetics.litterSize.max} puppies
                 </p>
               </div>
+
+              {/* Inbreeding Warning */}
+              {genetics.inbreeding && (
+                <div className={`p-4 rounded-lg border-2 ${
+                  genetics.inbreeding.coefficient > 0.5
+                    ? 'bg-red-50 border-red-300'
+                    : 'bg-yellow-50 border-yellow-300'
+                }`}>
+                  <h4 className={`font-semibold mb-2 ${
+                    genetics.inbreeding.coefficient > 0.5 ? 'text-red-800' : 'text-yellow-800'
+                  }`}>
+                    ⚠️ Inbreeding Detected
+                  </h4>
+                  <p className={`text-sm ${
+                    genetics.inbreeding.coefficient > 0.5 ? 'text-red-700' : 'text-yellow-700'
+                  }`}>
+                    These dogs are {genetics.inbreeding.relationship}
+                  </p>
+                  <p className={`text-sm ${
+                    genetics.inbreeding.coefficient > 0.5 ? 'text-red-700' : 'text-yellow-700'
+                  }`}>
+                    Coefficient: {(genetics.inbreeding.coefficient * 100).toFixed(1)}%
+                  </p>
+                  <p className={`text-sm font-semibold mt-1 ${
+                    genetics.inbreeding.coefficient > 0.5 ? 'text-red-800' : 'text-yellow-800'
+                  }`}>
+                    Puppies will have {genetics.inbreeding.penalty}% reduced stats
+                  </p>
+                </div>
+              )}
 
               {/* Pregnancy Info */}
               <div className="bg-kennel-50 p-4 rounded-lg">
