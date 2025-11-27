@@ -1,5 +1,13 @@
 import { memo } from 'react';
 
+// Import background images so Vite can process them for production
+import kennelBg from '../../assets/images/backgrounds/kennel-background.png';
+import officeBg from '../../assets/images/backgrounds/office-background.png';
+import trainingBg from '../../assets/images/backgrounds/training-background.png';
+import competitionBg from '../../assets/images/backgrounds/competition-background.png';
+import jobsBg from '../../assets/images/backgrounds/jobs-background.png';
+import shopBg from '../../assets/images/backgrounds/shop-background.png';
+
 interface SceneBackgroundProps {
   scene: 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
   children: React.ReactNode;
@@ -7,14 +15,14 @@ interface SceneBackgroundProps {
 
 function SceneBackground({ scene, children }: SceneBackgroundProps) {
   const backgrounds = {
-    kennel: '/src/assets/images/backgrounds/kennel-background.png',
-    dogDetail: '/src/assets/images/backgrounds/kennel-background.png',
-    office: '/src/assets/images/backgrounds/office-background.png',
-    training: '/src/assets/images/backgrounds/training-background.png',
-    competition: '/src/assets/images/backgrounds/competition-background.png',
-    breeding: '/src/assets/images/backgrounds/kennel-background.png',
-    jobs: '/src/assets/images/backgrounds/jobs-background.png',
-    shop: '/src/assets/images/backgrounds/shop-background.png',
+    kennel: kennelBg,
+    dogDetail: kennelBg,
+    office: officeBg,
+    training: trainingBg,
+    competition: competitionBg,
+    breeding: kennelBg,
+    jobs: jobsBg,
+    shop: shopBg,
   };
 
   const backgroundImage = backgrounds[scene] || backgrounds.kennel;
