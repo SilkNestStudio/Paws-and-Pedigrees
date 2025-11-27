@@ -43,13 +43,13 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
 
   const handleResetStep2Confirm = () => {
     if (confirmText.toLowerCase() === 'reset') {
-      // Reset the game
+      // Clear localStorage to completely reset
+      localStorage.removeItem('paws-and-pedigrees-storage');
+      // Reset the game state
       resetGame();
-      setShowResetConfirm(false);
-      setResetStep(0);
-      setConfirmText('');
-      alert('Game has been reset! Please refresh the page.');
-      window.location.reload();
+      // Force full page reload
+      alert('Game has been reset!');
+      window.location.href = window.location.origin;
     }
   };
 

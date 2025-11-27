@@ -15,7 +15,7 @@ export default function IntroStory({ onComplete }: IntroStoryProps) {
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 animate-fade-in">
             A Letter From Grandpa
           </h1>
-          <div className="bg-amber-50 p-8 rounded-lg shadow-2xl transform rotate-1">
+          <div className="bg-amber-50 p-8 rounded-lg shadow-2xl">
             <p className="text-lg md:text-xl text-slate-800 italic font-serif leading-relaxed">
               "My dear grandchild,
             </p>
@@ -38,7 +38,7 @@ export default function IntroStory({ onComplete }: IntroStoryProps) {
       background: 'from-amber-900 to-orange-900',
       content: (
         <div className="text-center max-w-3xl mx-auto space-y-6">
-          <div className="bg-amber-50 p-8 rounded-lg shadow-2xl transform -rotate-1">
+          <div className="bg-amber-50 p-8 rounded-lg shadow-2xl">
             <p className="text-lg md:text-xl text-slate-800 font-serif leading-relaxed">
               I'm leaving you my old kennel on the edge of town. It's not much—
               one small run and a whole lot of memories.
