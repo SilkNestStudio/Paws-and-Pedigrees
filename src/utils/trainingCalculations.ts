@@ -1,26 +1,31 @@
 import { Dog } from '../types';
+import { applyTrainingBonus } from './kennelUpgrades';
 
 export function calculateTrainingGain(
   dog: Dog,
   statName: 'speed' | 'agility' | 'strength' | 'endurance' | 'obedience',
   multiplier: number,
-  userTrainingSkill: number
+  userTrainingSkill: number,
+  kennelLevel: number = 1
 ): number {
   // Base gain: 0.1 to 0.3 per session
   const baseGain = 0.1 + (Math.random() * 0.2);
   // Slightly adjust gains based on the stat being trained (obedience tends to improve slower)
   const statDifficultyModifier = statName === 'obedience' ? 0.9 : 1;
-  
+
   // User skill bonus (training_skill / 100 = 0.01 to 1.0 bonus)
   const skillBonus = 1 + (userTrainingSkill / 100);
-  
+
   // Dog's trainability affects gain (higher = learns faster)
   const trainabilityBonus = 1 + (dog.trainability / 100);
-  
-  // Total gain
-  const totalGain = baseGain * multiplier * skillBonus * trainabilityBonus * statDifficultyModifier;
-  
-  return parseFloat(totalGain.toFixed(2));
+
+  // Total gain before kennel bonus
+  const baseTotal = baseGain * multiplier * skillBonus * trainabilityBonus * statDifficultyModifier;
+
+  // Apply kennel training effectiveness bonus
+  const withKennelBonus = applyTrainingBonus(baseTotal * 100, kennelLevel) / 100;
+
+  return parseFloat(withKennelBonus.toFixed(2));
 }
 
 export function getTrainingPointsAvailable(dog: Dog): number {

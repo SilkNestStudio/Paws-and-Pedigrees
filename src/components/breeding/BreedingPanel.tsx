@@ -3,7 +3,6 @@ import { useGameStore } from '../../stores/gameStore';
 import {
   checkBreedingEligibility,
   previewGenetics,
-  calculatePregnancyDueDate,
 } from '../../utils/breedingCalculations';
 import { BREEDING_CONSTANTS } from '../../data/breedingConstants';
 import HelpButton from '../tutorial/HelpButton';
@@ -37,15 +36,12 @@ export default function BreedingPanel() {
         Math.random() * (BREEDING_CONSTANTS.LITTER_SIZE_MAX - BREEDING_CONSTANTS.LITTER_SIZE_MIN + 1)
       );
 
-    // Calculate pregnancy due date
-    const pregnancyDue = calculatePregnancyDueDate();
-
     // Determine which is sire/dam
     const sire = dog1.gender === 'male' ? dog1 : dog2;
     const dam = dog1.gender === 'female' ? dog1 : dog2;
 
-    // Update dogs in store
-    breedDogs(sire.id, dam.id, litterSize, pregnancyDue);
+    // Update dogs in store (pregnancy due date is calculated automatically)
+    breedDogs(sire.id, dam.id, litterSize);
 
     // Show success message
     alert(

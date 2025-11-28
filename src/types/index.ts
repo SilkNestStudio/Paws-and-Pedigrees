@@ -86,10 +86,19 @@ export interface Dog {
 
   // Breeding fields
   age_weeks: number;
+  age_years?: number;
+  life_stage?: 'puppy' | 'adult' | 'senior';
+  is_dead?: boolean;
   is_pregnant?: boolean;
   pregnancy_due?: string;
   last_bred?: string;
   litter_size?: number;
+
+  // Veterinary/Health fields
+  current_ailment?: string; // ID of current illness/injury
+  ailment_contracted_at?: string; // When ailment started
+  recovery_due?: string; // When recovery completes
+  recovering_from?: string; // ID of ailment recovering from
 
   created_at: string;
   last_fed: string;

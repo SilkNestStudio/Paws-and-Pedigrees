@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { jobTypes } from '../../data/jobTypes';
 import HelpButton from '../tutorial/HelpButton';
+import { applyJobIncomeBonus } from '../../utils/kennelUpgrades';
 
 export default function JobsBoard() {
   const { user, updateUserCash } = useGameStore();
@@ -11,10 +12,16 @@ export default function JobsBoard() {
   const calculatePay = (job: typeof jobTypes[0]): number => {
     let pay = job.basePay;
 
+    // Apply skill bonus
     if (job.skillType && user) {
       const skillValue = user[job.skillType] || 1;
       const bonus = skillValue / 100;
       pay = Math.round(pay * (1 + bonus));
+    }
+
+    // Apply kennel level bonus
+    if (user) {
+      pay = applyJobIncomeBonus(pay, user.kennel_level);
     }
 
     return pay;

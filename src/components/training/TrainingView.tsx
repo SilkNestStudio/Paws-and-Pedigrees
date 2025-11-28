@@ -57,12 +57,13 @@ export default function TrainingView() {
 
     const userMultiplier = getUserTrainingMultiplier(user?.training_skill || 1);
 
-    // Apply performance multiplier from minigame
+    // Apply performance multiplier from minigame (with kennel bonus)
     const baseGain = calculateTrainingGain(
       selectedDog,
       training.statImproved,
       userMultiplier,
-      user?.training_skill || 1
+      user?.training_skill || 1,
+      user?.kennel_level || 1
     );
 
     // Apply rescue dog bonus!
@@ -153,7 +154,8 @@ export default function TrainingView() {
       selectedDog,
       training.statImproved,
       multiplier,
-      user?.training_skill || 1
+      user?.training_skill || 1,
+      user?.kennel_level || 1
     );
 
     const updates: Partial<Dog> = {

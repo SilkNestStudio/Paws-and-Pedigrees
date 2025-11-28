@@ -1,0 +1,12 @@
+DOG IMAGES PROMPTS- 
+
+SEED USED FOR DOG IMAGE GENERATIONS - 449953260702334
+
+illustration of a {BREED} dog, full body view, {MOOD} expression, {POSITION} pose,head down, looking up with puppy dog eyes, simple clean gray background, soft lighting, vibrant colors, detailed fur texture, professional pet portrait style, high quality, 4k
+
+
+BACKGROUND IMAGE PROMPTS-
+
+SEED USED - RANDOM	
+
+illustration,small at home dog kennel facility, 3 rows of chain-link fence pens, concrete floor, wooden support beams, bright warm lighting, clean professional kennel, vibrant colors,  no characters, no animals,isometric perspective, game environment art, high quality, 4k, ultrarealistic

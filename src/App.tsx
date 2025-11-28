@@ -9,6 +9,7 @@ import { generateDog } from './utils/dogGenerator';
 import SceneBackground from './components/layout/SceneBackground';
 import TrainingView from './components/training/TrainingView';
 import { regenerateTP, shouldRegenerateTP } from './utils/tpRegeneration';
+import { regenerateEnergy, shouldRegenerateEnergy } from './utils/energyRegeneration';
 import CompetitionView from './components/competitions/CompetitionView';
 import JobsBoard from './components/jobs/JobsBoard';
 import BreedingPanel from './components/breeding/BreedingPanel';
@@ -23,6 +24,7 @@ import SettingsDropdown from './components/layout/SettingsDropdown';
 import DailyRewardModal from './components/rewards/DailyRewardModal';
 import { canClaimDailyReward } from './utils/dailyRewards';
 import TutorialManager from './components/tutorial/TutorialManager';
+import VetClinicView from './components/vet/VetClinicView';
 
 type View =
   | 'kennel'
@@ -32,7 +34,8 @@ type View =
   | 'competition'
   | 'breeding'
   | 'jobs'
-  | 'shop';
+  | 'shop'
+  | 'vet';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('office');
@@ -78,14 +81,20 @@ function App() {
   };
 
   useEffect(() => {
-    // Check all dogs for TP regeneration and aging on mount
+    // Check all dogs for TP regeneration, energy regeneration, and aging on mount
     dogs.forEach(dog => {
       const updates: any = {};
 
-      // Check TP regeneration
+      // Check TP regeneration (every 24 hours)
       if (shouldRegenerateTP(dog)) {
         const tpUpdates = regenerateTP(dog);
         Object.assign(updates, tpUpdates);
+      }
+
+      // Check energy regeneration (passive over time) with kennel bonus
+      if (shouldRegenerateEnergy(dog)) {
+        const energyUpdates = regenerateEnergy(dog, user?.kennel_level || 1);
+        Object.assign(updates, energyUpdates);
       }
 
       // Check puppy aging
@@ -210,7 +219,7 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-          <SceneBackground scene={currentView}>
+          <SceneBackground scene={currentView} kennelLevel={user?.kennel_level || 1}>
             <div className="p-3 md:p-6">
               {currentView === 'kennel' && <KennelView onViewDog={() => setCurrentView('dogDetail')} />}
 
@@ -219,9 +228,9 @@ function App() {
               {currentView === 'office' && (
                 <OfficeDashboard onNavigate={setCurrentView} />
               )}
-              
+
               {currentView === 'training' && <TrainingView />}
-              
+
               {currentView === 'competition' && <CompetitionView />}
 
               {currentView === 'breeding' && (
@@ -234,6 +243,8 @@ function App() {
               {currentView === 'jobs' && <JobsBoard />}
 
               {currentView === 'shop' && <ShopView initialTab={shopTab} />}
+
+              {currentView === 'vet' && <VetClinicView />}
             </div>
           </SceneBackground>
         </main>

@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import HelpButton from '../tutorial/HelpButton';
 import { getKennelCapacityInfo } from '../../utils/kennelCapacity';
+import { getHealthStatus } from '../../utils/healthDecay';
+import KennelUpgradeView from './KennelUpgradeView';
 
 interface KennelViewProps {
   onViewDog: () => void;
@@ -10,11 +13,27 @@ interface KennelViewProps {
 export default function KennelView({ onViewDog }: KennelViewProps) {
   const { user, dogs, selectDog } = useGameStore();
   const capacityInfo = getKennelCapacityInfo(dogs.length, user?.kennel_level || 1);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const handleDogClick = (dog: typeof dogs[0]) => {
     selectDog(dog);
     onViewDog();
   };
+
+  // If showing upgrade panel, render that instead
+  if (showUpgrade) {
+    return (
+      <div>
+        <button
+          onClick={() => setShowUpgrade(false)}
+          className="mb-4 px-4 py-2 bg-earth-600 text-white rounded-lg hover:bg-earth-700 transition-all"
+        >
+          ← Back to Kennel
+        </button>
+        <KennelUpgradeView />
+      </div>
+    );
+  }
 
   if (dogs.length === 0) {
     return (
@@ -28,7 +47,7 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
   <div className="max-w-6xl mx-auto">
     <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
       <div className="flex justify-between items-center">
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-bold text-earth-900">Your Kennel</h2>
             <HelpButton helpId="kennel-management" tooltip="Learn about kennel management" />
@@ -49,9 +68,18 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
             )}
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-earth-600">Cash</p>
-          <p className="text-2xl font-bold text-kennel-700">${user?.cash}</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowUpgrade(true)}
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-semibold shadow-md flex items-center gap-2"
+          >
+            <span>⬆️</span>
+            <span>Upgrade Kennel</span>
+          </button>
+          <div className="text-right">
+            <p className="text-sm text-earth-600">Cash</p>
+            <p className="text-2xl font-bold text-kennel-700">${user?.cash}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -59,9 +87,14 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {dogs.map((dog) => {
         const breedData = rescueBreeds.find(b => b.id === dog.breed_id);
+        const healthStatus = getHealthStatus(dog);
 
         // Dynamic image selection based on dog's status
         const getDogImageByStatus = () => {
+          // Dead dogs
+          if (healthStatus.isDead) {
+            return breedData?.img_playing || ''; // Laying down
+          }
           // Tired or sick dogs lay down
           if (dog.energy_stat < 30 || dog.health < 50) {
             return breedData?.img_playing || '';
@@ -101,17 +134,32 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
 
               {/* Status Indicators */}
               <div className="absolute top-3 right-3 flex flex-col gap-2">
-                {dog.hunger < 30 && (
+                {healthStatus.isDead && (
+                  <div className="bg-black text-white px-2 py-1 rounded-full text-xs font-bold animate-pulse">
+                    ☠️ DEAD
+                  </div>
+                )}
+                {healthStatus.needsEmergencyVet && (
+                  <div className="bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold animate-pulse">
+                    🚨 EMERGENCY!
+                  </div>
+                )}
+                {healthStatus.needsVet && !healthStatus.needsEmergencyVet && (
+                  <div className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-bold animate-pulse">
+                    🏥 Needs Vet
+                  </div>
+                )}
+                {dog.hunger < 30 && !healthStatus.isDead && (
                   <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold animate-pulse">
                     🍖 Hungry!
                   </div>
                 )}
-                {dog.happiness < 30 && (
+                {dog.happiness < 30 && !healthStatus.isDead && (
                   <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold animate-pulse">
                     😢 Sad
                   </div>
                 )}
-                {dog.energy_stat < 20 && (
+                {dog.energy_stat < 20 && !healthStatus.isDead && (
                   <div className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-bold">
                     💤 Tired
                   </div>

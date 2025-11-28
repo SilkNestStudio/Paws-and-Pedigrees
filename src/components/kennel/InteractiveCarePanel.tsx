@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { calculateFoodConsumption, getSizeCategoryName } from '../../utils/careCalculations';
 import { checkBondLevelUp } from '../../utils/bondSystem';
+import { getHealthStatus, VET_COST, EMERGENCY_VET_COST, REVIVAL_GEM_COST } from '../../utils/healthDecay';
 
 type DragItem = 'bowl' | 'water-bowl' | null;
 type DropZone = 'spigot' | 'food-bin' | 'dog' | null;
@@ -12,7 +13,7 @@ interface Position {
 }
 
 export default function InteractiveCarePanel() {
-  const { selectedDog, user, feedDog, waterDog, updateDog } = useGameStore();
+  const { selectedDog, user, feedDog, waterDog, updateDog, takeToVet, takeToEmergencyVet, reviveDeadDog } = useGameStore();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Drag state
@@ -340,6 +341,126 @@ export default function InteractiveCarePanel() {
         </div>
       </div>
 
+      {/* Health & Vet Section */}
+      {(() => {
+        const healthStatus = getHealthStatus(selectedDog);
+
+        return (
+          <div className="mb-6">
+            {/* Health Warning */}
+            {healthStatus.warningMessage && (
+              <div className={`mb-4 p-4 rounded-lg border-2 ${
+                healthStatus.status === 'dead' ? 'bg-black/10 border-black' :
+                healthStatus.status === 'emergency' ? 'bg-red-50 border-red-500' :
+                healthStatus.status === 'critical' ? 'bg-orange-50 border-orange-500' :
+                'bg-yellow-50 border-yellow-500'
+              }`}>
+                <p className={`font-bold ${
+                  healthStatus.status === 'dead' ? 'text-black' :
+                  healthStatus.status === 'emergency' ? 'text-red-800' :
+                  healthStatus.status === 'critical' ? 'text-orange-800' :
+                  'text-yellow-800'
+                }`}>
+                  {healthStatus.warningMessage}
+                </p>
+                {healthStatus.daysWithoutCare > 0 && (
+                  <p className="text-sm text-gray-700 mt-1">
+                    Days without care: {healthStatus.daysWithoutCare}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Vet Actions */}
+            {(healthStatus.needsVet || healthStatus.needsEmergencyVet || healthStatus.isDead) && (
+              <div>
+                <h4 className="text-lg font-semibold text-earth-800 mb-3 flex items-center gap-2">
+                  🏥 Veterinary Care
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Regular Vet */}
+                  {healthStatus.needsVet && !healthStatus.needsEmergencyVet && !healthStatus.isDead && (
+                    <button
+                      onClick={() => {
+                        const result = takeToVet(selectedDog.id);
+                        setMessage({ text: result.message || 'Unknown error', type: result.success ? 'success' : 'error' });
+                        setTimeout(() => setMessage(null), 4000);
+                      }}
+                      disabled={!user || user.cash < VET_COST}
+                      className="p-4 border-2 border-orange-400 rounded-lg hover:border-orange-600 hover:bg-orange-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <p className="font-semibold text-earth-900 flex items-center gap-2">
+                        🏥 Visit Vet
+                      </p>
+                      <p className="text-xs text-earth-600 mt-1">Restore health to 100%</p>
+                      <p className="text-sm font-bold text-orange-700 mt-2">${VET_COST}</p>
+                      {user && user.cash < VET_COST && (
+                        <p className="text-xs text-red-600 mt-1">Not enough cash!</p>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Emergency Vet */}
+                  {healthStatus.needsEmergencyVet && !healthStatus.isDead && (
+                    <button
+                      onClick={() => {
+                        const result = takeToEmergencyVet(selectedDog.id);
+                        setMessage({ text: result.message || 'Unknown error', type: result.success ? 'success' : 'error' });
+                        setTimeout(() => setMessage(null), 4000);
+                      }}
+                      disabled={!user || user.cash < EMERGENCY_VET_COST}
+                      className="p-4 border-2 border-red-500 rounded-lg hover:border-red-700 hover:bg-red-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed animate-pulse"
+                    >
+                      <p className="font-semibold text-earth-900 flex items-center gap-2">
+                        🚨 Emergency Vet
+                      </p>
+                      <p className="text-xs text-earth-600 mt-1">Restore health (reduces stats by 5)</p>
+                      <p className="text-sm font-bold text-red-700 mt-2">${EMERGENCY_VET_COST}</p>
+                      {user && user.cash < EMERGENCY_VET_COST && (
+                        <p className="text-xs text-red-600 mt-1">Not enough cash!</p>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Revival */}
+                  {healthStatus.isDead && healthStatus.canRevive && (
+                    <button
+                      onClick={() => {
+                        const result = reviveDeadDog(selectedDog.id);
+                        setMessage({ text: result.message || 'Unknown error', type: result.success ? 'success' : 'error' });
+                        setTimeout(() => setMessage(null), 4000);
+                      }}
+                      disabled={!user || user.gems < REVIVAL_GEM_COST}
+                      className="p-4 border-2 border-purple-500 rounded-lg hover:border-purple-700 hover:bg-purple-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed animate-pulse"
+                    >
+                      <p className="font-semibold text-earth-900 flex items-center gap-2">
+                        ✨ Revive Dog
+                      </p>
+                      <p className="text-xs text-earth-600 mt-1">Bring back to 50% health (reduces stats)</p>
+                      <p className="text-sm font-bold text-purple-700 mt-2">{REVIVAL_GEM_COST} 💎 Gems</p>
+                      {user && user.gems < REVIVAL_GEM_COST && (
+                        <p className="text-xs text-red-600 mt-1">Not enough gems!</p>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Cannot Revive */}
+                  {healthStatus.isDead && !healthStatus.canRevive && (
+                    <div className="p-4 border-2 border-gray-400 rounded-lg bg-gray-50 text-left opacity-50">
+                      <p className="font-semibold text-gray-900 flex items-center gap-2">
+                        💀 Cannot Revive
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">Too much time has passed</p>
+                      <p className="text-sm font-bold text-gray-700 mt-2">Adopt a new dog</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Care Tips */}
       <div className="p-4 bg-earth-50 border border-earth-200 rounded-lg">
         <h5 className="font-semibold text-earth-900 mb-2">💡 Care Tips</h5>
@@ -349,6 +470,8 @@ export default function InteractiveCarePanel() {
           <li>• {sizeCategory} dogs eat {foodNeeded} units per feeding</li>
           <li>• Buy dog food bags from the shop to refill storage</li>
           <li>• Keep hunger & thirst above 60% for best performance</li>
+          <li>• <strong>Feed and water daily to prevent health decay!</strong></li>
+          <li>• Dogs lose 10% health per day without care</li>
         </ul>
       </div>
     </div>

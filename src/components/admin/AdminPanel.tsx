@@ -68,8 +68,18 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     business_acumen: user?.business_acumen || 1,
   });
 
-  const handleChange = (field: string, value: number) => {
-    setValues(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field: string, value: string | number) => {
+    // If already a number (from button clicks), use it directly
+    if (typeof value === 'number') {
+      setValues(prev => ({ ...prev, [field]: value }));
+      return;
+    }
+
+    // Handle string input from text fields
+    const numValue = value === '' ? 0 : parseInt(value);
+    if (!isNaN(numValue)) {
+      setValues(prev => ({ ...prev, [field]: numValue }));
+    }
   };
 
   const handleApply = () => {
@@ -137,7 +147,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   <input
                     type="number"
                     value={values.level}
-                    onChange={(e) => handleChange('level', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    onChange={(e) => handleChange('level', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-purple-500"
                     min="1"
                     max="100"
@@ -160,7 +170,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   <input
                     type="number"
                     value={values.xp}
-                    onChange={(e) => handleChange('xp', Math.max(0, parseInt(e.target.value) || 0))}
+                    onChange={(e) => handleChange('xp', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-purple-500"
                     min="0"
                   />
@@ -190,7 +200,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   <input
                     type="number"
                     value={values.cash}
-                    onChange={(e) => handleChange('cash', Math.max(0, parseInt(e.target.value) || 0))}
+                    onChange={(e) => handleChange('cash', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-500"
                     min="0"
                   />
@@ -218,7 +228,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   <input
                     type="number"
                     value={values.gems}
-                    onChange={(e) => handleChange('gems', Math.max(0, parseInt(e.target.value) || 0))}
+                    onChange={(e) => handleChange('gems', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
                     min="0"
                   />
@@ -254,7 +264,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   <input
                     type="number"
                     value={values.food_storage}
-                    onChange={(e) => handleChange('food_storage', Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                    onChange={(e) => handleChange('food_storage', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
                     min="0"
                     max="100"
@@ -277,7 +287,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   <input
                     type="number"
                     value={values.kennel_level}
-                    onChange={(e) => handleChange('kennel_level', Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    onChange={(e) => handleChange('kennel_level', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-orange-500"
                     min="1"
                     max="10"
@@ -307,7 +317,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <input
                   type="number"
                   value={values.training_skill}
-                  onChange={(e) => handleChange('training_skill', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => handleChange('training_skill', e.target.value)}
                   className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
                   min="1"
                   max="100"
@@ -322,7 +332,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <input
                   type="number"
                   value={values.care_knowledge}
-                  onChange={(e) => handleChange('care_knowledge', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => handleChange('care_knowledge', e.target.value)}
                   className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
                   min="1"
                   max="100"
@@ -337,7 +347,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <input
                   type="number"
                   value={values.breeding_expertise}
-                  onChange={(e) => handleChange('breeding_expertise', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => handleChange('breeding_expertise', e.target.value)}
                   className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
                   min="1"
                   max="100"
@@ -352,7 +362,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <input
                   type="number"
                   value={values.competition_strategy}
-                  onChange={(e) => handleChange('competition_strategy', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => handleChange('competition_strategy', e.target.value)}
                   className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
                   min="1"
                   max="100"
@@ -367,7 +377,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <input
                   type="number"
                   value={values.business_acumen}
-                  onChange={(e) => handleChange('business_acumen', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => handleChange('business_acumen', e.target.value)}
                   className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
                   min="1"
                   max="100"

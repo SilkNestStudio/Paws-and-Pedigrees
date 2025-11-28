@@ -13,6 +13,7 @@ function Sidebar({ currentView, onViewChange }: SidebarProps) {
     { id: 'training', label: 'Training', icon: '🎯' },
     { id: 'competition', label: 'Compete', icon: '🏆' },
     { id: 'breeding', label: 'Breeding', icon: '🤰' },
+    { id: 'vet', label: 'Vet Clinic', icon: '🏥' },
     { id: 'jobs', label: 'Jobs', icon: '💼' },
     { id: 'shop', label: 'Shop', icon: '🛍️' },
   ];

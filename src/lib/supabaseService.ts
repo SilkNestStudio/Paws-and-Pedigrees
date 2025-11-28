@@ -50,9 +50,12 @@ export async function loadUserDogs(userId: string): Promise<Dog[]> {
 }
 
 export async function saveDog(dog: Dog): Promise<boolean> {
+  // Remove computed fields that don't exist in the database
+  const { age_years, ...dogWithoutComputedFields } = dog as any;
+
   const { error } = await supabase
     .from('dogs')
-    .upsert(dog, { onConflict: 'id' });
+    .upsert(dogWithoutComputedFields, { onConflict: 'id' });
 
   if (error) {
     console.error('Error saving dog:', error);

@@ -9,6 +9,7 @@ import WeightPullMiniGame from './WeightPullMiniGame';
 import RacingMiniGame from './RacingMiniGame';
 import HelpButton from '../tutorial/HelpButton';
 import { ENERGY_THRESHOLDS } from '../../utils/careCalculations';
+import { applyCompetitionBonus } from '../../utils/kennelUpgrades';
 
 // Derive the types from the data exports so we don't depend on separate type-only imports
 type CompetitionType = (typeof competitionTypes)[number];
@@ -124,11 +125,14 @@ export default function CompetitionView() {
       const finalResults = determineWinner(allScores);
       const playerResult = finalResults.find(r => r.name === selectedDog.name);
 
-      let prizeMoney = 0;
-      if (playerResult?.placement === 1) prizeMoney = tier.prizes.first;
-      else if (playerResult?.placement === 2) prizeMoney = tier.prizes.second;
-      else if (playerResult?.placement === 3) prizeMoney = tier.prizes.third;
-      else prizeMoney = tier.prizes.participation;
+      let basePrizeMoney = 0;
+      if (playerResult?.placement === 1) basePrizeMoney = tier.prizes.first;
+      else if (playerResult?.placement === 2) basePrizeMoney = tier.prizes.second;
+      else if (playerResult?.placement === 3) basePrizeMoney = tier.prizes.third;
+      else basePrizeMoney = tier.prizes.participation;
+
+      // Apply kennel level bonus to prize money
+      const prizeMoney = applyCompetitionBonus(basePrizeMoney, user?.kennel_level || 1);
 
       updateUserCash(prizeMoney);
 
