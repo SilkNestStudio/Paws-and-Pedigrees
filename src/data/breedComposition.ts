@@ -58,10 +58,10 @@ export function createPurebredComposition(
 export function calculatePuppyComposition(
   sireComposition: BreedComposition,
   damComposition: BreedComposition,
-  sireBreedId: number,
-  damBreedId: number,
-  sireBreedName: string,
-  damBreedName: string
+  _sireBreedId: number,
+  _damBreedId: number,
+  _sireBreedName: string,
+  _damBreedName: string
 ): BreedComposition {
   // Combine parent portions (each parent contributes 50%)
   const puppyPortions: Map<number, BreedPortion> = new Map();

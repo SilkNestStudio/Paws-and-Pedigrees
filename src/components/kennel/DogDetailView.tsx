@@ -5,7 +5,6 @@ import DogCarePanel from './DogCarePanel';
 import InteractiveCarePanel from './InteractiveCarePanel';
 import HelpButton from '../tutorial/HelpButton';
 import {
-  getCompositionSummary,
   getCompositionColor,
   getCompositionEmoji,
   getSimplifiedComposition,

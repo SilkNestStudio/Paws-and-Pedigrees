@@ -612,6 +612,7 @@ export const useGameStore = create<GameState>()(
             competition_wins_local: 0,
             competition_wins_regional: 0,
             competition_wins_national: 0,
+            food_storage: 0,
           },
           dogs: [],
           selectedDog: null,
