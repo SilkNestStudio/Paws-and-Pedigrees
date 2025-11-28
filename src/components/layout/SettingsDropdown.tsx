@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { TUTORIALS } from '../../data/tutorials/tutorialSteps';
+import { isAdmin } from '../../config/adminConfig';
+import AdminPanel from '../admin/AdminPanel';
 
 interface SettingsDropdownProps {
   onSignOut: () => void;
@@ -10,10 +12,13 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showTutorialMenu, setShowTutorialMenu] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [resetStep, setResetStep] = useState(0);
   const [confirmText, setConfirmText] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { tutorialProgress, startTutorial, toggleHelpIcons } = useGameStore();
+  const { user, tutorialProgress, startTutorial, toggleHelpIcons } = useGameStore();
+
+  const userIsAdmin = isAdmin(user?.id);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -133,6 +138,29 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
                 <span className="text-lg">{tutorialProgress.showHelpIcons ? '👁️' : '🚫'}</span>
                 <span className="font-medium">{tutorialProgress.showHelpIcons ? 'Hide' : 'Show'} Help Icons</span>
               </button>
+
+              {/* Admin Panel (Only for admins) */}
+              {userIsAdmin && (
+                <>
+                  {/* Divider */}
+                  <div className="border-t border-slate-200 my-1"></div>
+
+                  <div className="px-4 py-2">
+                    <p className="text-xs font-bold text-purple-500 uppercase">Developer</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowAdminPanel(true);
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors flex items-center gap-3 text-purple-600"
+                  >
+                    <span className="text-lg">🎮</span>
+                    <span className="font-medium">Admin Panel</span>
+                  </button>
+                </>
+              )}
 
               {/* Divider */}
               <div className="border-t border-slate-200 my-1"></div>
@@ -257,6 +285,11 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Admin Panel Modal */}
+      {showAdminPanel && (
+        <AdminPanel onClose={() => setShowAdminPanel(false)} />
       )}
     </>
   );
