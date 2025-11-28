@@ -167,7 +167,7 @@ export default function CompetitionView() {
   const meetsStatRequirement = (dog: any, competition: CompetitionType, tier: CompetitionTier): { meets: boolean; total: number } => {
     let totalRelevantStats = 0;
 
-    Object.keys(competition.statWeights).forEach((stat) => {
+    Object.keys(competition.statWeights).forEach((stat: any) => {
       let value = 0;
 
       switch(stat) {
@@ -213,7 +213,7 @@ export default function CompetitionView() {
       <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
         <h2 className="text-2xl font-bold text-earth-900 mb-4">Select Your Competitor</h2>
         <div className="flex gap-4 overflow-x-auto">
-          {dogs.map((dog) => (
+          {dogs.map((dog: any) => (
             <button
               key={dog.id}
               onClick={() => selectDog(dog)}

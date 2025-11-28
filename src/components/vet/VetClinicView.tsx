@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import { getAilmentById, AILMENTS, canPerformActivity } from '../../utils/veterinarySystem';
+import { getAilmentById, AILMENTS } from '../../utils/veterinarySystem';
 import { VET_COST, EMERGENCY_VET_COST } from '../../utils/healthDecay';
 import { getHealthStatus } from '../../utils/healthDecay';
 import HelpButton from '../tutorial/HelpButton';
@@ -16,8 +16,8 @@ export default function VetClinicView() {
   };
 
   // Filter dogs that need vet care
-  const sickOrInjuredDogs = dogs.filter(d => d.current_ailment || d.recovering_from);
-  const healthIssueDogs = dogs.filter(d => {
+  const sickOrInjuredDogs = dogs.filter((d: any) => d.current_ailment || d.recovering_from);
+  const healthIssueDogs = dogs.filter((d: any) => {
     const healthStatus = getHealthStatus(d);
     return healthStatus.needsVet || healthStatus.needsEmergencyVet;
   });
@@ -26,7 +26,7 @@ export default function VetClinicView() {
     selectDog(dog);
   };
 
-  const handleTreatAilment = (dogId: string, ailmentId: string, cost: number) => {
+  const handleTreatAilment = (dogId: string, cost: number) => {
     if (!user || user.cash < cost) {
       setMessage({ text: `Not enough cash! Need $${cost}, have $${user?.cash || 0}`, type: 'error' });
       setTimeout(() => setMessage(null), 3000);
@@ -84,7 +84,7 @@ export default function VetClinicView() {
           ) : (
             <div className="space-y-4">
               {/* Sick/Injured Dogs */}
-              {sickOrInjuredDogs.map((dog) => {
+              {sickOrInjuredDogs.map((dog: any) => {
                 const ailment = dog.current_ailment
                   ? getAilmentById(dog.current_ailment)
                   : dog.recovering_from
@@ -168,7 +168,7 @@ export default function VetClinicView() {
                           onClick={(e) => {
                             e.stopPropagation();
                             const discountedCost = getDiscountedCost(ailment.treatmentCost);
-                            handleTreatAilment(dog.id, ailment.id, discountedCost);
+                            handleTreatAilment(dog.id, discountedCost);
                           }}
                           disabled={!user || user.cash < getDiscountedCost(ailment.treatmentCost)}
                           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
@@ -182,7 +182,7 @@ export default function VetClinicView() {
               })}
 
               {/* Dogs with health issues (from neglect) */}
-              {healthIssueDogs.map((dog) => {
+              {healthIssueDogs.map((dog: any) => {
                 if (dog.current_ailment || dog.recovering_from) return null; // Already shown above
 
                 const healthStatus = getHealthStatus(dog);

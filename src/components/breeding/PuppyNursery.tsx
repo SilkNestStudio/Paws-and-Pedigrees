@@ -13,12 +13,12 @@ export default function PuppyNursery() {
 
   // Check for completed pregnancies on component mount and updates
   useEffect(() => {
-    const pregnantDogs = dogs.filter(d => d.is_pregnant && d.pregnancy_due);
+    const pregnantDogs = dogs.filter((d: any) => d.is_pregnant && d.pregnancy_due);
 
-    pregnantDogs.forEach(dam => {
+    pregnantDogs.forEach((dam: any) => {
       if (dam.pregnancy_due && isPregnancyComplete(dam.pregnancy_due)) {
         // Find sire
-        const sire = dogs.find(d => d.id !== dam.id && d.last_bred === dam.last_bred);
+        const sire = dogs.find((d: any) => d.id !== dam.id && d.last_bred === dam.last_bred);
         if (!sire) return;
 
         // Get breeds
@@ -39,10 +39,10 @@ export default function PuppyNursery() {
   }, [dogs]);
 
   // Get pregnant dogs
-  const pregnantDogs = dogs.filter(d => d.is_pregnant && d.pregnancy_due);
+  const pregnantDogs = dogs.filter((d: any) => d.is_pregnant && d.pregnancy_due);
 
   // Get puppies (dogs under 52 weeks, not pregnant, and not rescue)
-  const puppies = dogs.filter(d => d.age_weeks < BREEDING_CONSTANTS.ADULT_AGE && !d.is_pregnant && !d.is_rescue);
+  const puppies = dogs.filter((d: any) => d.age_weeks < BREEDING_CONSTANTS.ADULT_AGE && !d.is_pregnant && !d.is_rescue);
 
   const handleSellPuppy = (puppy: typeof dogs[0]) => {
     const price = calculatePuppyPrice(puppy);
@@ -90,7 +90,7 @@ export default function PuppyNursery() {
         <div className="mb-6">
           <h3 className="text-xl font-bold text-earth-900 mb-4">Expecting Mothers</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pregnantDogs.map((dam) => {
+            {pregnantDogs.map((dam: any) => {
               const weeksRemaining = dam.pregnancy_due ? getWeeksRemaining(dam.pregnancy_due) : 0;
               const skipCost = calculateSkipCost(weeksRemaining);
 
@@ -148,7 +148,7 @@ export default function PuppyNursery() {
             Your Puppies ({puppies.length})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {puppies.map((puppy) => {
+            {puppies.map((puppy: any) => {
               const price = calculatePuppyPrice(puppy);
               const canTrain = puppy.age_weeks >= BREEDING_CONSTANTS.MIN_TRAINING_AGE;
               const canCompete = puppy.age_weeks >= BREEDING_CONSTANTS.MIN_COMPETITION_AGE;

@@ -15,7 +15,6 @@ const EMERGENCY_HEALTH = 5; // Below this requires emergency vet
 const DEATH_HEALTH = 0; // Dog dies
 
 // Time thresholds
-const DAYS_AT_CRITICAL_BEFORE_EMERGENCY = 3; // 3 days at 10% = emergency
 const DAYS_AT_EMERGENCY_BEFORE_DEATH = 7; // 7 days at 5% = death
 
 // Vet costs
@@ -143,7 +142,7 @@ export function getHealthStatus(dog: Dog): HealthStatus {
 /**
  * Visit vet to restore health
  */
-export function visitVet(dog: Dog): Partial<Dog> {
+export function visitVet(): Partial<Dog> {
   return {
     health: 100,
     last_fed: new Date().toISOString(), // Reset care timer

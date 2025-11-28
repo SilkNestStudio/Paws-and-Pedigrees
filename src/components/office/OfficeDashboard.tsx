@@ -17,11 +17,11 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
   // Calculate stats
   const totalDogs = dogs.length;
   const dogsNeedingAttention = dogs.filter(
-    d => d.hunger < 50 || d.happiness < 50 || d.health < 50 || d.energy_stat < 50
+    (d: any) => d.hunger < 50 || d.happiness < 50 || d.health < 50 || d.energy_stat < 50
   );
-  const pregnantDogs = dogs.filter(d => d.is_pregnant && d.pregnancy_due);
-  const puppies = dogs.filter(d => d.age_weeks < 52);
-  const adults = dogs.filter(d => d.age_weeks >= 52);
+  const pregnantDogs = dogs.filter((d: any) => d.is_pregnant && d.pregnancy_due);
+  const puppies = dogs.filter((d: any) => d.age_weeks < 52);
+  const adults = dogs.filter((d: any) => d.age_weeks >= 52);
 
   // Today's stats (would need to track these properly in a real app)
   const totalWins = (user?.competition_wins_local || 0) + (user?.competition_wins_regional || 0) + (user?.competition_wins_national || 0);
@@ -44,7 +44,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
             <div className="flex-shrink-0">
               <h3 className="text-sm font-bold text-earth-600 mb-3">🎯 Training Points</h3>
               <div className="flex gap-3 flex-wrap max-w-md">
-                {dogs.map((dog) => {
+                {dogs.map((dog: any) => {
                   const lastReset = new Date(dog.last_training_reset);
                   const nextReset = new Date(lastReset);
                   nextReset.setDate(nextReset.getDate() + 1);
@@ -142,7 +142,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
                   {dogsNeedingAttention.length} {dogsNeedingAttention.length === 1 ? 'Dog Needs' : 'Dogs Need'} Care
                 </h4>
                 <div className="space-y-2">
-                  {dogsNeedingAttention.slice(0, 3).map(dog => (
+                  {dogsNeedingAttention.slice(0, 3).map((dog: any) => (
                     <div key={dog.id} className="text-sm text-yellow-800">
                       <span className="font-semibold">{dog.name}:</span>{' '}
                       {dog.hunger < 50 && 'Hungry '}
@@ -174,7 +174,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
                   {pregnantDogs.length} Pregnant {pregnantDogs.length === 1 ? 'Dog' : 'Dogs'}
                 </h4>
                 <div className="space-y-2">
-                  {pregnantDogs.map(dog => (
+                  {pregnantDogs.map((dog: any) => (
                     <div key={dog.id} className="text-sm text-pink-800">
                       <span className="font-semibold">{dog.name}:</span>{' '}
                       {dog.pregnancy_due && `${getWeeksRemaining(dog.pregnancy_due)} weeks left`}
@@ -216,7 +216,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
                   {dogs.length === 0 ? (
                     <p className="text-sm text-earth-500 text-center py-2">No dogs yet</p>
                   ) : (
-                    dogs.map((dog) => {
+                    dogs.map((dog: any) => {
                       const breedData = rescueBreeds.find(b => b.id === dog.breed_id);
                       return (
                         <button

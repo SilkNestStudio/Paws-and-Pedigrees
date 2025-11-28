@@ -82,7 +82,7 @@ function App() {
 
   useEffect(() => {
     // Check all dogs for TP regeneration, energy regeneration, and aging on mount
-    dogs.forEach(dog => {
+    dogs.forEach((dog: any) => {
       const updates: any = {};
 
       // Check TP regeneration (every 24 hours)

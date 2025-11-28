@@ -116,7 +116,7 @@ export default function StudMarketplace() {
     alert(`Breeding with ${listing.dog.name} for $${listing.stud_fee} - Feature coming soon!`);
   };
 
-  const availableMales = dogs.filter(d =>
+  const availableMales = dogs.filter((d: any) =>
     d.gender === 'male' &&
     d.age_weeks >= 52 &&
     !myListings.some(l => l.dog_id === d.id)
@@ -155,7 +155,7 @@ export default function StudMarketplace() {
                     className="w-full p-3 border-2 border-earth-300 rounded-lg focus:border-kennel-500 focus:outline-none"
                   >
                     <option value="">Choose a dog...</option>
-                    {availableMales.map((dog) => (
+                    {availableMales.map((dog: any) => (
                       <option key={dog.id} value={dog.id}>
                         {dog.name} (Age: {Math.floor(dog.age_weeks / 52)}y)
                       </option>

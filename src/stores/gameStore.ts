@@ -24,7 +24,6 @@ import {
   getLifeStage,
   hasReachedMaxAge,
   calculatePregnancyDue,
-  isPregnancyComplete,
 } from '../utils/timeScaling';
 import {
   calculateHealthDecay,
@@ -46,7 +45,6 @@ import {
 } from '../utils/veterinarySystem';
 import {
   canUpgradeKennel,
-  getUpgradeCost,
   getKennelLevelInfo,
 } from '../utils/kennelUpgrades';
 
@@ -121,7 +119,7 @@ interface GameState {
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set) => ({
+    (set: any) => ({
       user: {
         id: 'temp-user-id',
         username: 'Player',
@@ -261,9 +259,9 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      updateDog: (dogId, updates) => {
-        set((state) => ({
-          dogs: state.dogs.map(dog =>
+      updateDog: (dogId: any, updates: any) => {
+        set((state: any) => ({
+          dogs: state.dogs.map((dog: any) =>
             dog.id === dogId ? { ...dog, ...updates } : dog
           ),
           selectedDog: state.selectedDog?.id === dogId
@@ -273,17 +271,17 @@ export const useGameStore = create<GameState>()(
         // Save to Supabase if sync is enabled
         const state = useGameStore.getState();
         if (state.syncEnabled) {
-          const updatedDog = state.dogs.find(d => d.id === dogId);
+          const updatedDog = state.dogs.find((d: any) => d.id === dogId);
           if (updatedDog) {
             debouncedSave(() => saveDog(updatedDog));
           }
         }
       },
       
-      selectDog: (dog) => set({ selectedDog: dog }),
-      
-      updateUserCash: (amount) => {
-        set((state) => ({
+      selectDog: (dog: any) => set({ selectedDog: dog }),
+
+      updateUserCash: (amount: any) => {
+        set((state: any) => ({
           user: state.user ? { ...state.user, cash: state.user.cash + amount } : null
         }));
         // Save to Supabase if sync is enabled
@@ -293,8 +291,8 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      updateUserGems: (amount) => {
-        set((state) => ({
+      updateUserGems: (amount: any) => {
+        set((state: any) => ({
           user: state.user ? { ...state.user, gems: state.user.gems + amount } : null
         }));
         // Save to Supabase if sync is enabled
@@ -304,8 +302,8 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      updateUserXP: (amount) => {
-        set((state) => ({
+      updateUserXP: (amount: any) => {
+        set((state: any) => ({
           user: state.user ? { ...state.user, xp: state.user.xp + amount } : null
         }));
         // Save to Supabase if sync is enabled
@@ -315,8 +313,8 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      updateCompetitionWins: (tier) => {
-        set((state) => {
+      updateCompetitionWins: (tier: any) => {
+        set((state: any) => {
           if (!state.user) return {};
           const updates: Partial<UserProfile> = {};
           if (tier === 'local') updates.competition_wins_local = (state.user.competition_wins_local || 0) + 1;
@@ -331,15 +329,15 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      setHasAdoptedFirstDog: (value) => set({ hasAdoptedFirstDog: value }),
+      setHasAdoptedFirstDog: (value: any) => set({ hasAdoptedFirstDog: value }),
 
       // Breeding actions
-      breedDogs: (sireId, damId, litterSize) => set((state) => {
+      breedDogs: (sireId: any, damId: any, litterSize: any) => set((state: any) => {
         const now = new Date().toISOString();
         const pregnancyDue = calculatePregnancyDue(); // Use time scaling system (24 hours)
 
         return {
-          dogs: state.dogs.map(dog => {
+          dogs: state.dogs.map((dog: any) => {
             if (dog.id === damId) {
               return {
                 ...dog,
@@ -360,9 +358,9 @@ export const useGameStore = create<GameState>()(
         };
       }),
 
-      giveBirth: (damId, puppies) => set((state) => ({
+      giveBirth: (damId: any, puppies: any) => set((state: any) => ({
         dogs: [
-          ...state.dogs.map(dog =>
+          ...state.dogs.map((dog: any) =>
             dog.id === damId
               ? { ...dog, is_pregnant: false, pregnancy_due: undefined, litter_size: undefined }
               : dog
@@ -371,18 +369,18 @@ export const useGameStore = create<GameState>()(
         ],
       })),
 
-      sellPuppy: (puppyId, price) => set((state) => ({
-        dogs: state.dogs.filter(dog => dog.id !== puppyId),
+      sellPuppy: (puppyId: any, price: any) => set((state: any) => ({
+        dogs: state.dogs.filter((dog: any) => dog.id !== puppyId),
         selectedDog: state.selectedDog?.id === puppyId ? null : state.selectedDog,
         user: state.user ? { ...state.user, cash: state.user.cash + price } : null,
       })),
 
-      skipPregnancy: (damId, gemCost) => set((state) => {
+      skipPregnancy: (damId: any, gemCost: any) => set((state: any) => {
         if (!state.user || state.user.gems < gemCost) return {};
 
         return {
           user: { ...state.user, gems: state.user.gems - gemCost },
-          dogs: state.dogs.map(dog =>
+          dogs: state.dogs.map((dog: any) =>
             dog.id === damId
               ? { ...dog, pregnancy_due: new Date().toISOString() } // Set due date to now
               : dog
@@ -390,9 +388,9 @@ export const useGameStore = create<GameState>()(
         };
       }),
 
-      removeDog: (dogId) => {
-        set((state) => ({
-          dogs: state.dogs.filter(dog => dog.id !== dogId),
+      removeDog: (dogId: any) => {
+        set((state: any) => ({
+          dogs: state.dogs.filter((dog: any) => dog.id !== dogId),
           selectedDog: state.selectedDog?.id === dogId ? null : state.selectedDog,
         }));
         // Delete from Supabase if sync is enabled
@@ -403,7 +401,7 @@ export const useGameStore = create<GameState>()(
       },
 
       // Shop actions
-      purchaseBreed: (dog, cashCost, gemCost) => set((state) => {
+      purchaseBreed: (dog: any, cashCost: any, gemCost: any) => set((state: any) => {
         if (!state.user) return {};
 
         // Check if user has enough currency
@@ -427,7 +425,7 @@ export const useGameStore = create<GameState>()(
         };
       }),
 
-      purchaseItem: (dogId, effects, cashCost, gemCost) => set((state) => {
+      purchaseItem: (dogId: any, effects: any, cashCost: any, gemCost: any) => set((state: any) => {
         if (!state.user) return {};
 
         // Check if user has enough currency
@@ -444,7 +442,7 @@ export const useGameStore = create<GameState>()(
         }
 
         return {
-          dogs: state.dogs.map(dog => {
+          dogs: state.dogs.map((dog: any) => {
             if (dog.id !== dogId) return dog;
 
             // Apply effects to dog
@@ -512,7 +510,7 @@ export const useGameStore = create<GameState>()(
         const newLevel = currentLevel + 1;
         const newLevelInfo = getKennelLevelInfo(newLevel);
 
-        set((state) => ({
+        set((state: any) => ({
           user: state.user ? {
             ...state.user,
             kennel_level: newLevel,
@@ -534,16 +532,16 @@ export const useGameStore = create<GameState>()(
       },
 
       // Care actions
-      feedDog: (dogId) => {
+      feedDog: (dogId: any) => {
         let result = { success: false, message: '' };
 
-        set((state) => {
+        set((state: any) => {
           if (!state.user) {
             result.message = 'No user found';
             return {};
           }
 
-          const dog = state.dogs.find(d => d.id === dogId);
+          const dog = state.dogs.find((d: any) => d.id === dogId);
           if (!dog) {
             result.message = 'Dog not found';
             return {};
@@ -563,7 +561,7 @@ export const useGameStore = create<GameState>()(
           const energyRestored = calculateEnergyFromEating(dog.size);
 
           // Update dog stats and consume food storage
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return {
               ...d,
@@ -573,7 +571,7 @@ export const useGameStore = create<GameState>()(
             };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -596,11 +594,11 @@ export const useGameStore = create<GameState>()(
         return result;
       },
 
-      waterDog: (dogId) => {
+      waterDog: (dogId: any) => {
         let result = { success: false, message: '' };
 
-        set((state) => {
-          const dog = state.dogs.find(d => d.id === dogId);
+        set((state: any) => {
+          const dog = state.dogs.find((d: any) => d.id === dogId);
           if (!dog) {
             result.message = 'Dog not found';
             return {};
@@ -610,7 +608,7 @@ export const useGameStore = create<GameState>()(
           const thirstRestored = calculateThirstRestoration(dog.size);
 
           // Update dog stats
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return {
               ...d,
@@ -618,7 +616,7 @@ export const useGameStore = create<GameState>()(
             };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -637,11 +635,11 @@ export const useGameStore = create<GameState>()(
         return result;
       },
 
-      restDog: (dogId) => {
+      restDog: (dogId: any) => {
         let result = { success: false, message: '' };
 
-        set((state) => {
-          const dog = state.dogs.find(d => d.id === dogId);
+        set((state: any) => {
+          const dog = state.dogs.find((d: any) => d.id === dogId);
           if (!dog) {
             result.message = 'Dog not found';
             return {};
@@ -651,7 +649,7 @@ export const useGameStore = create<GameState>()(
           const energyRestored = calculateEnergyFromResting();
 
           // Update dog stats
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return {
               ...d,
@@ -659,7 +657,7 @@ export const useGameStore = create<GameState>()(
             };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -678,7 +676,7 @@ export const useGameStore = create<GameState>()(
         return result;
       },
 
-      claimDailyReward: () => set((state) => {
+      claimDailyReward: () => set((state: any) => {
         if (!state.user) return {};
 
         // Calculate new streak
@@ -704,9 +702,9 @@ export const useGameStore = create<GameState>()(
       }),
 
       // Tutorial actions
-      startTutorial: (tutorialId) => set({ activeTutorial: tutorialId }),
+      startTutorial: (tutorialId: any) => set({ activeTutorial: tutorialId }),
 
-      completeTutorial: (tutorialId) => set((state) => ({
+      completeTutorial: (tutorialId: any) => set((state: any) => ({
         activeTutorial: null,
         tutorialProgress: {
           ...state.tutorialProgress,
@@ -714,7 +712,7 @@ export const useGameStore = create<GameState>()(
         }
       })),
 
-      skipTutorial: (tutorialId) => set((state) => ({
+      skipTutorial: (tutorialId: any) => set((state: any) => ({
         activeTutorial: null,
         tutorialProgress: {
           ...state.tutorialProgress,
@@ -722,20 +720,20 @@ export const useGameStore = create<GameState>()(
         }
       })),
 
-      dismissHelp: (helpId) => set((state) => ({
+      dismissHelp: (helpId: any) => set((state: any) => ({
         tutorialProgress: {
           ...state.tutorialProgress,
           dismissedHelp: [...state.tutorialProgress.dismissedHelp, helpId]
         }
       })),
 
-      toggleHelpIcons: (show) => set((state) => ({
+      toggleHelpIcons: (show: any) => set((state: any) => ({
         tutorialProgress: { ...state.tutorialProgress, showHelpIcons: show }
       })),
 
       // Health & Vet actions
-      updateDogAgesAndHealth: () => set((state) => {
-        const updatedDogs = state.dogs.map(dog => {
+      updateDogAgesAndHealth: () => set((state: any) => {
+        const updatedDogs = state.dogs.map((dog: any) => {
           // Calculate current age
           const ageWeeks = calculateAgeInWeeks(dog.birth_date);
           const ageYears = calculateAgeInYears(dog.birth_date);
@@ -779,22 +777,22 @@ export const useGameStore = create<GameState>()(
 
         // Save updated dogs to Supabase if sync is enabled
         if (state.syncEnabled) {
-          updatedDogs.forEach(dog => debouncedSave(() => saveDog(dog)));
+          updatedDogs.forEach((dog: any) => debouncedSave(() => saveDog(dog)));
         }
 
         return { dogs: updatedDogs };
       }),
 
-      takeToVet: (dogId) => {
+      takeToVet: (dogId: any) => {
         let result = { success: false, message: '' };
 
-        set((state) => {
+        set((state: any) => {
           if (!state.user) {
             result.message = 'No user found';
             return {};
           }
 
-          const dog = state.dogs.find(d => d.id === dogId);
+          const dog = state.dogs.find((d: any) => d.id === dogId);
           if (!dog) {
             result.message = 'Dog not found';
             return {};
@@ -815,12 +813,12 @@ export const useGameStore = create<GameState>()(
 
           // Apply vet treatment
           const vetUpdates = visitVet(dog);
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return { ...d, ...vetUpdates };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -844,16 +842,16 @@ export const useGameStore = create<GameState>()(
         return result;
       },
 
-      takeToEmergencyVet: (dogId) => {
+      takeToEmergencyVet: (dogId: any) => {
         let result = { success: false, message: '' };
 
-        set((state) => {
+        set((state: any) => {
           if (!state.user) {
             result.message = 'No user found';
             return {};
           }
 
-          const dog = state.dogs.find(d => d.id === dogId);
+          const dog = state.dogs.find((d: any) => d.id === dogId);
           if (!dog) {
             result.message = 'Dog not found';
             return {};
@@ -874,12 +872,12 @@ export const useGameStore = create<GameState>()(
 
           // Apply emergency vet treatment (reduces stats)
           const emergencyUpdates = visitEmergencyVet(dog);
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return { ...d, ...emergencyUpdates };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -903,16 +901,16 @@ export const useGameStore = create<GameState>()(
         return result;
       },
 
-      reviveDeadDog: (dogId) => {
+      reviveDeadDog: (dogId: any) => {
         let result = { success: false, message: '' };
 
-        set((state) => {
+        set((state: any) => {
           if (!state.user) {
             result.message = 'No user found';
             return {};
           }
 
-          const dog = state.dogs.find(d => d.id === dogId);
+          const dog = state.dogs.find((d: any) => d.id === dogId);
           if (!dog) {
             result.message = 'Dog not found';
             return {};
@@ -938,12 +936,12 @@ export const useGameStore = create<GameState>()(
 
           // Apply revival (reduces stats significantly)
           const revivalUpdates = reviveDog(dog);
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return { ...d, ...revivalUpdates, is_dead: false };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -968,16 +966,16 @@ export const useGameStore = create<GameState>()(
       },
 
       // Veterinary/Ailment actions
-      treatDogAilment: (dogId, cost) => {
+      treatDogAilment: (dogId: any, cost: any) => {
         let result = { success: false, message: '' };
 
-        set((state) => {
+        set((state: any) => {
           if (!state.user) {
             result.message = 'No user found';
             return {};
           }
 
-          const dog = state.dogs.find(d => d.id === dogId);
+          const dog = state.dogs.find((d: any) => d.id === dogId);
           if (!dog || !dog.current_ailment) {
             result.message = 'Dog not found or has no ailment';
             return {};
@@ -996,12 +994,12 @@ export const useGameStore = create<GameState>()(
 
           // Apply treatment
           const treatmentUpdates = treatAilment(dog, ailment);
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return { ...d, ...treatmentUpdates };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -1025,8 +1023,8 @@ export const useGameStore = create<GameState>()(
         return result;
       },
 
-      checkForRandomIllness: (dogId) => set((state) => {
-        const dog = state.dogs.find(d => d.id === dogId);
+      checkForRandomIllness: (dogId: any) => set((state: any) => {
+        const dog = state.dogs.find((d: any) => d.id === dogId);
         if (!dog) return {};
 
         // Don't check if already has ailment or recovering
@@ -1035,12 +1033,12 @@ export const useGameStore = create<GameState>()(
         const illness = checkForIllness(dog);
         if (illness) {
           const ailmentUpdates = applyAilment(dog, illness);
-          const updatedDogs = state.dogs.map(d => {
+          const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return { ...d, ...ailmentUpdates };
           });
 
-          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
           // Save to Supabase if sync is enabled
           if (state.syncEnabled) {
@@ -1053,8 +1051,8 @@ export const useGameStore = create<GameState>()(
         return {};
       }),
 
-      applyInjuryToDog: (dogId, ailmentId) => set((state) => {
-        const dog = state.dogs.find(d => d.id === dogId);
+      applyInjuryToDog: (dogId: any, ailmentId: any) => set((state: any) => {
+        const dog = state.dogs.find((d: any) => d.id === dogId);
         if (!dog) return {};
 
         // Don't apply if already has ailment
@@ -1064,12 +1062,12 @@ export const useGameStore = create<GameState>()(
         if (!injury) return {};
 
         const ailmentUpdates = applyAilment(dog, injury);
-        const updatedDogs = state.dogs.map(d => {
+        const updatedDogs = state.dogs.map((d: any) => {
           if (d.id !== dogId) return d;
           return { ...d, ...ailmentUpdates };
         });
 
-        const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+        const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
 
         // Save to Supabase if sync is enabled
         if (state.syncEnabled) {
@@ -1080,7 +1078,7 @@ export const useGameStore = create<GameState>()(
       }),
 
       // Reset game
-      resetGame: () => set((state) => {
+      resetGame: () => set((state: any) => {
         // Keep user id, username, and kennel_name but reset everything else
         const userId = state.user?.id || 'temp-user-id';
         const username = state.user?.username || 'Player';

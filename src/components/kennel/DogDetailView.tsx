@@ -304,7 +304,7 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
                     {selectedDog.breed_composition.designerBreedInfo.description}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {selectedDog.breed_composition.designerBreedInfo.characteristics.map(char => (
+                    {selectedDog.breed_composition.designerBreedInfo.characteristics.map((char: any) => (
                       <span key={char} className="text-xs px-2 py-1 bg-white/50 rounded">
                         {char}
                       </span>

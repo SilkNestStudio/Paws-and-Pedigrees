@@ -12,8 +12,8 @@ export default function BreedingPanel() {
   const [selectedDog1, setSelectedDog1] = useState<string | null>(null);
   const [selectedDog2, setSelectedDog2] = useState<string | null>(null);
 
-  const dog1 = dogs.find(d => d.id === selectedDog1);
-  const dog2 = dogs.find(d => d.id === selectedDog2);
+  const dog1 = dogs.find((d: any) => d.id === selectedDog1);
+  const dog2 = dogs.find((d: any) => d.id === selectedDog2);
 
   // Check eligibility
   const eligibility = dog1 && dog2 && user
@@ -54,7 +54,7 @@ export default function BreedingPanel() {
   };
 
   // Filter dogs for selection
-  const availableDogs = dogs.filter(d => !d.is_pregnant && d.age_weeks >= BREEDING_CONSTANTS.MIN_BREEDING_AGE);
+  const availableDogs = dogs.filter((d: any) => !d.is_pregnant && d.age_weeks >= BREEDING_CONSTANTS.MIN_BREEDING_AGE);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -83,7 +83,7 @@ export default function BreedingPanel() {
               className="w-full p-3 border-2 border-earth-300 rounded-lg focus:border-kennel-500 focus:outline-none"
             >
               <option value="">Choose a dog...</option>
-              {availableDogs.map((dog) => (
+              {availableDogs.map((dog: any) => (
                 <option key={dog.id} value={dog.id} disabled={dog.id === selectedDog2}>
                   {dog.name} ({dog.gender}, {dog.age_weeks} weeks) - Bond: {dog.bond_level}
                 </option>
@@ -100,7 +100,7 @@ export default function BreedingPanel() {
               className="w-full p-3 border-2 border-earth-300 rounded-lg focus:border-kennel-500 focus:outline-none"
             >
               <option value="">Choose a dog...</option>
-              {availableDogs.map((dog) => (
+              {availableDogs.map((dog: any) => (
                 <option key={dog.id} value={dog.id} disabled={dog.id === selectedDog1}>
                   {dog.name} ({dog.gender}, {dog.age_weeks} weeks) - Bond: {dog.bond_level}
                 </option>

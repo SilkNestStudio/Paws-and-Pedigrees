@@ -85,7 +85,7 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {dogs.map((dog) => {
+      {dogs.map((dog: any) => {
         const breedData = rescueBreeds.find(b => b.id === dog.breed_id);
         const healthStatus = getHealthStatus(dog);
 
