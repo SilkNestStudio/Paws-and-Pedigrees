@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Dog, UserProfile, TutorialProgress } from '../types';
+import { supabase } from '../lib/supabase';
 import {
   loadUserData,
   saveUserProfile,
@@ -116,7 +117,51 @@ export const useGameStore = create<GameState>()(
         set({ loading: true, error: null });
         try {
           const { profile, dogs } = await loadUserData(userId);
-          if (profile) {
+
+          // If profile doesn't exist, create a new one
+          if (!profile) {
+            // Get auth user metadata for username and kennel name
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const username = authUser?.user_metadata?.username || 'Player';
+            const kennelName = authUser?.user_metadata?.kennel_name || 'My Kennel';
+
+            // Create default profile
+            const newProfile: UserProfile = {
+              id: userId,
+              username,
+              kennel_name: kennelName,
+              cash: 1000,
+              gems: 50,
+              level: 1,
+              xp: 0,
+              training_skill: 1,
+              care_knowledge: 1,
+              breeding_expertise: 1,
+              competition_strategy: 1,
+              business_acumen: 1,
+              kennel_level: 1,
+              food_storage: 0,
+              created_at: new Date().toISOString(),
+              last_login: new Date().toISOString(),
+              login_streak: 1,
+              competition_wins_local: 0,
+              competition_wins_regional: 0,
+              competition_wins_national: 0,
+            };
+
+            // Save the new profile to Supabase
+            await saveUserProfile(newProfile);
+
+            set({
+              user: newProfile,
+              dogs: [],
+              syncEnabled: true,
+              hasAdoptedFirstDog: false,
+              loading: false,
+              error: null
+            });
+          } else {
+            // Profile exists, load it normally
             set({
               user: profile,
               dogs: dogs || [],
@@ -125,8 +170,6 @@ export const useGameStore = create<GameState>()(
               loading: false,
               error: null
             });
-          } else {
-            set({ loading: false, error: 'Failed to load user profile' });
           }
         } catch (error) {
           console.error('Error loading from Supabase:', error);

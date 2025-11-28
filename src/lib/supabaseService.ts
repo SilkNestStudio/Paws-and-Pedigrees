@@ -8,14 +8,15 @@ export async function loadUserProfile(userId: string): Promise<UserProfile | nul
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 rows gracefully
 
   if (error) {
     console.error('Error loading user profile:', error);
     return null;
   }
 
-  return data as UserProfile;
+  // If no profile exists, return null (will be created by the game)
+  return data as UserProfile | null;
 }
 
 export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
