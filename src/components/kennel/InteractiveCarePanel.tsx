@@ -1,0 +1,356 @@
+import { useState, useRef, useEffect } from 'react';
+import { useGameStore } from '../../stores/gameStore';
+import { calculateFoodConsumption, getSizeCategoryName } from '../../utils/careCalculations';
+import { checkBondLevelUp } from '../../utils/bondSystem';
+
+type DragItem = 'bowl' | 'water-bowl' | null;
+type DropZone = 'spigot' | 'food-bin' | 'dog' | null;
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+export default function InteractiveCarePanel() {
+  const { selectedDog, user, feedDog, waterDog, updateDog } = useGameStore();
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragItem, setDragItem] = useState<DragItem>(null);
+  const [dragPosition, setDragPosition] = useState<Position>({ x: 0, y: 0 });
+  const [bowlFilled, setBowlFilled] = useState(false);
+  const [activeDropZone, setActiveDropZone] = useState<DropZone>(null);
+
+  // Refs for drop zones
+  const spigotRef = useRef<HTMLDivElement>(null);
+  const foodBinRef = useRef<HTMLDivElement>(null);
+  const dogRef = useRef<HTMLDivElement>(null);
+
+  if (!selectedDog) {
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+        <p className="text-earth-600">Select a dog to interact with them</p>
+      </div>
+    );
+  }
+
+  const foodNeeded = calculateFoodConsumption(selectedDog.size);
+  const sizeCategory = getSizeCategoryName(selectedDog.size);
+  const hasEnoughFood = (user?.food_storage || 0) >= foodNeeded;
+
+  const handleMouseDown = (item: DragItem) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragItem(item);
+    setBowlFilled(false);
+    setDragPosition({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+
+    setDragPosition({ x: e.clientX, y: e.clientY });
+
+    // Check if over drop zones
+    const dropZones = [
+      { ref: spigotRef, zone: 'spigot' as DropZone, validItems: ['water-bowl'] },
+      { ref: foodBinRef, zone: 'food-bin' as DropZone, validItems: ['bowl'] },
+      { ref: dogRef, zone: 'dog' as DropZone, validItems: ['bowl', 'water-bowl'] },
+    ];
+
+    let foundZone = false;
+    for (const { ref, zone, validItems } of dropZones) {
+      if (ref.current && dragItem && validItems.includes(dragItem)) {
+        const rect = ref.current.getBoundingClientRect();
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) {
+          setActiveDropZone(zone);
+          foundZone = true;
+          break;
+        }
+      }
+    }
+    if (!foundZone) {
+      setActiveDropZone(null);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging || !dragItem) {
+      setIsDragging(false);
+      return;
+    }
+
+    // Handle dropping
+    if (activeDropZone === 'spigot' && dragItem === 'water-bowl') {
+      // Fill water bowl
+      setBowlFilled(true);
+      setMessage({ text: '💧 Bowl filled with fresh water!', type: 'success' });
+      setTimeout(() => setMessage(null), 2000);
+    } else if (activeDropZone === 'food-bin' && dragItem === 'bowl') {
+      // Fill food bowl
+      if (hasEnoughFood) {
+        setBowlFilled(true);
+        setMessage({ text: '🍖 Bowl filled with food!', type: 'success' });
+        setTimeout(() => setMessage(null), 2000);
+      } else {
+        setMessage({ text: 'Not enough food in storage! Buy dog food from the shop.', type: 'error' });
+        setTimeout(() => setMessage(null), 3000);
+      }
+    } else if (activeDropZone === 'dog' && bowlFilled) {
+      // Give to dog
+      if (dragItem === 'water-bowl') {
+        const result = waterDog(selectedDog.id);
+        setMessage({ text: result.message || 'Unknown error', type: result.success ? 'success' : 'error' });
+      } else if (dragItem === 'bowl') {
+        const result = feedDog(selectedDog.id);
+        setMessage({ text: result.message || 'Unknown error', type: result.success ? 'success' : 'error' });
+      }
+      setTimeout(() => setMessage(null), 3000);
+      setBowlFilled(false);
+    }
+
+    setIsDragging(false);
+    setDragItem(null);
+    setActiveDropZone(null);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, activeDropZone, bowlFilled, dragItem]);
+
+  const playWithDog = (activityType: 'pet' | 'fetch' | 'walk') => {
+    const activities = {
+      pet: { happiness: 15, energy: 0, cost: 0, name: 'Pet & Cuddle' },
+      fetch: { happiness: 30, energy: -20, cost: 0, name: 'Play Fetch' },
+      walk: { happiness: 25, energy: -25, cost: 0, name: 'Go for Walk' },
+    };
+
+    const activity = activities[activityType];
+    const newHappiness = Math.min(100, selectedDog.happiness + activity.happiness);
+    const newEnergy = Math.max(0, selectedDog.energy_stat + activity.energy);
+
+    const updates: any = {
+      happiness: newHappiness,
+      energy_stat: newEnergy,
+      last_played: new Date().toISOString(),
+      bond_xp: selectedDog.bond_xp + 2,
+    };
+
+    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: selectedDog.bond_xp + 2 });
+    if (bondLevelUp) {
+      Object.assign(updates, bondLevelUp);
+    }
+
+    updateDog(selectedDog.id, updates);
+    setMessage({
+      text: `${activity.name} with ${selectedDog.name}! +${activity.happiness} happiness`,
+      type: 'success',
+    });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6 relative">
+      <h3 className="text-2xl font-bold text-earth-900 mb-4">
+        Interactive Care for {selectedDog.name}
+      </h3>
+
+      {/* Food Storage Display */}
+      {user && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg">
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+              📦 Food Storage
+            </p>
+            <p className="text-lg font-bold text-amber-800">
+              {user.food_storage.toFixed(1)} / 100 units
+            </p>
+          </div>
+          <div className="w-full bg-amber-200 rounded-full h-3">
+            <div
+              className="bg-gradient-to-r from-amber-500 to-orange-500 h-3 rounded-full transition-all"
+              style={{ width: `${user.food_storage}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Message Display */}
+      {message && (
+        <div
+          className={`mb-4 p-3 rounded-lg border-2 ${
+            message.type === 'success'
+              ? 'bg-green-50 border-green-300 text-green-800'
+              : 'bg-red-50 border-red-300 text-red-800'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {/* Instructions */}
+      <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-900 font-semibold mb-1">🎮 How to Play:</p>
+        <p className="text-xs text-blue-800">
+          1. Drag the <strong>water bowl 💧</strong> to the spigot to fill it<br/>
+          2. Drag the <strong>food bowl 🍖</strong> to the food bin to fill it<br/>
+          3. Drag the <strong>filled bowl</strong> to {selectedDog.name} to give them food/water!
+        </p>
+      </div>
+
+      {/* Interactive Area */}
+      <div className="relative min-h-[400px] bg-gradient-to-b from-earth-50 to-earth-100 rounded-lg p-6 mb-6 border-2 border-earth-200">
+
+        {/* Spigot */}
+        <div
+          ref={spigotRef}
+          className={`absolute top-4 right-4 w-20 h-20 transition-all ${
+            activeDropZone === 'spigot' ? 'scale-110 ring-4 ring-blue-400' : ''
+          }`}
+        >
+          <div className="text-6xl">🚰</div>
+          <p className="text-xs text-center text-earth-700 font-semibold">Spigot</p>
+        </div>
+
+        {/* Food Bin */}
+        <div
+          ref={foodBinRef}
+          className={`absolute top-4 left-4 w-24 h-24 transition-all ${
+            activeDropZone === 'food-bin' ? 'scale-110 ring-4 ring-amber-400' : ''
+          }`}
+        >
+          <div className="text-7xl">📦</div>
+          <p className="text-xs text-center text-earth-700 font-semibold">Food Bin</p>
+          <p className="text-xs text-center text-earth-600">{user?.food_storage.toFixed(1)} units</p>
+        </div>
+
+        {/* Dog Area */}
+        <div
+          ref={dogRef}
+          className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 w-40 h-40 transition-all ${
+            activeDropZone === 'dog' && bowlFilled ? 'scale-110 ring-4 ring-green-400' : ''
+          }`}
+        >
+          <div className="text-8xl mb-2 animate-bounce">🐕</div>
+          <p className="text-sm text-center text-earth-900 font-bold">{selectedDog.name}</p>
+          <p className="text-xs text-center text-earth-600">{sizeCategory} Dog</p>
+        </div>
+
+        {/* Bowls at bottom */}
+        {!isDragging && (
+          <div className="absolute bottom-4 right-4 flex gap-4">
+            {/* Water Bowl */}
+            <div
+              onMouseDown={handleMouseDown('water-bowl')}
+              className="cursor-grab active:cursor-grabbing p-3 bg-white rounded-lg border-2 border-blue-300 hover:border-blue-500 hover:scale-105 transition-all shadow-lg"
+              title="Drag to spigot to fill with water"
+            >
+              <div className="text-5xl">💧</div>
+              <p className="text-xs text-center text-blue-700 font-semibold mt-1">Water Bowl</p>
+            </div>
+
+            {/* Food Bowl */}
+            <div
+              onMouseDown={handleMouseDown('bowl')}
+              className="cursor-grab active:cursor-grabbing p-3 bg-white rounded-lg border-2 border-amber-300 hover:border-amber-500 hover:scale-105 transition-all shadow-lg"
+              title="Drag to food bin to fill with food"
+            >
+              <div className="text-5xl">🍖</div>
+              <p className="text-xs text-center text-amber-700 font-semibold mt-1">Food Bowl</p>
+            </div>
+          </div>
+        )}
+
+        {/* Dragging Bowl */}
+        {isDragging && dragItem && (
+          <div
+            className="fixed pointer-events-none z-50 transform -translate-x-1/2 -translate-y-1/2"
+            style={{ left: dragPosition.x, top: dragPosition.y }}
+          >
+            <div className={`text-6xl ${bowlFilled ? 'animate-bounce' : ''}`}>
+              {dragItem === 'water-bowl' ? (bowlFilled ? '💦' : '💧') : (bowlFilled ? '🍲' : '🍖')}
+            </div>
+          </div>
+        )}
+
+        {/* Hint when bowl is filled */}
+        {bowlFilled && isDragging && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+            <div className="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
+              <p className="text-sm font-bold">Now drag to {selectedDog.name}! 🐕</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Rest Section */}
+      <div className="mb-6">
+        <h4 className="text-lg font-semibold text-earth-800 mb-3 flex items-center gap-2">
+          💤 Rest & Play
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <button
+            onClick={() => {
+              const result = useGameStore.getState().restDog(selectedDog.id);
+              setMessage({ text: result.message || 'Unknown error', type: result.success ? 'success' : 'error' });
+              setTimeout(() => setMessage(null), 3000);
+            }}
+            className="p-3 border-2 border-indigo-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
+          >
+            <p className="font-semibold text-earth-900">Rest</p>
+            <p className="text-xs text-earth-600">+30 Energy</p>
+          </button>
+
+          <button
+            onClick={() => playWithDog('pet')}
+            className="p-3 border-2 border-pink-300 rounded-lg hover:border-pink-500 hover:bg-pink-50 transition-all text-left"
+          >
+            <p className="font-semibold text-earth-900">Pet</p>
+            <p className="text-xs text-earth-600">+15 Happy</p>
+          </button>
+
+          <button
+            onClick={() => playWithDog('fetch')}
+            className="p-3 border-2 border-yellow-300 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-all text-left"
+          >
+            <p className="font-semibold text-earth-900">Fetch</p>
+            <p className="text-xs text-earth-600">+30 Happy, -20 Energy</p>
+          </button>
+
+          <button
+            onClick={() => playWithDog('walk')}
+            className="p-3 border-2 border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-left"
+          >
+            <p className="font-semibold text-earth-900">Walk</p>
+            <p className="text-xs text-earth-600">+25 Happy, -25 Energy</p>
+          </button>
+        </div>
+      </div>
+
+      {/* Care Tips */}
+      <div className="p-4 bg-earth-50 border border-earth-200 rounded-lg">
+        <h5 className="font-semibold text-earth-900 mb-2">💡 Care Tips</h5>
+        <ul className="text-sm text-earth-700 space-y-1">
+          <li>• Drag the water bowl to the spigot to fill it with water</li>
+          <li>• Drag the food bowl to the food bin to fill it with food</li>
+          <li>• {sizeCategory} dogs eat {foodNeeded} units per feeding</li>
+          <li>• Buy dog food bags from the shop to refill storage</li>
+          <li>• Keep hunger & thirst above 60% for best performance</li>
+        </ul>
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import DogCarePanel from './DogCarePanel';
+import InteractiveCarePanel from './InteractiveCarePanel';
 import HelpButton from '../tutorial/HelpButton';
 import {
   getCompositionSummary,
@@ -15,6 +17,7 @@ interface DogDetailViewProps {
 
 export default function DogDetailView({ onBack }: DogDetailViewProps) {
   const { selectedDog } = useGameStore();
+  const [interactiveMode, setInteractiveMode] = useState(false);
 
   if (!selectedDog) {
     return (
@@ -348,7 +351,22 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
 
         {/* Care Panel */}
         <div>
-          <DogCarePanel />
+          {/* Toggle Button */}
+          <div className="mb-4">
+            <button
+              onClick={() => setInteractiveMode(!interactiveMode)}
+              className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
+                interactiveMode
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
+                  : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700'
+              }`}
+            >
+              {interactiveMode ? '🎮 Interactive Mode (Drag & Drop)' : '📋 Switch to Interactive Mode'}
+            </button>
+          </div>
+
+          {/* Render appropriate panel */}
+          {interactiveMode ? <InteractiveCarePanel /> : <DogCarePanel />}
         </div>
       </div>
     </div>
