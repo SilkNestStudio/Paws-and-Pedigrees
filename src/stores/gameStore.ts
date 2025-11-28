@@ -312,6 +312,15 @@ export const useGameStore = create<GameState>()(
         if (cashCost > 0 && state.user.cash < cashCost) return {};
         if (gemCost > 0 && state.user.gems < gemCost) return {};
 
+        // Check if adding food storage would exceed max capacity
+        if (effects.food_storage !== undefined) {
+          const newStorage = state.user.food_storage + effects.food_storage;
+          if (newStorage > 100) {
+            // Don't allow purchase if it would overflow storage
+            return {};
+          }
+        }
+
         return {
           dogs: state.dogs.map(dog => {
             if (dog.id !== dogId) return dog;
@@ -320,6 +329,9 @@ export const useGameStore = create<GameState>()(
             const updates: Partial<Dog> = {};
             if (effects.hunger !== undefined) {
               updates.hunger = Math.min(100, dog.hunger + effects.hunger);
+            }
+            if (effects.thirst !== undefined) {
+              updates.thirst = Math.min(100, dog.thirst + effects.thirst);
             }
             if (effects.happiness !== undefined) {
               updates.happiness = Math.min(100, dog.happiness + effects.happiness);
@@ -340,6 +352,7 @@ export const useGameStore = create<GameState>()(
             ? {
                 ...state.selectedDog,
                 ...(effects.hunger !== undefined && { hunger: Math.min(100, state.selectedDog.hunger + effects.hunger) }),
+                ...(effects.thirst !== undefined && { thirst: Math.min(100, state.selectedDog.thirst + effects.thirst) }),
                 ...(effects.happiness !== undefined && { happiness: Math.min(100, state.selectedDog.happiness + effects.happiness) }),
                 ...(effects.health !== undefined && { health: Math.min(100, state.selectedDog.health + effects.health) }),
                 ...(effects.energy_stat !== undefined && { energy_stat: Math.min(100, state.selectedDog.energy_stat + effects.energy_stat) }),
@@ -350,6 +363,10 @@ export const useGameStore = create<GameState>()(
             ...state.user,
             cash: state.user.cash - cashCost,
             gems: state.user.gems - gemCost,
+            // Add food storage if item provides it
+            ...(effects.food_storage !== undefined && {
+              food_storage: Math.min(100, state.user.food_storage + effects.food_storage)
+            }),
           },
         };
       }),

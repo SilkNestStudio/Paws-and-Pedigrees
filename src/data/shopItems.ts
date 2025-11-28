@@ -2,10 +2,48 @@ import { ShopItem } from '../types';
 
 /**
  * Purchasable items in the shop
- * Categories: food, toy, health, energy, training
+ * Categories: supplies (food storage), food (treats), toy, health, energy, training
  */
 export const shopItems: ShopItem[] = [
-  // FOOD ITEMS - Restore hunger
+  // SUPPLIES - Dog Food Bags (adds to food storage)
+  {
+    id: 'dog_food_small',
+    name: 'Small Dog Food Bag',
+    category: 'supplies',
+    description: '8 bags fill storage. Essential for feeding your dogs.',
+    price: 50,
+    icon: '🛍️',
+    effect: {
+      food_storage: 12.5, // 12.5 units
+    },
+    unlock_level: 1,
+  },
+  {
+    id: 'dog_food_medium',
+    name: 'Medium Dog Food Bag',
+    category: 'supplies',
+    description: '4 bags fill storage. Better value for active kennels.',
+    price: 90,
+    icon: '📦',
+    effect: {
+      food_storage: 25, // 25 units
+    },
+    unlock_level: 1,
+  },
+  {
+    id: 'dog_food_large',
+    name: 'Large Dog Food Bag',
+    category: 'supplies',
+    description: '2 bags fill storage. Best value for large kennels.',
+    price: 160,
+    icon: '📦',
+    effect: {
+      food_storage: 50, // 50 units
+    },
+    unlock_level: 5,
+  },
+
+  // FOOD ITEMS - Treats (directly restore hunger, don't require storage)
   {
     id: 'kibble_basic',
     name: 'Basic Kibble',

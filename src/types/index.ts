@@ -67,6 +67,7 @@ export interface Dog {
   eye_color: string;
   genetics?: any;
   hunger: number;
+  thirst: number; // Water level (0-100)
   happiness: number;
   energy_stat: number;
   health: number;
@@ -109,6 +110,7 @@ export interface UserProfile {
   competition_strategy: number;
   business_acumen: number;
   kennel_level: number;
+  food_storage: number; // Amount of dog food in storage (0-100 units)
   created_at: string;
   last_login: string;
   login_streak: number;
@@ -146,17 +148,19 @@ export interface Competition {
 export interface ShopItem {
   id: string;
   name: string;
-  category: 'food' | 'toy' | 'health' | 'energy' | 'training';
+  category: 'food' | 'toy' | 'health' | 'energy' | 'training' | 'supplies';
   description: string;
   price: number;
   gem_price?: number;
   icon: string;
   effect: {
     hunger?: number;
+    thirst?: number;
     happiness?: number;
     health?: number;
     energy_stat?: number;
     training_points?: number;
+    food_storage?: number; // Adds to user's food storage
   };
   unlock_level: number;
 }
