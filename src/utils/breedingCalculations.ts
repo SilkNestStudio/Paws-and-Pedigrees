@@ -516,6 +516,7 @@ export function generatePuppy(
 
     // Care stats (puppies start healthy and happy)
     hunger: 100,
+    thirst: 100,
     happiness: 100,
     energy_stat: 100,
     health: 100,

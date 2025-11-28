@@ -1,9 +1,11 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import { checkBondLevelUp, getRescueDogBonusDescription } from '../../utils/bondSystem';
+import { checkBondLevelUp } from '../../utils/bondSystem';
+import { calculateFoodConsumption, getSizeCategoryName } from '../../utils/careCalculations';
 
 function DogCarePanel() {
-  const { selectedDog, updateDog, updateUserCash } = useGameStore();
+  const { selectedDog, user, feedDog, waterDog, restDog, updateDog } = useGameStore();
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   if (!selectedDog) {
     return (
@@ -13,27 +15,31 @@ function DogCarePanel() {
     );
   }
 
-  const feedDog = (foodType: 'basic' | 'premium' | 'treat') => {
-    const foodData = {
-      basic: { hunger: 30, happiness: 0, cost: 0, name: 'Basic Kibble' },
-      premium: { hunger: 60, happiness: 10, cost: 15, name: 'Premium Food' },
-      treat: { hunger: 15, happiness: 20, cost: 5, name: 'Treat' },
-    };
-
-    const food = foodData[foodType];
-    
-    const newHunger = Math.min(100, selectedDog.hunger + food.hunger);
-    const newHappiness = Math.min(100, selectedDog.happiness + food.happiness);
-    
-    updateDog(selectedDog.id, {
-      hunger: newHunger,
-      happiness: newHappiness,
-      last_fed: new Date().toISOString(),
+  const handleFeed = () => {
+    const result = feedDog(selectedDog.id);
+    setMessage({
+      text: result.message || 'Unknown error',
+      type: result.success ? 'success' : 'error',
     });
-    
-    if (food.cost > 0) {
-      updateUserCash(-food.cost);
-    }
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  const handleWater = () => {
+    const result = waterDog(selectedDog.id);
+    setMessage({
+      text: result.message || 'Unknown error',
+      type: result.success ? 'success' : 'error',
+    });
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  const handleRest = () => {
+    const result = restDog(selectedDog.id);
+    setMessage({
+      text: result.message || 'Unknown error',
+      type: result.success ? 'success' : 'error',
+    });
+    setTimeout(() => setMessage(null), 4000);
   };
 
   const playWithDog = (activityType: 'pet' | 'fetch' | 'walk') => {
@@ -62,58 +68,133 @@ function DogCarePanel() {
     }
 
     updateDog(selectedDog.id, updates);
+    setMessage({
+      text: `${activity.name} with ${selectedDog.name}! +${activity.happiness} happiness`,
+      type: 'success',
+    });
+    setTimeout(() => setMessage(null), 3000);
   };
+
+  const foodNeeded = calculateFoodConsumption(selectedDog.size);
+  const sizeCategory = getSizeCategoryName(selectedDog.size);
+  const hasEnoughFood = (user?.food_storage || 0) >= foodNeeded;
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
-      <h3 className="text-2xl font-bold text-earth-900 mb-6">
+      <h3 className="text-2xl font-bold text-earth-900 mb-4">
         Care for {selectedDog.name}
       </h3>
+
+      {/* Food Storage Display */}
+      {user && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg">
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+              📦 Food Storage
+            </p>
+            <p className="text-lg font-bold text-amber-800">
+              {user.food_storage.toFixed(1)} / 100 units
+            </p>
+          </div>
+          <div className="w-full bg-amber-200 rounded-full h-3">
+            <div
+              className="bg-gradient-to-r from-amber-500 to-orange-500 h-3 rounded-full transition-all"
+              style={{ width: `${user.food_storage}%` }}
+            />
+          </div>
+          <p className="text-xs text-amber-700 mt-2">
+            💡 Buy dog food bags from the shop to fill storage
+          </p>
+        </div>
+      )}
+
+      {/* Message Display */}
+      {message && (
+        <div
+          className={`mb-4 p-3 rounded-lg border-2 ${
+            message.type === 'success'
+              ? 'bg-green-50 border-green-300 text-green-800'
+              : 'bg-red-50 border-red-300 text-red-800'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {/* Dog Size Info */}
+      <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-900">
+          <span className="font-semibold">{sizeCategory} Dog</span> • Eats{' '}
+          <span className="font-bold">{foodNeeded} units</span> per feeding
+        </p>
+      </div>
 
       {/* Feeding Section */}
       <div className="mb-8">
         <h4 className="text-lg font-semibold text-earth-800 mb-3 flex items-center gap-2">
           🍖 Feeding
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button
-            onClick={() => feedDog('basic')}
-            className="p-4 border-2 border-earth-300 rounded-lg hover:border-kennel-500 hover:bg-earth-50 transition-all text-left"
-          >
-            <p className="font-semibold text-earth-900">Basic Kibble</p>
-            <p className="text-sm text-earth-600">+30 Hunger</p>
-            <p className="text-xs text-green-600 font-semibold mt-1">FREE</p>
-          </button>
-
-          <button
-            onClick={() => feedDog('premium')}
-            className="p-4 border-2 border-earth-300 rounded-lg hover:border-kennel-500 hover:bg-earth-50 transition-all text-left"
-          >
-            <p className="font-semibold text-earth-900">Premium Food</p>
-            <p className="text-sm text-earth-600">+60 Hunger, +10 Happy</p>
-            <p className="text-xs text-kennel-700 font-semibold mt-1">$15</p>
-          </button>
-
-          <button
-            onClick={() => feedDog('treat')}
-            className="p-4 border-2 border-earth-300 rounded-lg hover:border-kennel-500 hover:bg-earth-50 transition-all text-left"
-          >
-            <p className="font-semibold text-earth-900">Treat</p>
-            <p className="text-sm text-earth-600">+15 Hunger, +20 Happy</p>
-            <p className="text-xs text-kennel-700 font-semibold mt-1">$5</p>
-          </button>
-        </div>
+        <button
+          onClick={handleFeed}
+          disabled={!hasEnoughFood}
+          className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
+            hasEnoughFood
+              ? 'border-kennel-300 hover:border-kennel-500 hover:bg-kennel-50 cursor-pointer'
+              : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+          }`}
+        >
+          <p className="font-semibold text-earth-900 flex items-center justify-between">
+            Feed from Storage
+            {!hasEnoughFood && <span className="text-red-600 text-sm">Not Enough Food!</span>}
+          </p>
+          <p className="text-sm text-earth-600">
+            Uses {foodNeeded} units • Restores hunger & energy
+          </p>
+          <p className="text-xs text-earth-500 mt-1">
+            Size-based consumption • Larger dogs eat more
+          </p>
+        </button>
       </div>
 
-      {/* Playing Section */}
-      <div>
+      {/* Watering Section */}
+      <div className="mb-8">
         <h4 className="text-lg font-semibold text-earth-800 mb-3 flex items-center gap-2">
-          🎾 Activities
+          💧 Watering
+        </h4>
+        <button
+          onClick={handleWater}
+          className="w-full p-4 border-2 border-blue-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left"
+        >
+          <p className="font-semibold text-earth-900">Give Water</p>
+          <p className="text-sm text-earth-600">Restores thirst</p>
+          <p className="text-xs text-green-600 font-semibold mt-1">FREE - Water always available</p>
+        </button>
+      </div>
+
+      {/* Rest Section */}
+      <div className="mb-8">
+        <h4 className="text-lg font-semibold text-earth-800 mb-3 flex items-center gap-2">
+          💤 Rest
+        </h4>
+        <button
+          onClick={handleRest}
+          className="w-full p-4 border-2 border-indigo-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
+        >
+          <p className="font-semibold text-earth-900">Let {selectedDog.name} Rest</p>
+          <p className="text-sm text-earth-600">Restores energy</p>
+          <p className="text-xs text-earth-500 mt-1">Required for training & competition</p>
+        </button>
+      </div>
+
+      {/* Play Section */}
+      <div className="mb-6">
+        <h4 className="text-lg font-semibold text-earth-800 mb-3 flex items-center gap-2">
+          🎾 Play & Interact
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <button
             onClick={() => playWithDog('pet')}
-            className="p-4 border-2 border-earth-300 rounded-lg hover:border-kennel-500 hover:bg-earth-50 transition-all text-left"
+            className="p-4 border-2 border-pink-300 rounded-lg hover:border-pink-500 hover:bg-pink-50 transition-all text-left"
           >
             <p className="font-semibold text-earth-900">Pet & Cuddle</p>
             <p className="text-sm text-earth-600">+15 Happiness</p>
@@ -122,8 +203,7 @@ function DogCarePanel() {
 
           <button
             onClick={() => playWithDog('fetch')}
-            disabled={selectedDog.energy_stat < 20}
-            className="p-4 border-2 border-earth-300 rounded-lg hover:border-kennel-500 hover:bg-earth-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-4 border-2 border-yellow-300 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-all text-left"
           >
             <p className="font-semibold text-earth-900">Play Fetch</p>
             <p className="text-sm text-earth-600">+30 Happy, -20 Energy</p>
@@ -132,8 +212,7 @@ function DogCarePanel() {
 
           <button
             onClick={() => playWithDog('walk')}
-            disabled={selectedDog.energy_stat < 25}
-            className="p-4 border-2 border-earth-300 rounded-lg hover:border-kennel-500 hover:bg-earth-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-4 border-2 border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-left"
           >
             <p className="font-semibold text-earth-900">Go for Walk</p>
             <p className="text-sm text-earth-600">+25 Happy, -25 Energy</p>
@@ -142,27 +221,15 @@ function DogCarePanel() {
         </div>
       </div>
 
-      {/* Bond Progress */}
-      <div className="mt-6 p-4 bg-kennel-50 rounded-lg">
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-sm font-semibold text-kennel-800">
-            Bond Level {selectedDog.bond_level}/10
-          </p>
-          <p className="text-xs text-kennel-600">
-            {selectedDog.bond_xp}/50 XP
-          </p>
-        </div>
-        <div className="w-full bg-kennel-200 rounded-full h-2">
-          <div
-            className="bg-kennel-600 h-2 rounded-full transition-all"
-            style={{ width: `${(selectedDog.bond_xp / 50) * 100}%` }}
-          />
-        </div>
-        {getRescueDogBonusDescription(selectedDog) && (
-          <p className="text-xs font-semibold text-green-600 mt-2">
-            {getRescueDogBonusDescription(selectedDog)}
-          </p>
-        )}
+      {/* Care Tips */}
+      <div className="mt-6 p-4 bg-earth-50 border border-earth-200 rounded-lg">
+        <h5 className="font-semibold text-earth-900 mb-2">💡 Care Tips</h5>
+        <ul className="text-sm text-earth-700 space-y-1">
+          <li>• Keep hunger & thirst above 60% for best performance</li>
+          <li>• Energy below 30% prevents training</li>
+          <li>• Larger dogs consume more food per feeding</li>
+          <li>• Buy dog food bags from the shop to refill storage</li>
+        </ul>
       </div>
     </div>
   );

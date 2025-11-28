@@ -9,6 +9,13 @@ import {
   debouncedSave
 } from '../lib/supabaseService';
 import { calculateLoginStreak, getDailyReward } from '../utils/dailyRewards';
+import {
+  calculateFoodConsumption,
+  calculateHungerRestoration,
+  calculateThirstRestoration,
+  calculateEnergyFromEating,
+  calculateEnergyFromResting,
+} from '../utils/careCalculations';
 
 interface GameState {
   user: UserProfile | null;
@@ -56,6 +63,11 @@ interface GameState {
   purchaseBreed: (dog: Dog, cashCost: number, gemCost: number) => void;
   purchaseItem: (dogId: string, effects: any, cashCost: number, gemCost: number) => void;
 
+  // Care actions
+  feedDog: (dogId: string) => { success: boolean; message?: string };
+  waterDog: (dogId: string) => { success: boolean; message?: string };
+  restDog: (dogId: string) => { success: boolean; message?: string };
+
   // Reset game
   resetGame: () => void;
 }
@@ -77,6 +89,7 @@ export const useGameStore = create<GameState>()(
         competition_strategy: 1,
         business_acumen: 1,
         kennel_level: 1,
+        food_storage: 0, // Start with empty food storage
         created_at: new Date().toISOString(),
         last_login: new Date().toISOString(),
         login_streak: 1,
@@ -370,6 +383,151 @@ export const useGameStore = create<GameState>()(
           },
         };
       }),
+
+      // Care actions
+      feedDog: (dogId) => {
+        let result = { success: false, message: '' };
+
+        set((state) => {
+          if (!state.user) {
+            result.message = 'No user found';
+            return {};
+          }
+
+          const dog = state.dogs.find(d => d.id === dogId);
+          if (!dog) {
+            result.message = 'Dog not found';
+            return {};
+          }
+
+          // Calculate food consumption based on dog size
+          const foodNeeded = calculateFoodConsumption(dog.size);
+
+          // Check if enough food in storage
+          if (state.user.food_storage < foodNeeded) {
+            result.message = `Not enough food! Need ${foodNeeded} units, have ${state.user.food_storage.toFixed(1)}. Buy dog food from the shop!`;
+            return {};
+          }
+
+          // Calculate restoration amounts
+          const hungerRestored = calculateHungerRestoration(dog.size);
+          const energyRestored = calculateEnergyFromEating(dog.size);
+
+          // Update dog stats and consume food storage
+          const updatedDogs = state.dogs.map(d => {
+            if (d.id !== dogId) return d;
+            return {
+              ...d,
+              hunger: Math.min(100, d.hunger + hungerRestored),
+              energy_stat: Math.min(100, d.energy_stat + energyRestored),
+              last_fed: new Date().toISOString(),
+            };
+          });
+
+          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+
+          // Save to Supabase if sync is enabled
+          if (state.syncEnabled) {
+            debouncedSave(() => saveDog(updatedDog));
+          }
+
+          result.success = true;
+          result.message = `Fed ${dog.name}! +${hungerRestored} hunger, +${energyRestored} energy. Used ${foodNeeded} food units.`;
+
+          return {
+            dogs: updatedDogs,
+            selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+            user: {
+              ...state.user,
+              food_storage: state.user.food_storage - foodNeeded,
+            },
+          };
+        });
+
+        return result;
+      },
+
+      waterDog: (dogId) => {
+        let result = { success: false, message: '' };
+
+        set((state) => {
+          const dog = state.dogs.find(d => d.id === dogId);
+          if (!dog) {
+            result.message = 'Dog not found';
+            return {};
+          }
+
+          // Calculate thirst restoration
+          const thirstRestored = calculateThirstRestoration(dog.size);
+
+          // Update dog stats
+          const updatedDogs = state.dogs.map(d => {
+            if (d.id !== dogId) return d;
+            return {
+              ...d,
+              thirst: Math.min(100, d.thirst + thirstRestored),
+            };
+          });
+
+          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+
+          // Save to Supabase if sync is enabled
+          if (state.syncEnabled) {
+            debouncedSave(() => saveDog(updatedDog));
+          }
+
+          result.success = true;
+          result.message = `Gave water to ${dog.name}! +${thirstRestored} thirst.`;
+
+          return {
+            dogs: updatedDogs,
+            selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+          };
+        });
+
+        return result;
+      },
+
+      restDog: (dogId) => {
+        let result = { success: false, message: '' };
+
+        set((state) => {
+          const dog = state.dogs.find(d => d.id === dogId);
+          if (!dog) {
+            result.message = 'Dog not found';
+            return {};
+          }
+
+          // Calculate energy restoration from resting
+          const energyRestored = calculateEnergyFromResting();
+
+          // Update dog stats
+          const updatedDogs = state.dogs.map(d => {
+            if (d.id !== dogId) return d;
+            return {
+              ...d,
+              energy_stat: Math.min(100, d.energy_stat + energyRestored),
+            };
+          });
+
+          const updatedDog = updatedDogs.find(d => d.id === dogId)!;
+
+          // Save to Supabase if sync is enabled
+          if (state.syncEnabled) {
+            debouncedSave(() => saveDog(updatedDog));
+          }
+
+          result.success = true;
+          result.message = `${dog.name} rested! +${energyRestored} energy.`;
+
+          return {
+            dogs: updatedDogs,
+            selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+          };
+        });
+
+        return result;
+      },
 
       claimDailyReward: () => set((state) => {
         if (!state.user) return {};

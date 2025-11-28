@@ -68,6 +68,7 @@ export function generateDog(
 
     // Care stats (rescue dogs start slightly lower)
     hunger: isRescue ? 60 : 100,
+    thirst: isRescue ? 60 : 100,
     happiness: isRescue ? 50 : 100,
     energy_stat: isRescue ? 70 : 100,
     health: isRescue ? 80 : 100,

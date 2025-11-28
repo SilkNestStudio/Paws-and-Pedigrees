@@ -144,6 +144,19 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
               </div>
 
               <div className="flex items-center gap-3">
+                <span className="text-sm text-earth-600 w-20">Thirst:</span>
+                <div className="flex-1 bg-earth-200 rounded-full h-3">
+                  <div
+                    className={`h-3 rounded-full transition-all ${
+                      selectedDog.thirst > 70 ? 'bg-blue-500' : selectedDog.thirst > 30 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${selectedDog.thirst}%` }}
+                  />
+                </div>
+                <span className="text-sm text-earth-700 w-12">{selectedDog.thirst}%</span>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <span className="text-sm text-earth-600 w-20">Happiness:</span>
                 <div className="flex-1 bg-earth-200 rounded-full h-3">
                   <div
