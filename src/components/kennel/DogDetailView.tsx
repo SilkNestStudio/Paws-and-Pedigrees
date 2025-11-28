@@ -2,6 +2,12 @@ import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import DogCarePanel from './DogCarePanel';
 import HelpButton from '../tutorial/HelpButton';
+import {
+  getCompositionSummary,
+  getCompositionColor,
+  getCompositionEmoji,
+  getSimplifiedComposition,
+} from '../../data/breedComposition';
 
 interface DogDetailViewProps {
   onBack: () => void;
@@ -96,11 +102,29 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
               </div>
 
               {/* Name & Breed */}
-              <div className="absolute bottom-4 left-4 bg-kennel-700 text-white px-4 py-2 rounded-lg shadow-xl">
+              <div className="absolute bottom-4 left-4 bg-kennel-700 text-white px-4 py-2 rounded-lg shadow-xl max-w-md">
                 <h2 className="text-2xl font-bold">{selectedDog.name}</h2>
                 <p className="text-sm opacity-90 capitalize">
                   {selectedDog.gender === 'male' ? '♂️' : '♀️'} {breedData?.name}
                 </p>
+
+                {/* Breed Composition Badge */}
+                {selectedDog.breed_composition && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-lg">
+                      {getCompositionEmoji(selectedDog.breed_composition)}
+                    </span>
+                    <span className="text-xs opacity-90">
+                      {selectedDog.breed_composition.isDesignerBreed && selectedDog.breed_composition.designerBreedInfo
+                        ? selectedDog.breed_composition.designerBreedInfo.name
+                        : selectedDog.breed_composition.isPurebred
+                        ? 'Purebred'
+                        : selectedDog.breed_composition.isFirstGeneration
+                        ? 'F1 Cross'
+                        : `F${selectedDog.breed_composition.generation} Mix`}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -247,6 +271,66 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
               </div>
             </div>
           </div>
+
+          {/* Breed Composition Details */}
+          {selectedDog.breed_composition && !selectedDog.breed_composition.isPurebred && (
+            <div className="mt-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
+              <h3 className="text-xl font-bold text-earth-900 mb-3 flex items-center gap-2">
+                {getCompositionEmoji(selectedDog.breed_composition)} Breed Composition
+              </h3>
+
+              {/* Designer Breed Info */}
+              {selectedDog.breed_composition.isDesignerBreed && selectedDog.breed_composition.designerBreedInfo && (
+                <div className={`mb-4 p-3 rounded-lg border-2 ${getCompositionColor(selectedDog.breed_composition)}`}>
+                  <p className="font-bold text-sm mb-1">
+                    {selectedDog.breed_composition.designerBreedInfo.name}
+                  </p>
+                  <p className="text-xs opacity-80">
+                    {selectedDog.breed_composition.designerBreedInfo.description}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedDog.breed_composition.designerBreedInfo.characteristics.map(char => (
+                      <span key={char} className="text-xs px-2 py-1 bg-white/50 rounded">
+                        {char}
+                      </span>
+                    ))}
+                  </div>
+                  {selectedDog.breed_composition.designerBreedInfo.hybridVigorBonus > 0 && (
+                    <p className="text-xs mt-2 font-semibold text-green-700">
+                      ⚡ Hybrid Vigor: +{selectedDog.breed_composition.designerBreedInfo.hybridVigorBonus}% stats
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Breed Percentages */}
+              <div className="space-y-2">
+                {getSimplifiedComposition(selectedDog.breed_composition).map(portion => (
+                  <div key={portion.breedId} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-semibold text-earth-900">{portion.breedName}</span>
+                        <span className="text-earth-600">{portion.percentage}%</span>
+                      </div>
+                      <div className="w-full bg-earth-200 rounded-full h-2">
+                        <div
+                          className="bg-kennel-600 h-2 rounded-full transition-all"
+                          style={{ width: `${portion.percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Generation Info */}
+              {selectedDog.breed_composition.generation && (
+                <p className="text-xs text-earth-600 mt-3">
+                  Generation: F{selectedDog.breed_composition.generation}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Care Panel */}

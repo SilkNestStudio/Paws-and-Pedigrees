@@ -12,6 +12,11 @@ import {
   COAT_LENGTH_DOMINANCE,
   DogGenetics,
 } from '../types/genetics';
+import { checkSizeCompatibility } from '../data/sizeCompatibility';
+import {
+  calculatePuppyComposition,
+  createPurebredComposition,
+} from '../data/breedComposition';
 
 export interface BreedingEligibility {
   canBreed: boolean;
@@ -48,6 +53,22 @@ export function checkBreedingEligibility(
   allDogs?: Dog[]
 ): BreedingEligibility {
   const reasons: string[] = [];
+
+  // Determine sire and dam
+  const sire = dog1.gender === 'male' ? dog1 : dog2;
+  const dam = dog1.gender === 'female' ? dog1 : dog2;
+
+  // Check size compatibility (warning or blocking)
+  const sizeCheck = checkSizeCompatibility(
+    { avgWeight: sire.size, sex: sire.gender },
+    { avgWeight: dam.size, sex: dam.gender }
+  );
+
+  if (sizeCheck.warningLevel === 'blocked') {
+    reasons.push(sizeCheck.message);
+  } else if (sizeCheck.warningLevel === 'warning' || sizeCheck.warningLevel === 'caution') {
+    reasons.push(sizeCheck.message);
+  }
 
   // Check for inbreeding (warning only, doesn't prevent breeding)
   if (allDogs && allDogs.length > 0) {
@@ -244,8 +265,8 @@ export function previewGenetics(dog1: Dog, dog2: Dog, allDogs?: Dog[]): Genetics
 export function generatePuppy(
   sire: Dog,
   dam: Dog,
-  _sireBreed: Breed,
-  _damBreed: Breed,
+  sireBreed: Breed,
+  damBreed: Breed,
   userId: string,
   name?: string,
   allDogs?: Dog[]
@@ -260,6 +281,31 @@ export function generatePuppy(
   }
 
   const penaltyMultiplier = 1 - (inbreedingPenalty / 100);
+
+  // Calculate breed composition
+  // Get parent compositions (create if not existing - legacy dogs)
+  const sireComposition = sire.breed_composition || createPurebredComposition(sire.breed_id, sireBreed.name);
+  const damComposition = dam.breed_composition || createPurebredComposition(dam.breed_id, damBreed.name);
+
+  // Calculate puppy composition
+  const puppyComposition = calculatePuppyComposition(
+    sireComposition,
+    damComposition,
+    sire.breed_id,
+    dam.breed_id,
+    sireBreed.name,
+    damBreed.name
+  );
+
+  // Get primary breed ID for database purposes
+  const puppyBreedId = puppyComposition.portions[0].breedId;
+
+  // Check for hybrid vigor bonus (applies to F1 designer breeds)
+  let hybridVigorBonus = 1.0; // Default multiplier
+  if (puppyComposition.isDesignerBreed && puppyComposition.designerBreedInfo) {
+    const bonusPercentage = puppyComposition.designerBreedInfo.hybridVigorBonus;
+    hybridVigorBonus = 1 + (bonusPercentage / 100);
+  }
 
   // Get genetics from both parents (create if they don't have it)
   const sireGenetics = (sire.genetics as DogGenetics) || createGeneticsFromPhenotype(
@@ -422,6 +468,9 @@ export function generatePuppy(
     const geneModifier = calculateGeneStatModifier(gene.allele1, gene.allele2);
     value = Math.round(value * geneModifier);
 
+    // Apply hybrid vigor bonus (before penalties)
+    value = Math.round(value * hybridVigorBonus);
+
     // Apply inbreeding penalty
     value = Math.round(value * penaltyMultiplier);
 
@@ -434,7 +483,7 @@ export function generatePuppy(
   return {
     id: crypto.randomUUID(),
     user_id: userId,
-    breed_id: sire.breed_id, // Use sire's breed (or could randomly choose)
+    breed_id: puppyBreedId, // Use primary breed from composition
     name: puppyName,
     gender,
     birth_date: new Date().toISOString(),
@@ -485,6 +534,9 @@ export function generatePuppy(
     rescue_story: undefined,
     parent1_id: sire.id,
     parent2_id: dam.id,
+
+    // Breed composition (track breed percentages and designer breeds)
+    breed_composition: puppyComposition,
 
     // Genetics (store the full genetics object)
     genetics: puppyGenetics,

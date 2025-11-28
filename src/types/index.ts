@@ -1,3 +1,5 @@
+import { BreedComposition } from '../data/breedComposition';
+
 export interface Breed {
   id: number;
   name: string;
@@ -77,6 +79,9 @@ export interface Dog {
   rescue_story?: string;
   parent1_id?: string;
   parent2_id?: string;
+
+  // Breed composition (for mixed breeds and designer breeds)
+  breed_composition?: BreedComposition;
 
   // Breeding fields
   age_weeks: number;
