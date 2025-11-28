@@ -119,7 +119,7 @@ interface GameState {
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set: any) => ({
+    (set) => ({
       user: {
         id: 'temp-user-id',
         username: 'Player',
@@ -248,7 +248,7 @@ export const useGameStore = create<GameState>()(
           return;
         }
 
-        set((state) => ({
+        set((state: GameState) => ({
           dogs: [...state.dogs, dog],
           selectedDog: dog
         }));
@@ -492,22 +492,22 @@ export const useGameStore = create<GameState>()(
       }),
 
       // Kennel upgrade
-      upgradeKennel: () => {
+      upgradeKennel: (): { success: boolean; message?: string; newLevel?: number } => {
         const state = useGameStore.getState();
 
         if (!state.user) {
           return { success: false, message: 'No user found' };
         }
 
-        const currentLevel = state.user.kennel_level;
+        const currentLevel: number = state.user.kennel_level;
         const checkResult = canUpgradeKennel(currentLevel, state.user.cash);
 
         if (!checkResult.canUpgrade) {
           return { success: false, message: checkResult.reason };
         }
 
-        const cost = checkResult.cost!;
-        const newLevel = currentLevel + 1;
+        const cost: number = checkResult.cost!;
+        const newLevel: number = currentLevel + 1;
         const newLevelInfo = getKennelLevelInfo(newLevel);
 
         set((state: any) => ({
@@ -812,7 +812,7 @@ export const useGameStore = create<GameState>()(
           }
 
           // Apply vet treatment
-          const vetUpdates = visitVet(dog);
+          const vetUpdates = visitVet();
           const updatedDogs = state.dogs.map((d: any) => {
             if (d.id !== dogId) return d;
             return { ...d, ...vetUpdates };
