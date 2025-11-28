@@ -7,7 +7,7 @@ interface AdminPanelProps {
 }
 
 export default function AdminPanel({ onClose }: AdminPanelProps) {
-  const { user, updateUser } = useGameStore();
+  const { user, setUser } = useGameStore();
   const userIsAdmin = isAdmin(user?.id);
 
   // Show setup instructions if not yet added as admin
@@ -75,7 +75,8 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const handleApply = () => {
     if (!user) return;
 
-    updateUser({
+    setUser({
+      ...user,
       level: values.level,
       xp: values.xp,
       cash: values.cash,
