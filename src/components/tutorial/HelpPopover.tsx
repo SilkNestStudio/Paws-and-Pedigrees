@@ -1,35 +1,50 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { HELP_CONTENT } from '../../data/tutorials/helpContent';
 import { useGameStore } from '../../stores/gameStore';
 
 interface HelpPopoverProps {
   helpId: string;
   onClose: () => void;
+  buttonRef: React.RefObject<HTMLButtonElement>;
 }
 
-export default function HelpPopover({ helpId, onClose }: HelpPopoverProps) {
+export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const { startTutorial } = useGameStore();
+  const [position, setPosition] = useState({ top: 0, left: 0 });
 
   const helpContent = HELP_CONTENT[helpId];
+
+  // Calculate position based on button
+  useEffect(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + 8,
+        left: rect.right,
+      });
+    }
+  }, [buttonRef]);
 
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
         onClose();
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  }, [onClose, buttonRef]);
 
   if (!helpContent) {
     return (
       <div
         ref={popoverRef}
-        className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[9999]"
+        className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[99999]"
+        style={{ top: `${position.top}px`, left: `${position.left}px`, transform: 'translateX(-100%)' }}
       >
         <p className="text-sm text-red-600">Help content not found for "{helpId}"</p>
         <button
@@ -52,7 +67,8 @@ export default function HelpPopover({ helpId, onClose }: HelpPopoverProps) {
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[9999] animate-fadeIn"
+      className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[99999] animate-fadeIn"
+      style={{ top: `${position.top}px`, left: `${position.left}px`, transform: 'translateX(-100%)' }}
     >
       <h3 className="text-lg font-bold text-kennel-800 mb-2">{helpContent.title}</h3>
       <p className="text-sm text-earth-700 leading-relaxed whitespace-pre-line">{helpContent.content}</p>

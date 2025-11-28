@@ -258,7 +258,7 @@ export default function InteractiveCarePanel() {
               className="cursor-grab active:cursor-grabbing p-3 bg-white rounded-lg border-2 border-blue-300 hover:border-blue-500 hover:scale-105 transition-all shadow-lg"
               title="Drag to spigot to fill with water"
             >
-              <div className="text-5xl">💧</div>
+              <div className="text-5xl">🥣</div>
               <p className="text-xs text-center text-blue-700 font-semibold mt-1">Water Bowl</p>
             </div>
 
@@ -268,7 +268,7 @@ export default function InteractiveCarePanel() {
               className="cursor-grab active:cursor-grabbing p-3 bg-white rounded-lg border-2 border-amber-300 hover:border-amber-500 hover:scale-105 transition-all shadow-lg"
               title="Drag to food bin to fill with food"
             >
-              <div className="text-5xl">🍖</div>
+              <div className="text-5xl">🍽️</div>
               <p className="text-xs text-center text-amber-700 font-semibold mt-1">Food Bowl</p>
             </div>
           </div>
@@ -281,7 +281,7 @@ export default function InteractiveCarePanel() {
             style={{ left: dragPosition.x, top: dragPosition.y }}
           >
             <div className={`text-6xl ${bowlFilled ? 'animate-bounce' : ''}`}>
-              {dragItem === 'water-bowl' ? (bowlFilled ? '💦' : '💧') : (bowlFilled ? '🍲' : '🍖')}
+              {dragItem === 'water-bowl' ? (bowlFilled ? '💧' : '🥣') : (bowlFilled ? '🍲' : '🍽️')}
             </div>
           </div>
         )}
