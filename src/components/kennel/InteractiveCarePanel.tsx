@@ -176,13 +176,13 @@ export default function InteractiveCarePanel() {
               📦 Food Storage
             </p>
             <p className="text-lg font-bold text-amber-800">
-              {user.food_storage.toFixed(1)} / 100 units
+              {(user.food_storage ?? 0).toFixed(1)} / 100 units
             </p>
           </div>
           <div className="w-full bg-amber-200 rounded-full h-3">
             <div
               className="bg-gradient-to-r from-amber-500 to-orange-500 h-3 rounded-full transition-all"
-              style={{ width: `${user.food_storage}%` }}
+              style={{ width: `${user.food_storage ?? 0}%` }}
             />
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function InteractiveCarePanel() {
         >
           <div className="text-7xl">📦</div>
           <p className="text-xs text-center text-earth-700 font-semibold">Food Bin</p>
-          <p className="text-xs text-center text-earth-600">{user?.food_storage.toFixed(1)} units</p>
+          <p className="text-xs text-center text-earth-600">{(user?.food_storage ?? 0).toFixed(1)} units</p>
         </div>
 
         {/* Dog Area */}
