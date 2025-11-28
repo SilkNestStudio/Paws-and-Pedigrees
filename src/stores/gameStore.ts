@@ -327,7 +327,7 @@ export const useGameStore = create<GameState>()(
 
         // Check if adding food storage would exceed max capacity
         if (effects.food_storage !== undefined) {
-          const newStorage = state.user.food_storage + effects.food_storage;
+          const newStorage = (state.user.food_storage ?? 0) + effects.food_storage;
           if (newStorage > 100) {
             // Don't allow purchase if it would overflow storage
             return {};
@@ -378,7 +378,7 @@ export const useGameStore = create<GameState>()(
             gems: state.user.gems - gemCost,
             // Add food storage if item provides it
             ...(effects.food_storage !== undefined && {
-              food_storage: Math.min(100, state.user.food_storage + effects.food_storage)
+              food_storage: Math.min(100, (state.user.food_storage ?? 0) + effects.food_storage)
             }),
           },
         };
