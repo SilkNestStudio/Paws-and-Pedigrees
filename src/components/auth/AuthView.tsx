@@ -63,8 +63,14 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
         if (error) throw error;
 
         if (data.user) {
-          setMessage('Account created! You can now log in.');
-          setIsLogin(true);
+          // Check if email confirmation is required
+          if (data.user.identities && data.user.identities.length === 0) {
+            // User already exists
+            setError('An account with this email already exists. Please log in instead.');
+          } else {
+            // Account created successfully
+            setMessage('✅ Account created! Please check your email to verify your account before logging in.');
+          }
           setPassword('');
         }
       }
