@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { HELP_CONTENT } from '../../data/tutorials/helpContent';
 import { useGameStore } from '../../stores/gameStore';
 
@@ -40,10 +41,10 @@ export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverP
   }, [onClose, buttonRef]);
 
   if (!helpContent) {
-    return (
+    return createPortal(
       <div
         ref={popoverRef}
-        className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[99999]"
+        className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[999999]"
         style={{ top: `${position.top}px`, left: `${position.left}px`, transform: 'translateX(-100%)' }}
       >
         <p className="text-sm text-red-600">Help content not found for "{helpId}"</p>
@@ -53,7 +54,8 @@ export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverP
         >
           Got it
         </button>
-      </div>
+      </div>,
+      document.body
     );
   }
 
@@ -64,10 +66,10 @@ export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverP
     }
   };
 
-  return (
+  return createPortal(
     <div
       ref={popoverRef}
-      className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[99999] animate-fadeIn"
+      className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[999999] animate-fadeIn"
       style={{ top: `${position.top}px`, left: `${position.left}px`, transform: 'translateX(-100%)' }}
     >
       <h3 className="text-lg font-bold text-kennel-800 mb-2">{helpContent.title}</h3>
@@ -89,6 +91,7 @@ export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverP
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
