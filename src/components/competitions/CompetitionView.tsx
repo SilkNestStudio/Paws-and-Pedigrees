@@ -8,6 +8,7 @@ import ObedienceMiniGame from './ObedienceMiniGame';
 import WeightPullMiniGame from './WeightPullMiniGame';
 import RacingMiniGame from './RacingMiniGame';
 import HelpButton from '../tutorial/HelpButton';
+import { ENERGY_THRESHOLDS } from '../../utils/careCalculations';
 
 // Derive the types from the data exports so we don't depend on separate type-only imports
 type CompetitionType = (typeof competitionTypes)[number];
@@ -56,6 +57,12 @@ export default function CompetitionView() {
   const handleEnterCompetition = (manual: boolean) => {
     if (!selectedDog) {
       alert('Please select a dog first!');
+      return;
+    }
+
+    // Check energy level
+    if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_COMPETITION) {
+      alert(`${selectedDog.name} is too tired to compete! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_COMPETITION}%. Feed or rest your dog first.`);
       return;
     }
 
@@ -371,6 +378,7 @@ export default function CompetitionView() {
               const statsCheck = currentCompetition && currentTier && selectedDog
                 ? meetsStatRequirement(selectedDog, currentCompetition, currentTier)
                 : { meets: true, total: 0 };
+              const hasEnoughEnergy = selectedDog && selectedDog.energy_stat >= ENERGY_THRESHOLDS.MIN_FOR_COMPETITION;
 
               return (
                 <>
@@ -378,7 +386,7 @@ export default function CompetitionView() {
                   <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => handleEnterCompetition(false)}
-                disabled={isCompeting || (user?.cash || 0) < (currentTier?.entryFee || 0) || !statsCheck.meets}
+                disabled={isCompeting || (user?.cash || 0) < (currentTier?.entryFee || 0) || !statsCheck.meets || !hasEnoughEnergy}
                 className="p-6 bg-earth-600 text-white rounded-lg hover:bg-earth-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <p className="text-2xl mb-2">🤖</p>
@@ -390,11 +398,16 @@ export default function CompetitionView() {
                     ⚠️ Need {currentTier?.minRequirement} total stats (have {statsCheck.total})
                   </p>
                 )}
+                {!hasEnoughEnergy && (
+                  <p className="text-xs text-red-300 mt-1">
+                    ⚠️ Too tired! Need {ENERGY_THRESHOLDS.MIN_FOR_COMPETITION}% energy
+                  </p>
+                )}
               </button>
 
               <button
                 onClick={() => handleEnterCompetition(true)}
-                disabled={isCompeting || (user?.cash || 0) < (currentTier?.entryFee || 0) || !statsCheck.meets}
+                disabled={isCompeting || (user?.cash || 0) < (currentTier?.entryFee || 0) || !statsCheck.meets || !hasEnoughEnergy}
                 className="p-6 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <p className="text-2xl mb-2">🎮</p>
@@ -404,6 +417,11 @@ export default function CompetitionView() {
                 {!statsCheck.meets && (
                   <p className="text-xs text-red-300 mt-1">
                     ⚠️ Need {currentTier?.minRequirement} total stats (have {statsCheck.total})
+                  </p>
+                )}
+                {!hasEnoughEnergy && (
+                  <p className="text-xs text-red-300 mt-1">
+                    ⚠️ Too tired! Need {ENERGY_THRESHOLDS.MIN_FOR_COMPETITION}% energy
                   </p>
                 )}
               </button>

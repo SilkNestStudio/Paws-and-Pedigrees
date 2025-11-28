@@ -11,6 +11,7 @@ import DistanceRunGame from './DistanceRunGame';
 import CommandDrillsGame from './CommandDrillsGame';
 import { checkBondLevelUp, getRescueDogTrainingBonus } from '../../utils/bondSystem';
 import HelpButton from '../tutorial/HelpButton';
+import { ENERGY_THRESHOLDS } from '../../utils/careCalculations';
 
 
 export default function TrainingView() {
@@ -32,6 +33,12 @@ export default function TrainingView() {
 
     const training = trainingTypes.find(t => t.id === trainingId);
     if (!training) return;
+
+    // Check energy level
+    if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING) {
+      alert(`${selectedDog.name} is too tired to train! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_TRAINING}%. Feed or rest your dog first.`);
+      return;
+    }
 
     if (!canTrain(selectedDog, training.tpCost)) {
       alert(`Not enough Training Points! Need ${training.tpCost} TP.`);
@@ -123,8 +130,14 @@ export default function TrainingView() {
     const training = trainingTypes.find(t => t.id === trainingId);
     if (!training) return;
 
+    // Check energy level
+    if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING) {
+      alert(`${selectedDog.name} is too tired to train! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_TRAINING}%. Feed or rest your dog first.`);
+      return;
+    }
+
     const cost = trainerType === 'basic' ? training.npcBasicCost : training.npcProCost;
-    
+
     if ((user?.cash || 0) < cost) {
       alert(`Not enough cash! Need $${cost}.`);
       return;
@@ -300,32 +313,41 @@ updateDog(selectedDog.id, updates);
                     <div className="grid grid-cols-3 gap-3">
                       <button
                         onClick={() => handleSelfTrain(training.id)}
-                        disabled={isTraining || !canTrain(selectedDog, training.tpCost)}
+                        disabled={isTraining || !canTrain(selectedDog, training.tpCost) || selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING}
                         className="p-3 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                         <p className="font-semibold">Train Yourself</p>
                         <p className="text-xs">FREE • {training.tpCost} TP</p>
                         <p className="text-xs">{training.duration}s</p>
+                        {selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING && (
+                          <p className="text-xs text-red-300 mt-1">⚠️ Too tired!</p>
+                        )}
                       </button>
 
                       <button
                         onClick={() => handleNpcTrain(training.id, 'basic')}
-                        disabled={isTraining || !canTrain(selectedDog, training.tpCost) || (user?.cash || 0) < training.npcBasicCost}
+                        disabled={isTraining || !canTrain(selectedDog, training.tpCost) || (user?.cash || 0) < training.npcBasicCost || selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING}
                         className="p-3 bg-earth-600 text-white rounded-lg hover:bg-earth-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                         <p className="font-semibold">Basic Trainer</p>
                         <p className="text-xs">${training.npcBasicCost} • {training.tpCost} TP</p>
                         <p className="text-xs">Instant • 1.2x gain</p>
+                        {selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING && (
+                          <p className="text-xs text-red-300 mt-1">⚠️ Too tired!</p>
+                        )}
                       </button>
 
                       <button
                         onClick={() => handleNpcTrain(training.id, 'pro')}
-                        disabled={isTraining || !canTrain(selectedDog, training.tpCost) || (user?.cash || 0) < training.npcProCost}
+                        disabled={isTraining || !canTrain(selectedDog, training.tpCost) || (user?.cash || 0) < training.npcProCost || selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING}
                         className="p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
                         <p className="font-semibold">Pro Trainer</p>
                         <p className="text-xs">${training.npcProCost} • {training.tpCost} TP</p>
                         <p className="text-xs">Instant • 1.5x gain</p>
+                        {selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING && (
+                          <p className="text-xs text-red-300 mt-1">⚠️ Too tired!</p>
+                        )}
                       </button>
                     </div>
                   </div>
