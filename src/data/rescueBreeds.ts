@@ -7,7 +7,7 @@ export const rescueBreeds: Breed[] = [
     name: 'American Staffordshire Terrier',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 6, size_max: 7,
+    size_min: 40, size_max: 70, // Medium to Large (40-70 lbs)
     energy_min: 7, energy_max: 9,
     friendliness_min: 8, friendliness_max: 10,
     trainability_min: 7, trainability_max: 9,
@@ -29,7 +29,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Labrador Retriever',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 6, size_max: 8,
+    size_min: 55, size_max: 80, // Large (55-80 lbs)
     energy_min: 7, energy_max: 9,
     friendliness_min: 9, friendliness_max: 10,
     trainability_min: 8, trainability_max: 10,
@@ -51,7 +51,7 @@ export const rescueBreeds: Breed[] = [
     name: 'German Shepherd',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 7, size_max: 8,
+    size_min: 50, size_max: 90, // Large (50-90 lbs)
     energy_min: 7, energy_max: 9,
     friendliness_min: 7, friendliness_max: 9,
     trainability_min: 9, trainability_max: 10,
@@ -73,7 +73,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Border Collie',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 5, size_max: 6,
+    size_min: 30, size_max: 55, // Medium (30-55 lbs)
     energy_min: 9, energy_max: 10,
     friendliness_min: 7, friendliness_max: 9,
     trainability_min: 9, trainability_max: 10,
@@ -95,7 +95,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Doberman Pinscher',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 7, size_max: 8,
+    size_min: 60, size_max: 100, // Large (60-100 lbs)
     energy_min: 7, energy_max: 9,
     friendliness_min: 7, friendliness_max: 9,
     trainability_min: 8, trainability_max: 10,
@@ -117,7 +117,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Golden Retriever',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 6, size_max: 8,
+    size_min: 55, size_max: 75, // Large (55-75 lbs)
     energy_min: 6, energy_max: 8,
     friendliness_min: 9, friendliness_max: 10,
     trainability_min: 8, trainability_max: 10,
@@ -139,7 +139,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Boxer',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 6, size_max: 7,
+    size_min: 50, size_max: 80, // Large (50-80 lbs)
     energy_min: 8, energy_max: 10,
     friendliness_min: 8, friendliness_max: 10,
     trainability_min: 7, trainability_max: 9,
@@ -161,7 +161,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Beagle',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 4, size_max: 5,
+    size_min: 20, size_max: 30, // Small (20-30 lbs)
     energy_min: 7, energy_max: 9,
     friendliness_min: 8, friendliness_max: 10,
     trainability_min: 5, trainability_max: 7,
@@ -183,7 +183,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Australian Shepherd',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 5, size_max: 7,
+    size_min: 40, size_max: 65, // Medium (40-65 lbs)
     energy_min: 8, energy_max: 10,
     friendliness_min: 7, friendliness_max: 9,
     trainability_min: 8, trainability_max: 10,
@@ -205,7 +205,7 @@ export const rescueBreeds: Breed[] = [
     name: 'Mixed Breed',
     tier: 'rescue',
     unlock_level: 0,
-    size_min: 3, size_max: 8,
+    size_min: 15, size_max: 90, // Variable (15-90 lbs) - can be any size
     energy_min: 5, energy_max: 8,
     friendliness_min: 6, friendliness_max: 9,
     trainability_min: 5, trainability_max: 8,
