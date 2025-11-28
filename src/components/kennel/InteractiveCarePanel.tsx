@@ -48,12 +48,16 @@ export default function InteractiveCarePanel() {
     setDragPosition({ x: e.clientX, y: e.clientY });
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
+  const handleTouchStart = (item: DragItem) => (e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setDragItem(item);
+    setBowlFilled(false);
+    setDragPosition({ x: touch.clientX, y: touch.clientY });
+  };
 
-    setDragPosition({ x: e.clientX, y: e.clientY });
-
-    // Check if over drop zones
+  const checkDropZones = (clientX: number, clientY: number) => {
     const dropZones = [
       { ref: spigotRef, zone: 'spigot' as DropZone, validItems: ['water-bowl'] },
       { ref: foodBinRef, zone: 'food-bin' as DropZone, validItems: ['bowl'] },
@@ -65,10 +69,10 @@ export default function InteractiveCarePanel() {
       if (ref.current && dragItem && validItems.includes(dragItem)) {
         const rect = ref.current.getBoundingClientRect();
         if (
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
         ) {
           setActiveDropZone(zone);
           foundZone = true;
@@ -79,6 +83,20 @@ export default function InteractiveCarePanel() {
     if (!foundZone) {
       setActiveDropZone(null);
     }
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    setDragPosition({ x: e.clientX, y: e.clientY });
+    checkDropZones(e.clientX, e.clientY);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    setDragPosition({ x: touch.clientX, y: touch.clientY });
+    checkDropZones(touch.clientX, touch.clientY);
   };
 
   const handleMouseUp = () => {
@@ -121,13 +139,21 @@ export default function InteractiveCarePanel() {
     setActiveDropZone(null);
   };
 
+  const handleTouchEnd = () => {
+    handleMouseUp(); // Reuse the same logic
+  };
+
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleTouchEnd);
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
       };
     }
   }, [isDragging, activeDropZone, bowlFilled, dragItem]);
@@ -256,6 +282,7 @@ export default function InteractiveCarePanel() {
             {/* Water Bowl */}
             <div
               onMouseDown={handleMouseDown('water-bowl')}
+              onTouchStart={handleTouchStart('water-bowl')}
               className="cursor-grab active:cursor-grabbing p-3 bg-white rounded-lg border-2 border-blue-300 hover:border-blue-500 hover:scale-105 transition-all shadow-lg"
               title="Drag to spigot to fill with water"
             >
@@ -266,6 +293,7 @@ export default function InteractiveCarePanel() {
             {/* Food Bowl */}
             <div
               onMouseDown={handleMouseDown('bowl')}
+              onTouchStart={handleTouchStart('bowl')}
               className="cursor-grab active:cursor-grabbing p-3 bg-white rounded-lg border-2 border-amber-300 hover:border-amber-500 hover:scale-105 transition-all shadow-lg"
               title="Drag to food bin to fill with food"
             >
