@@ -1,6 +1,7 @@
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import HelpButton from '../tutorial/HelpButton';
+import { getKennelCapacityInfo } from '../../utils/kennelCapacity';
 
 interface KennelViewProps {
   onViewDog: () => void;
@@ -8,6 +9,7 @@ interface KennelViewProps {
 
 export default function KennelView({ onViewDog }: KennelViewProps) {
   const { user, dogs, selectDog } = useGameStore();
+  const capacityInfo = getKennelCapacityInfo(dogs.length, user?.kennel_level || 1);
 
   const handleDogClick = (dog: typeof dogs[0]) => {
     selectDog(dog);
@@ -31,7 +33,21 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
             <h2 className="text-2xl font-bold text-earth-900">Your Kennel</h2>
             <HelpButton helpId="kennel-management" tooltip="Learn about kennel management" />
           </div>
-          <p className="text-earth-600">Level {user?.kennel_level} • {dogs.length}/{user?.kennel_level === 1 ? 1 : user?.kennel_level === 2 ? 2 : 4} dogs</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-earth-600">Level {user?.kennel_level}</p>
+            <span className="text-earth-400">•</span>
+            <p className={`font-semibold ${!capacityInfo.canAddMore ? 'text-red-600' : 'text-earth-700'}`}>
+              {capacityInfo.current}/{capacityInfo.max} dogs
+            </p>
+            {!capacityInfo.canAddMore && (
+              <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Full</span>
+            )}
+            {capacityInfo.nextLevelCapacity && (
+              <span className="text-xs text-earth-500">
+                (Next: {capacityInfo.nextLevelCapacity})
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-right">
           <p className="text-sm text-earth-600">Cash</p>

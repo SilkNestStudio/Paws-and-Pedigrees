@@ -17,6 +17,7 @@ import {
   calculateEnergyFromEating,
   calculateEnergyFromResting,
 } from '../utils/careCalculations';
+import { canAddDog } from '../utils/kennelCapacity';
 
 interface GameState {
   user: UserProfile | null;
@@ -192,12 +193,20 @@ export const useGameStore = create<GameState>()(
       },
       
       addDog: (dog) => {
+        const state = useGameStore.getState();
+
+        // Check kennel capacity before adding
+        if (!canAddDog(state.dogs.length, state.user?.kennel_level || 1)) {
+          console.warn('Kennel is at capacity! Cannot add more dogs.');
+          return;
+        }
+
         set((state) => ({
           dogs: [...state.dogs, dog],
           selectedDog: dog
         }));
+
         // Save to Supabase if sync is enabled
-        const state = useGameStore.getState();
         if (state.syncEnabled) {
           saveDog(dog);
         }
@@ -349,6 +358,12 @@ export const useGameStore = create<GameState>()(
         // Check if user has enough currency
         if (cashCost > 0 && state.user.cash < cashCost) return {};
         if (gemCost > 0 && state.user.gems < gemCost) return {};
+
+        // Check kennel capacity
+        if (!canAddDog(state.dogs.length, state.user.kennel_level)) {
+          alert('Kennel is at capacity! Upgrade your kennel level to add more dogs.');
+          return {};
+        }
 
         return {
           dogs: [...state.dogs, dog],

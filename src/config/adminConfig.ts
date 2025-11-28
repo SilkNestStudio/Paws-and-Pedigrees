@@ -6,14 +6,13 @@
 
 // List of user IDs that have admin access
 export const ADMIN_USER_IDS = [
-  // Add your Supabase user ID here
-  // You can find it in the console when logged in, or check localStorage
-  // Example: 'abc123-def456-ghi789'
+  // Your admin user ID (needs quotes!)
+  'd3c01396-14f6-44e1-8b79-b56facf2c51b',
 
   // For local development/testing without auth:
   'local-user',
 
-  // Add your actual Supabase user ID below:
+  // Add more admin user IDs below:
   // 'your-supabase-user-id-here',
 ];
 
