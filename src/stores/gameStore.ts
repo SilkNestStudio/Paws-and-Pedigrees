@@ -47,6 +47,13 @@ import {
   canUpgradeKennel,
   getKennelLevelInfo,
 } from '../utils/kennelUpgrades';
+import {
+  PUPPY_TRAINING_PROGRAMS,
+  MAX_FREE_PUPPY_TRAINING_SLOTS,
+  THIRD_SLOT_GEM_COST,
+  calculateCompletionTime,
+  isTrainingComplete,
+} from '../data/puppyTraining';
 
 interface GameState {
   user: UserProfile | null;
@@ -112,6 +119,12 @@ interface GameState {
   treatDogAilment: (dogId: string, cost: number) => { success: boolean; message?: string };
   checkForRandomIllness: (dogId: string) => void;
   applyInjuryToDog: (dogId: string, ailmentId: string) => void;
+
+  // Puppy training actions
+  startPuppyTraining: (dogId: string, programId: string) => { success: boolean; message: string };
+  completePuppyTraining: (dogId: string) => void;
+  unlockThirdTrainingSlot: (dogId: string) => { success: boolean; message: string };
+  checkPuppyTrainingCompletion: (dogId: string) => void;
 
   // Reset game
   resetGame: () => void;
@@ -1076,6 +1089,245 @@ export const useGameStore = create<GameState>()(
 
         return { dogs: updatedDogs };
       }),
+
+      // Puppy training actions
+      startPuppyTraining: (dogId: string, programId: string): { success: boolean; message: string } => {
+        let result = { success: false, message: '' };
+
+        set((state: any) => {
+          if (!state.user) {
+            result.message = 'No user found';
+            return {};
+          }
+
+          const dog = state.dogs.find((d: any) => d.id === dogId);
+          if (!dog) {
+            result.message = 'Dog not found';
+            return {};
+          }
+
+          // Get the training program
+          const program = PUPPY_TRAINING_PROGRAMS[programId];
+          if (!program) {
+            result.message = 'Training program not found';
+            return {};
+          }
+
+          // Check if dog is a puppy
+          if (dog.age_weeks >= 52) {
+            result.message = `${dog.name} is too old for puppy training! Puppy training is only available for dogs under 52 weeks old.`;
+            return {};
+          }
+
+          // Check if training is already in progress
+          if (dog.active_puppy_training) {
+            result.message = `${dog.name} is already in training!`;
+            return {};
+          }
+
+          // Check max training count
+          const completedCount = dog.completed_puppy_training?.length || 0;
+          const maxSlots = dog.has_unlocked_third_slot ? 3 : MAX_FREE_PUPPY_TRAINING_SLOTS;
+
+          if (completedCount >= maxSlots) {
+            result.message = `${dog.name} has already completed the maximum number of puppy training programs (${maxSlots})!`;
+            return {};
+          }
+
+          // Check if user has enough cash
+          if (program.cost > 0 && state.user.cash < program.cost) {
+            result.message = `Not enough cash! Need $${program.cost}, have $${state.user.cash}`;
+            return {};
+          }
+
+          // Check if user has enough gems
+          if (program.gemCost > 0 && state.user.gems < program.gemCost) {
+            result.message = `Not enough gems! Need ${program.gemCost} gems, have ${state.user.gems}`;
+            return {};
+          }
+
+          // Deduct cost
+          const userUpdates: any = { ...state.user };
+          if (program.cost > 0) {
+            userUpdates.cash = state.user.cash - program.cost;
+          }
+          if (program.gemCost > 0) {
+            userUpdates.gems = state.user.gems - program.gemCost;
+          }
+
+          // Calculate completion time
+          const completionTime = calculateCompletionTime(program.durationHours);
+
+          // Update dog
+          const updatedDogs = state.dogs.map((d: any) => {
+            if (d.id !== dogId) return d;
+            return {
+              ...d,
+              active_puppy_training: programId,
+              training_completion_time: completionTime,
+            };
+          });
+
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
+
+          // Save to Supabase if sync is enabled
+          if (state.syncEnabled) {
+            debouncedSave(() => saveDog(updatedDog));
+            debouncedSave(() => saveUserProfile(userUpdates));
+          }
+
+          result.success = true;
+          result.message = `${dog.name} started ${program.name}! Will complete in ${program.durationHours} hour(s).`;
+
+          return {
+            dogs: updatedDogs,
+            selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+            user: userUpdates,
+          };
+        });
+
+        return result;
+      },
+
+      completePuppyTraining: (dogId: string) => {
+        set((state: any) => {
+          const dog = state.dogs.find((d: any) => d.id === dogId);
+          if (!dog || !dog.active_puppy_training) return {};
+
+          const program = PUPPY_TRAINING_PROGRAMS[dog.active_puppy_training];
+          if (!program) return {};
+
+          // Apply all bonuses from the program to the dog's stats
+          const updates: Partial<Dog> = {
+            active_puppy_training: undefined,
+            training_completion_time: undefined,
+            completed_puppy_training: [
+              ...(dog.completed_puppy_training || []),
+              dog.active_puppy_training,
+            ],
+          };
+
+          // Apply stat bonuses directly to the dog
+          if (program.bonuses.statBonus) {
+            const bonus = program.bonuses.statBonus;
+            updates.speed = Math.min(100, (dog.speed || 0) + bonus);
+            updates.agility = Math.min(100, (dog.agility || 0) + bonus);
+            updates.endurance = Math.min(100, (dog.endurance || 0) + bonus);
+            updates.strength = Math.min(100, (dog.strength || 0) + bonus);
+            updates.intelligence = Math.min(100, (dog.intelligence || 0) + bonus);
+            updates.friendliness = Math.min(100, (dog.friendliness || 0) + bonus);
+          }
+
+          // Apply specific bonuses
+          if (program.bonuses.agilityBonus) {
+            updates.agility = Math.min(100, (updates.agility || dog.agility || 0) + program.bonuses.agilityBonus);
+          }
+          if (program.bonuses.obedienceBonus) {
+            updates.obedience_trained = Math.min(100, (dog.obedience_trained || 0) + program.bonuses.obedienceBonus);
+          }
+
+          // Apply happiness bonus if present
+          if (program.bonuses.happinessBaseline) {
+            updates.happiness = Math.min(100, (dog.happiness || 0) + program.bonuses.happinessBaseline);
+          }
+
+          // Note: Other bonuses (bondGainRate, trainingEffectiveness, energyRegen, competitionBonus, breedingValue)
+          // should be applied by the systems that use them by checking the dog's completed_puppy_training array
+
+          const updatedDogs = state.dogs.map((d: any) => {
+            if (d.id !== dogId) return d;
+            return { ...d, ...updates };
+          });
+
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
+
+          // Save to Supabase if sync is enabled
+          if (state.syncEnabled) {
+            debouncedSave(() => saveDog(updatedDog));
+          }
+
+          return {
+            dogs: updatedDogs,
+            selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+          };
+        });
+      },
+
+      unlockThirdTrainingSlot: (dogId: string): { success: boolean; message: string } => {
+        let result = { success: false, message: '' };
+
+        set((state: any) => {
+          if (!state.user) {
+            result.message = 'No user found';
+            return {};
+          }
+
+          const dog = state.dogs.find((d: any) => d.id === dogId);
+          if (!dog) {
+            result.message = 'Dog not found';
+            return {};
+          }
+
+          // Check if already unlocked
+          if (dog.has_unlocked_third_slot) {
+            result.message = `${dog.name} already has the third training slot unlocked!`;
+            return {};
+          }
+
+          // Check if user has enough gems
+          if (state.user.gems < THIRD_SLOT_GEM_COST) {
+            result.message = `Not enough gems! Need ${THIRD_SLOT_GEM_COST} gems, have ${state.user.gems}`;
+            return {};
+          }
+
+          // Deduct gems
+          const updatedUser = {
+            ...state.user,
+            gems: state.user.gems - THIRD_SLOT_GEM_COST,
+          };
+
+          // Update dog
+          const updatedDogs = state.dogs.map((d: any) => {
+            if (d.id !== dogId) return d;
+            return {
+              ...d,
+              has_unlocked_third_slot: true,
+            };
+          });
+
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
+
+          // Save to Supabase if sync is enabled
+          if (state.syncEnabled) {
+            debouncedSave(() => saveDog(updatedDog));
+            debouncedSave(() => saveUserProfile(updatedUser));
+          }
+
+          result.success = true;
+          result.message = `Unlocked third training slot for ${dog.name}! You can now complete 3 puppy training programs.`;
+
+          return {
+            dogs: updatedDogs,
+            selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+            user: updatedUser,
+          };
+        });
+
+        return result;
+      },
+
+      checkPuppyTrainingCompletion: (dogId: string) => {
+        const state = useGameStore.getState();
+        const dog = state.dogs.find((d: any) => d.id === dogId);
+
+        if (!dog || !dog.active_puppy_training || !dog.training_completion_time) {
+          return;
+        }
+
+        if (isTrainingComplete(dog.training_completion_time)) {
+          state.completePuppyTraining(dogId);
+        }
+      },
 
       // Reset game
       resetGame: () => set((state: any) => {

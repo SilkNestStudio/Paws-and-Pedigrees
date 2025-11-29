@@ -4,6 +4,7 @@ import { rescueBreeds } from '../../data/rescueBreeds';
 import DogCarePanel from './DogCarePanel';
 import InteractiveCarePanel from './InteractiveCarePanel';
 import HelpButton from '../tutorial/HelpButton';
+import PuppyTrainingPanel from '../training/PuppyTrainingPanel';
 import {
   getCompositionColor,
   getCompositionEmoji,
@@ -346,6 +347,11 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
               )}
             </div>
           )}
+
+          {/* Puppy Training Panel */}
+          <div className="mt-6">
+            <PuppyTrainingPanel />
+          </div>
         </div>
 
         {/* Care Panel */}

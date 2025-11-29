@@ -5,6 +5,7 @@ import HelpButton from '../tutorial/HelpButton';
 import { getKennelCapacityInfo } from '../../utils/kennelCapacity';
 import { getHealthStatus } from '../../utils/healthDecay';
 import KennelUpgradeView from './KennelUpgradeView';
+import { PUPPY_TRAINING_PROGRAMS } from '../../data/puppyTraining';
 
 interface KennelViewProps {
   onViewDog: () => void;
@@ -235,6 +236,35 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                   />
                 </div>
               </div>
+
+              {/* Puppy Training Badges */}
+              {dog.completed_puppy_training && dog.completed_puppy_training.length > 0 && (
+                <div className="pt-2 border-t border-earth-200">
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">🎓 Puppy Training</p>
+                  <div className="flex flex-wrap gap-1">
+                    {dog.completed_puppy_training.slice(0, 3).map((trainingId: string) => {
+                      const program = PUPPY_TRAINING_PROGRAMS[trainingId];
+                      if (!program) return null;
+                      return (
+                        <span
+                          key={trainingId}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            program.isPremium
+                              ? 'bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-300 text-amber-900'
+                              : 'bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 text-green-900'
+                          }`}
+                          title={program.name}
+                        >
+                          {program.icon}
+                        </span>
+                      );
+                    })}
+                    {dog.completed_puppy_training.length > 3 && (
+                      <span className="text-xs text-earth-600">+{dog.completed_puppy_training.length - 3}</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );

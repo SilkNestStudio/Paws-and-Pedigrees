@@ -100,6 +100,12 @@ export interface Dog {
   recovery_due?: string; // When recovery completes
   recovering_from?: string; // ID of ailment recovering from
 
+  // Puppy Training fields
+  completed_puppy_training?: string[]; // Array of completed training program IDs
+  active_puppy_training?: string; // ID of currently active training
+  training_completion_time?: string; // When active training completes
+  has_unlocked_third_slot?: boolean; // Whether 3rd training slot was purchased
+
   created_at: string;
   last_fed: string;
   last_played: string;
