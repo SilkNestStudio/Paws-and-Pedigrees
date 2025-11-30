@@ -274,8 +274,9 @@ updateDog(selectedDog.id, updates);
                       <button
                         onClick={() => {
                           const BASE_GEM_COST = 10;
-                          const gemCost = BASE_GEM_COST * (selectedDog.tp_refills_today + 1);
-                          if (confirm(`Refill Training Points for ${gemCost} gems?${selectedDog.tp_refills_today > 0 ? ` (${selectedDog.tp_refills_today} refills today)` : ''}`)) {
+                          const refillCount = selectedDog.tp_refills_today || 0;
+                          const gemCost = BASE_GEM_COST * (refillCount + 1);
+                          if (confirm(`Refill Training Points for ${gemCost} gems?${refillCount > 0 ? ` (${refillCount} refills today)` : ''}`)) {
                             const result = refillTrainingPoints(selectedDog.id);
                             if (result.success) {
                               alert(result.message);
@@ -286,7 +287,7 @@ updateDog(selectedDog.id, updates);
                         }}
                         className="mt-2 px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all font-semibold flex items-center justify-center gap-1"
                       >
-                        💎 Refill ({10 * (selectedDog.tp_refills_today + 1)} gems)
+                        💎 Refill ({10 * ((selectedDog.tp_refills_today || 0) + 1)} gems)
                       </button>
                     )}
                   </div>

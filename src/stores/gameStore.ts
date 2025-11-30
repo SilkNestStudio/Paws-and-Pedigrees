@@ -778,7 +778,7 @@ export const useGameStore = create<GameState>()(
           }
 
           // Calculate gem cost: increases by BASE_GEM_COST each time (10, 20, 30, 40...)
-          const gemCost = BASE_GEM_COST * (dog.tp_refills_today + 1);
+          const gemCost = BASE_GEM_COST * ((dog.tp_refills_today || 0) + 1);
           result.gemCost = gemCost;
 
           // Check if user has enough gems
@@ -793,7 +793,7 @@ export const useGameStore = create<GameState>()(
             return {
               ...d,
               training_points: 100, // Fully restore TP
-              tp_refills_today: d.tp_refills_today + 1,
+              tp_refills_today: (d.tp_refills_today || 0) + 1,
             };
           });
 
@@ -812,7 +812,7 @@ export const useGameStore = create<GameState>()(
           }
 
           result.success = true;
-          result.message = `Refilled ${dog.name}'s training points for ${gemCost} gems! Next refill: ${BASE_GEM_COST * (updatedDog.tp_refills_today + 1)} gems.`;
+          result.message = `Refilled ${dog.name}'s training points for ${gemCost} gems! Next refill: ${BASE_GEM_COST * ((updatedDog.tp_refills_today || 0) + 1)} gems.`;
 
           return {
             dogs: updatedDogs,
