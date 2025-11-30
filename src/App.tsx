@@ -203,10 +203,10 @@ function App() {
   };
 
   return (
-    <div className="md:flex h-screen bg-earth-50">
+    <div className="h-screen bg-earth-50">
       <Sidebar currentView={currentView} onViewChange={handleViewChange} />
 
-      <div className="flex-1 flex flex-col h-screen">
+      <div className="flex flex-col h-screen md:pl-20">
         <header className="bg-kennel-700 text-white p-3 md:p-4 shadow-lg">
           <div className="flex justify-between items-center">
             <div className="flex-1 min-w-0">

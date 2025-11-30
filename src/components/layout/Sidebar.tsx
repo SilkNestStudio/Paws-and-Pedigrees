@@ -21,7 +21,7 @@ function Sidebar({ currentView, onViewChange }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar - hidden on mobile */}
-      <div className="hidden md:flex w-20 bg-kennel-800 text-white flex-col items-center py-6 space-y-6 shadow-xl">
+      <div className="hidden md:flex fixed left-0 top-0 bottom-0 w-20 bg-kennel-800 text-white flex-col items-center py-6 space-y-6 shadow-xl z-20 overflow-y-auto">
         {menuItems.map((item) => (
           <button
             key={item.id}
