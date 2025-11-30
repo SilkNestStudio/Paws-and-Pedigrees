@@ -75,7 +75,9 @@ function App() {
   }, [user, gameLoading, hasAdoptedFirstDog]);
 
   const handleDogAdopted = (breed: Breed, name: string, gender: 'male' | 'female') => {
-    const newDog = generateDog(breed, name, user?.id || 'temp-user-id', true, gender);
+    // Use authUser.id to ensure we always have the correct user ID
+    const userId = authUser?.id || user?.id || 'temp-user-id';
+    const newDog = generateDog(breed, name, userId, true, gender);
     addDog(newDog);
     setHasAdoptedFirstDog(true);
   };
