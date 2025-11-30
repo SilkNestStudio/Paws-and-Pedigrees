@@ -264,7 +264,7 @@ function App() {
       <Sidebar currentView={currentView} onViewChange={handleViewChange} />
 
       <div className="flex flex-col h-screen md:pl-20">
-        <header className="bg-kennel-700 text-white p-3 md:p-4 shadow-lg">
+        <header className="bg-kennel-700 text-white p-3 md:p-4 shadow-lg relative z-50">
           <div className="flex justify-between items-center">
             <div className="flex-1 min-w-0">
               <h1 className="text-lg md:text-2xl font-bold truncate">{user?.kennel_name || 'My Kennel'}</h1>

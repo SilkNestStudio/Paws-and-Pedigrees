@@ -95,6 +95,7 @@ export function generateDog(
 
     created_at: new Date().toISOString(),
     last_fed: new Date().toISOString(),
+    last_watered: new Date().toISOString(),
     last_played: new Date().toISOString(),
   };
 }

@@ -56,6 +56,7 @@ CREATE TABLE public.dogs (
 
   -- Care stats
   hunger INTEGER DEFAULT 100 CHECK (hunger BETWEEN 0 AND 100),
+  thirst INTEGER DEFAULT 100 CHECK (thirst BETWEEN 0 AND 100),
   happiness INTEGER DEFAULT 100 CHECK (happiness BETWEEN 0 AND 100),
   energy_stat INTEGER DEFAULT 100 CHECK (energy_stat BETWEEN 0 AND 100),
   health INTEGER DEFAULT 100 CHECK (health BETWEEN 0 AND 100),
@@ -87,6 +88,7 @@ CREATE TABLE public.dogs (
 
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   last_fed TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_watered TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   last_played TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
   CONSTRAINT valid_bond CHECK (bond_level >= 0 AND bond_level <= 10)
@@ -248,3 +250,27 @@ CREATE INDEX story_progress_user_id_idx ON public.story_progress(user_id);
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+-- Migration: Add hunger/thirst decay system columns
+-- Run this if you have an existing database that needs to be updated
+-- (Safe to run multiple times - will only add columns if they don't exist)
+
+-- Add thirst column if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name='dogs' AND column_name='thirst') THEN
+    ALTER TABLE public.dogs
+    ADD COLUMN thirst INTEGER DEFAULT 100 CHECK (thirst BETWEEN 0 AND 100);
+  END IF;
+END $$;
+
+-- Add last_watered column if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name='dogs' AND column_name='last_watered') THEN
+    ALTER TABLE public.dogs
+    ADD COLUMN last_watered TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;

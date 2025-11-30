@@ -37,6 +37,7 @@ import {
   EMERGENCY_VET_COST,
   REVIVAL_GEM_COST,
 } from '../utils/healthDecay';
+import { applyHungerThirstDecay } from '../utils/hungerThirstDecay';
 import {
   checkForIllness,
   checkRecoveryComplete,
@@ -638,9 +639,9 @@ export const useGameStore = create<GameState>()(
             if (d.id !== dogId) return d;
             return {
               ...d,
-              hunger: Math.min(100, d.hunger + hungerRestored),
+              hunger: 100, // Reset to full (hunger decays over time)
               energy_stat: Math.min(100, d.energy_stat + energyRestored),
-              last_fed: new Date().toISOString(),
+              last_fed: new Date().toISOString(), // Reset hunger decay timer
             };
           });
 
@@ -688,7 +689,8 @@ export const useGameStore = create<GameState>()(
             if (d.id !== dogId) return d;
             return {
               ...d,
-              thirst: Math.min(100, d.thirst + thirstRestored),
+              thirst: 100, // Reset to full
+              last_watered: new Date().toISOString(), // Reset thirst decay timer
             };
           });
 
@@ -964,8 +966,12 @@ export const useGameStore = create<GameState>()(
           const ageYears = calculateAgeInYears(dog.birth_date);
           const lifeStage = getLifeStage(ageWeeks);
 
-          // Calculate current health based on care
-          const currentHealth = calculateHealthDecay(dog);
+          // Apply hunger/thirst decay and penalties
+          const hungerThirstUpdates = applyHungerThirstDecay(dog);
+          const dogWithDecay = { ...dog, ...hungerThirstUpdates };
+
+          // Calculate current health based on care (using updated hunger/thirst)
+          const currentHealth = calculateHealthDecay(dogWithDecay);
 
           // Check if dog has reached max age (natural death)
           const reachedMaxAge = hasReachedMaxAge(dog.birth_date);
@@ -975,6 +981,7 @@ export const useGameStore = create<GameState>()(
             age_years: ageYears,
             life_stage: lifeStage,
             health: currentHealth,
+            ...hungerThirstUpdates, // Apply hunger/thirst decay updates
           };
 
           // Determine death cause if dying
@@ -986,14 +993,14 @@ export const useGameStore = create<GameState>()(
             deathCause = 'old_age';
           } else if (currentHealth <= 0) {
             isDying = true;
-            // Determine specific cause of death based on stats
-            if (dog.hunger <= 10) {
+            // Determine specific cause of death based on stats (use updated values)
+            if (dogWithDecay.hunger <= 10) {
               deathCause = 'starvation';
-            } else if (dog.thirst <= 10) {
+            } else if (dogWithDecay.thirst <= 10) {
               deathCause = 'dehydration';
-            } else if (dog.current_ailment) {
+            } else if (dogWithDecay.current_ailment) {
               deathCause = 'illness';
-            } else if (dog.happiness <= 20) {
+            } else if (dogWithDecay.happiness <= 20) {
               deathCause = 'neglect';
             } else {
               deathCause = 'illness'; // Default to illness if health is 0
@@ -1007,16 +1014,16 @@ export const useGameStore = create<GameState>()(
           }
 
           // Check if recovery is complete
-          if (dog.recovering_from && checkRecoveryComplete(dog)) {
-            const recoveryUpdates = completeRecovery(dog);
+          if (dogWithDecay.recovering_from && checkRecoveryComplete(dogWithDecay)) {
+            const recoveryUpdates = completeRecovery(dogWithDecay);
             updates = { ...updates, ...recoveryUpdates };
           }
 
           // Random illness check (1% chance per check, modified by care quality)
-          if (!dog.current_ailment && !dog.recovering_from && !dog.is_dead) {
-            const illness = checkForIllness(dog);
+          if (!dogWithDecay.current_ailment && !dogWithDecay.recovering_from && !dogWithDecay.is_dead) {
+            const illness = checkForIllness(dogWithDecay);
             if (illness) {
-              const ailmentUpdates = applyAilment(dog, illness);
+              const ailmentUpdates = applyAilment(dogWithDecay, illness);
               updates = { ...updates, ...ailmentUpdates };
             }
           }

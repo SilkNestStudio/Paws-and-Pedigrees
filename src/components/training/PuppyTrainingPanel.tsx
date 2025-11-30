@@ -14,6 +14,25 @@ import {
   type PuppyTrainingProgram,
 } from '../../data/puppyTraining';
 
+// Helper to format bonus display
+const formatBonus = (bonuses: PuppyTrainingProgram['bonuses'], unlocks?: PuppyTrainingProgram['unlocks']) => {
+  const items: string[] = [];
+
+  if (bonuses.statBonus) items.push(`+${bonuses.statBonus} to all stats`);
+  if (bonuses.happinessBaseline) items.push(`+${bonuses.happinessBaseline}% happiness`);
+  if (bonuses.bondGainRate) items.push(`+${bonuses.bondGainRate}% bond gain`);
+  if (bonuses.trainingEffectiveness) items.push(`+${bonuses.trainingEffectiveness}% training gains`);
+  if (bonuses.energyRegen) items.push(`+${bonuses.energyRegen}% energy regen`);
+  if (bonuses.competitionBonus) items.push(`+${bonuses.competitionBonus}% competition`);
+  if (bonuses.breedingValue) items.push(`+${bonuses.breedingValue}% breeding value`);
+  if (bonuses.agilityBonus) items.push(`+${bonuses.agilityBonus}% agility`);
+  if (bonuses.obedienceBonus) items.push(`+${bonuses.obedienceBonus}% obedience`);
+  if (bonuses.conformationBonus) items.push(`+${bonuses.conformationBonus}% conformation`);
+  if (unlocks?.trait) items.push(`Unlocks "${unlocks.trait}" trait`);
+
+  return items;
+};
+
 export default function PuppyTrainingPanel() {
   const { selectedDog, startPuppyTraining, unlockThirdTrainingSlot, checkPuppyTrainingCompletion } = useGameStore();
   const [selectedProgram, setSelectedProgram] = useState<PuppyTrainingProgram | null>(null);
@@ -237,6 +256,17 @@ export default function PuppyTrainingPanel() {
                       </div>
                     </div>
                     <p className="text-xs text-earth-600 mb-2">{program.description}</p>
+
+                    {/* Bonuses */}
+                    <div className="bg-kennel-50/50 rounded p-2 mb-2">
+                      <p className="text-xs font-semibold text-kennel-800 mb-1">Bonuses:</p>
+                      <ul className="text-xs text-kennel-700 space-y-0.5">
+                        {formatBonus(program.bonuses, program.unlocks).map((bonus, i) => (
+                          <li key={i}>• {bonus}</li>
+                        ))}
+                      </ul>
+                    </div>
+
                     {selectedProgram?.id === program.id && !isCompleted && (
                       <button
                         onClick={() => handleStartTraining(program)}

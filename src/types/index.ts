@@ -111,6 +111,7 @@ export interface Dog {
 
   created_at: string;
   last_fed: string;
+  last_watered: string;
   last_played: string;
 }
 
