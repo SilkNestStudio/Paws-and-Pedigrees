@@ -20,15 +20,31 @@ export async function loadUserProfile(userId: string): Promise<UserProfile | nul
 }
 
 export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
-  const { error } = await supabase
+  console.log('Attempting to save profile:', { id: profile.id, username: profile.username });
+
+  const { data, error } = await supabase
     .from('profiles')
     .upsert(profile, { onConflict: 'id' });
 
   if (error) {
-    console.error('Error saving user profile:', error);
+    console.error('❌ ERROR saving user profile:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      profile_id: profile.id
+    });
+
+    // Check for common RLS issues
+    if (error.code === '42501' || error.message.includes('permission denied') || error.message.includes('policy')) {
+      console.error('🔒 RLS POLICY ERROR: The profiles table has Row Level Security enabled but no policy allows this insert/update.');
+      console.error('💡 FIX: Go to Supabase Dashboard → Authentication → Policies and add an INSERT/UPDATE policy for the profiles table');
+    }
+
     return false;
   }
 
+  console.log('✅ Profile saved successfully:', data);
   return true;
 }
 

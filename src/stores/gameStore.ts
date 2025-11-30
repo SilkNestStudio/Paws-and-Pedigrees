@@ -214,7 +214,7 @@ export const useGameStore = create<GameState>()(
 
             if (!saveSuccess) {
               console.error('Failed to save profile to Supabase!');
-              throw new Error('Failed to create user profile. Please check your database permissions.');
+              throw new Error('Failed to create user profile. Check browser console (F12) for details. This is usually a database permissions issue.');
             }
 
             console.log('Profile created successfully!');
