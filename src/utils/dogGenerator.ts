@@ -77,6 +77,7 @@ export function generateDog(
     training_points: 100,
     training_sessions_today: 0,
     last_training_reset: new Date().toISOString(),
+    tp_refills_today: 0,
 
     // Bond (rescue dogs start at 0)
     bond_level: isRescue ? 0 : 1,

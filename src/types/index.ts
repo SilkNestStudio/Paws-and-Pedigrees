@@ -74,6 +74,7 @@ export interface Dog {
   training_points: number;
   training_sessions_today: number;
   last_training_reset: string;
+  tp_refills_today: number; // Tracks how many times TP was refilled with gems today
   bond_level: number;
   bond_xp: number;
   is_rescue: boolean;

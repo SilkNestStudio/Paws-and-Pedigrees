@@ -30,5 +30,6 @@ export function regenerateTP(dog: Dog): Partial<Dog> {
   return {
     training_points: maxTP,
     last_training_reset: new Date().toISOString(),
+    tp_refills_today: 0, // Reset gem refill counter
   };
 }

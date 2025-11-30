@@ -65,6 +65,7 @@ CREATE TABLE public.dogs (
   training_points INTEGER DEFAULT 100,
   training_sessions_today INTEGER DEFAULT 0,
   last_training_reset TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  tp_refills_today INTEGER DEFAULT 0,
 
   -- Bond
   bond_level INTEGER DEFAULT 0 CHECK (bond_level BETWEEN 0 AND 10),
@@ -272,5 +273,15 @@ BEGIN
                  WHERE table_name='dogs' AND column_name='last_watered') THEN
     ALTER TABLE public.dogs
     ADD COLUMN last_watered TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
+
+-- Add tp_refills_today column if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name='dogs' AND column_name='tp_refills_today') THEN
+    ALTER TABLE public.dogs
+    ADD COLUMN tp_refills_today INTEGER DEFAULT 0;
   END IF;
 END $$;

@@ -121,6 +121,7 @@ interface GameState {
   feedDog: (dogId: string) => { success: boolean; message?: string };
   waterDog: (dogId: string) => { success: boolean; message?: string };
   restDog: (dogId: string) => { success: boolean; message?: string };
+  refillTrainingPoints: (dogId: string) => { success: boolean; message?: string; gemCost?: number };
 
   // Health & Vet actions
   updateDogAgesAndHealth: () => void;
@@ -754,6 +755,69 @@ export const useGameStore = create<GameState>()(
           return {
             dogs: updatedDogs,
             selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+          };
+        });
+
+        return result;
+      },
+
+      refillTrainingPoints: (dogId: any) => {
+        const BASE_GEM_COST = 10;
+        let result = { success: false, message: '', gemCost: 0 };
+
+        set((state: any) => {
+          if (!state.user) {
+            result.message = 'No user found';
+            return {};
+          }
+
+          const dog = state.dogs.find((d: any) => d.id === dogId);
+          if (!dog) {
+            result.message = 'Dog not found';
+            return {};
+          }
+
+          // Calculate gem cost: increases by BASE_GEM_COST each time (10, 20, 30, 40...)
+          const gemCost = BASE_GEM_COST * (dog.tp_refills_today + 1);
+          result.gemCost = gemCost;
+
+          // Check if user has enough gems
+          if (state.user.gems < gemCost) {
+            result.message = `Not enough gems! Need ${gemCost} gems.`;
+            return {};
+          }
+
+          // Refill TP and increment refill counter
+          const updatedDogs = state.dogs.map((d: any) => {
+            if (d.id !== dogId) return d;
+            return {
+              ...d,
+              training_points: 100, // Fully restore TP
+              tp_refills_today: d.tp_refills_today + 1,
+            };
+          });
+
+          const updatedDog = updatedDogs.find((d: any) => d.id === dogId)!;
+
+          // Deduct gems from user
+          const updatedUser = {
+            ...state.user,
+            gems: state.user.gems - gemCost,
+          };
+
+          // Save to Supabase if sync is enabled
+          if (state.syncEnabled) {
+            debouncedSave(() => saveDog(updatedDog));
+            debouncedSave(() => saveUserProfile(updatedUser));
+          }
+
+          result.success = true;
+          result.message = `Refilled ${dog.name}'s training points for ${gemCost} gems! Next refill: ${BASE_GEM_COST * (updatedDog.tp_refills_today + 1)} gems.`;
+
+          return {
+            dogs: updatedDogs,
+            selectedDog: state.selectedDog?.id === dogId ? updatedDog : state.selectedDog,
+            user: updatedUser,
           };
         });
 
