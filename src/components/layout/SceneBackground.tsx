@@ -48,11 +48,11 @@ function SceneBackground({ scene, children, kennelLevel: _kennelLevel = 1 }: Sce
 
   return (
     <div
-      className="min-h-full bg-cover bg-center bg-no-repeat relative transition-all duration-500"
+      className="min-h-screen bg-cover bg-center bg-fixed relative transition-all duration-500"
       style={{ backgroundImage: `url(${backgroundImage})` }}
     >
-      <div className="absolute inset-0 bg-black/10" />
-      <div className="relative z-10">
+      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+      <div className="relative z-10 min-h-screen">
         {children}
       </div>
     </div>
