@@ -158,11 +158,18 @@ function App() {
           <div className="text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Game</h2>
           <p className="text-earth-600 mb-4">{gameError}</p>
+          <p className="text-sm text-earth-500 mb-6">
+            This usually means there's a database connection issue. Signing out and back in will resolve this.
+          </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={async () => {
+              await signOut();
+              localStorage.clear();
+              window.location.reload();
+            }}
             className="px-6 py-3 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 font-semibold"
           >
-            Retry
+            Sign Out & Restart
           </button>
         </div>
       </div>
