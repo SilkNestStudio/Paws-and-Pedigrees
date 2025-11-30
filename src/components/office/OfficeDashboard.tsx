@@ -3,6 +3,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { getWeeksRemaining } from '../../utils/breedingCalculations';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import HelpButton from '../tutorial/HelpButton';
+import { storyChapters } from '../../data/storyChapters';
 
 type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet';
 
@@ -11,7 +12,7 @@ interface OfficeDashboardProps {
 }
 
 export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
-  const { user, dogs, selectDog } = useGameStore();
+  const { user, dogs, selectDog, storyProgress } = useGameStore();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   // Calculate stats
@@ -125,6 +126,61 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
               </div>
             </div>
             <span className="text-4xl">🏆</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Story Mode - Prominent Section */}
+      <div className="mb-6">
+        <div
+          onClick={() => onNavigate('story')}
+          className="bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500 rounded-lg shadow-xl p-6 cursor-pointer hover:shadow-2xl transform hover:scale-[1.02] transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-4xl">📖</span>
+                <div>
+                  <h3 className="text-2xl font-bold text-white drop-shadow-lg">Story Mode</h3>
+                  <p className="text-purple-100 text-sm">Path to Championship</p>
+                </div>
+              </div>
+              {storyProgress?.current_chapter ? (
+                <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-white font-semibold">
+                      {storyChapters.find(ch => ch.id === storyProgress.current_chapter)?.icon || '📘'}{' '}
+                      {storyChapters.find(ch => ch.id === storyProgress.current_chapter)?.title || 'New Adventure'}
+                    </p>
+                    <span className="text-white/90 text-sm">
+                      Chapter {storyChapters.find(ch => ch.id === storyProgress.current_chapter)?.chapter_number || 1}
+                    </span>
+                  </div>
+                  <div className="bg-white/30 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-white h-full rounded-full transition-all"
+                      style={{
+                        width: `${(storyProgress.completed_chapters?.length || 0) / storyChapters.length * 100}%`
+                      }}
+                    />
+                  </div>
+                  <p className="text-white/90 text-xs mt-1">
+                    {storyProgress.completed_chapters?.length || 0} / {storyChapters.length} chapters completed
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <p className="text-white text-lg">Begin your journey to become a champion!</p>
+                  <p className="text-purple-100 text-sm mt-1">Click to start the story</p>
+                </div>
+              )}
+            </div>
+            <div className="hidden md:block">
+              <div className="bg-white/20 backdrop-blur-sm rounded-lg p-6 text-center">
+                <span className="text-6xl">🏆</span>
+                <p className="text-white font-semibold mt-2 text-sm">Start Now</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -270,15 +326,6 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
             >
               <p className="font-semibold text-earth-900">💼 Do Jobs</p>
               <p className="text-sm text-earth-600">Earn extra cash</p>
-            </button>
-
-            {/* Story Mode */}
-            <button
-              onClick={() => onNavigate('story')}
-              className="w-full text-left p-3 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-2 border-purple-300 rounded-lg transition-all"
-            >
-              <p className="font-semibold text-purple-900">📖 Story Mode</p>
-              <p className="text-sm text-purple-700">Follow the path to championship</p>
             </button>
           </div>
         </div>
