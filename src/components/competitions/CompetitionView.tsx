@@ -61,6 +61,12 @@ export default function CompetitionView() {
       return;
     }
 
+    // Check if dog is in puppy training
+    if (selectedDog.active_puppy_training) {
+      alert(`${selectedDog.name} is currently in puppy training and cannot compete!`);
+      return;
+    }
+
     // Check energy level
     if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_COMPETITION) {
       alert(`${selectedDog.name} is too tired to compete! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_COMPETITION}%. Feed or rest your dog first.`);

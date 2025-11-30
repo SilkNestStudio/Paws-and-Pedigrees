@@ -89,6 +89,9 @@ export interface Dog {
   age_years?: number;
   life_stage?: 'puppy' | 'adult' | 'senior';
   is_dead?: boolean;
+  death_cause?: 'old_age' | 'illness' | 'starvation' | 'dehydration' | 'neglect';
+  death_date?: string;
+  revival_count?: number; // Tracks how many times this dog has been revived
   is_pregnant?: boolean;
   pregnancy_due?: string;
   last_bred?: string;

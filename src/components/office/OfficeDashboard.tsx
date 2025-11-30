@@ -271,6 +271,15 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
               <p className="font-semibold text-earth-900">💼 Do Jobs</p>
               <p className="text-sm text-earth-600">Earn extra cash</p>
             </button>
+
+            {/* Story Mode */}
+            <button
+              onClick={() => onNavigate('story')}
+              className="w-full text-left p-3 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-2 border-purple-300 rounded-lg transition-all"
+            >
+              <p className="font-semibold text-purple-900">📖 Story Mode</p>
+              <p className="text-sm text-purple-700">Follow the path to championship</p>
+            </button>
           </div>
         </div>
 

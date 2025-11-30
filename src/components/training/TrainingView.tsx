@@ -12,10 +12,11 @@ import CommandDrillsGame from './CommandDrillsGame';
 import { checkBondLevelUp, getRescueDogTrainingBonus } from '../../utils/bondSystem';
 import HelpButton from '../tutorial/HelpButton';
 import { ENERGY_THRESHOLDS } from '../../utils/careCalculations';
+import { trackStoryAction } from '../../utils/storyObjectiveTracking';
 
 
 export default function TrainingView() {
-  const { dogs, selectedDog, selectDog, updateDog, user, updateUserCash } = useGameStore();
+  const { dogs, selectedDog, selectDog, updateDog, user, updateUserCash, setUser } = useGameStore();
   const [isTraining] = useState(false);
   const [currentTraining, setCurrentTraining] = useState<string | null>(null);
   const [showMinigame, setShowMinigame] = useState(false);
@@ -33,6 +34,12 @@ export default function TrainingView() {
 
     const training = trainingTypes.find(t => t.id === trainingId);
     if (!training) return;
+
+    // Check if dog is in puppy training
+    if (selectedDog.active_puppy_training) {
+      alert(`${selectedDog.name} is currently in puppy training and cannot do regular training sessions!`);
+      return;
+    }
 
     // Check energy level
     if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING) {
@@ -103,6 +110,27 @@ export default function TrainingView() {
 
     updateDog(selectedDog.id, updates);
 
+    // Increase user training skill (max 100)
+    if (user && user.training_skill < 100) {
+      // Gain 0.5 skill per training session (slower at higher levels)
+      const skillGainRate = user.training_skill < 50 ? 0.5 : user.training_skill < 80 ? 0.3 : 0.1;
+      const newSkill = Math.min(100, user.training_skill + skillGainRate);
+
+      const updatedUser = { ...user, training_skill: newSkill };
+      setUser(updatedUser);
+
+      // Show level up message at certain milestones
+      if (Math.floor(newSkill / 10) > Math.floor(user.training_skill / 10)) {
+        const skillLevel = Math.floor(newSkill / 10) * 10;
+        setTimeout(() => {
+          alert(`🎓 Training Skill improved to level ${skillLevel}!\nYour self-training effectiveness increased!`);
+        }, 500);
+      }
+    }
+
+    // Track story objective for training
+    trackStoryAction('train');
+
     setShowMinigame(false);
     setCurrentTraining(null);
 
@@ -130,6 +158,12 @@ export default function TrainingView() {
 
     const training = trainingTypes.find(t => t.id === trainingId);
     if (!training) return;
+
+    // Check if dog is in puppy training
+    if (selectedDog.active_puppy_training) {
+      alert(`${selectedDog.name} is currently in puppy training and cannot do regular training sessions!`);
+      return;
+    }
 
     // Check energy level
     if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING) {
@@ -181,6 +215,9 @@ switch(training.statImproved) {
 }
 
 updateDog(selectedDog.id, updates);
+
+    // Track story objective for training
+    trackStoryAction('train');
 
     updateUserCash(-cost);
     alert(`${selectedDog.name} gained +${gain} ${training.statImproved} from ${trainerType} trainer!`);

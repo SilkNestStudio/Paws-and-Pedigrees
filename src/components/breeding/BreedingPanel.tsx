@@ -26,6 +26,13 @@ export default function BreedingPanel() {
   const handleBreed = () => {
     if (!dog1 || !dog2 || !eligibility.canBreed || !user) return;
 
+    // Check if either dog is in puppy training
+    if (dog1.active_puppy_training || dog2.active_puppy_training) {
+      const busyDog = dog1.active_puppy_training ? dog1.name : dog2.name;
+      alert(`${busyDog} is currently in puppy training and cannot breed!`);
+      return;
+    }
+
     // Deduct breeding fee
     updateUserCash(-BREEDING_CONSTANTS.BREEDING_FEE);
 
@@ -54,7 +61,11 @@ export default function BreedingPanel() {
   };
 
   // Filter dogs for selection
-  const availableDogs = dogs.filter((d: any) => !d.is_pregnant && d.age_weeks >= BREEDING_CONSTANTS.MIN_BREEDING_AGE);
+  const availableDogs = dogs.filter((d: any) =>
+    !d.is_pregnant &&
+    d.age_weeks >= BREEDING_CONSTANTS.MIN_BREEDING_AGE &&
+    !d.active_puppy_training
+  );
 
   return (
     <div className="max-w-6xl mx-auto">

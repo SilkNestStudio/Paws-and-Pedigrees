@@ -26,6 +26,8 @@ import { canClaimDailyReward } from './utils/dailyRewards';
 import TutorialManager from './components/tutorial/TutorialManager';
 import VetClinicView from './components/vet/VetClinicView';
 import StoryModeView from './components/story/StoryModeView';
+import LandscapePrompt from './components/layout/LandscapePrompt';
+import { saveUserProfile, saveDog, saveStoryProgress } from './lib/supabaseService';
 
 type View =
   | 'kennel'
@@ -46,7 +48,7 @@ function App() {
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
-  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError } = useGameStore();
+  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, storyProgress } = useGameStore();
 
   // Check for reset flag FIRST, before anything else
   useEffect(() => {
@@ -113,6 +115,59 @@ function App() {
       }
     });
   }, []);
+
+  // Auto-save to database every 30 seconds
+  useEffect(() => {
+    if (!syncEnabled || !authUser) return;
+
+    const autoSaveInterval = setInterval(() => {
+      console.log('🔄 Auto-saving game state...');
+
+      // Save user profile
+      if (user) {
+        saveUserProfile(user);
+      }
+
+      // Save all dogs
+      dogs.forEach((dog: any) => {
+        saveDog(dog);
+      });
+
+      // Save story progress
+      if (authUser && storyProgress) {
+        saveStoryProgress(authUser.id, storyProgress);
+      }
+
+      console.log('✅ Auto-save completed');
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [syncEnabled, authUser, user, dogs, storyProgress]);
+
+  // Save on page unload/refresh (safety net)
+  useEffect(() => {
+    if (!syncEnabled || !authUser) return;
+
+    const handleBeforeUnload = async () => {
+      console.log('💾 Saving before page close...');
+
+      // Save synchronously to ensure it completes before page closes
+      if (user) {
+        await saveUserProfile(user);
+      }
+
+      dogs.forEach(async (dog: any) => {
+        await saveDog(dog);
+      });
+
+      if (authUser && storyProgress) {
+        await saveStoryProgress(authUser.id, storyProgress);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [syncEnabled, authUser, user, dogs, storyProgress]);
 
   // Show resetting screen
   if (isResetting) {
@@ -288,6 +343,9 @@ function App() {
 
       {/* Tutorial Manager */}
       <TutorialManager />
+
+      {/* Landscape Prompt for Mobile */}
+      <LandscapePrompt />
     </div>
   );
 }

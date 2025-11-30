@@ -30,6 +30,9 @@ export default {
           800: '#6a593b',
           900: '#4b3b1d',
         }
+      },
+      animation: {
+        'spin-slow': 'spin 3s linear infinite',
       }
     },
   },

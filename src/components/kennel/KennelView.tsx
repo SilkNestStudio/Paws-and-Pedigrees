@@ -6,19 +6,49 @@ import { getKennelCapacityInfo } from '../../utils/kennelCapacity';
 import { getHealthStatus } from '../../utils/healthDecay';
 import KennelUpgradeView from './KennelUpgradeView';
 import { PUPPY_TRAINING_PROGRAMS } from '../../data/puppyTraining';
+import DogMemorialModal from './DogMemorialModal';
+import { Dog } from '../../types';
 
 interface KennelViewProps {
   onViewDog: () => void;
 }
 
 export default function KennelView({ onViewDog }: KennelViewProps) {
-  const { user, dogs, selectDog } = useGameStore();
+  const { user, dogs, selectDog, reviveDeadDog, retireDog } = useGameStore();
   const capacityInfo = getKennelCapacityInfo(dogs.length, user?.kennel_level || 1);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [memorialDog, setMemorialDog] = useState<Dog | null>(null);
 
   const handleDogClick = (dog: typeof dogs[0]) => {
+    // If dog is dead, show memorial modal
+    if (dog.is_dead) {
+      setMemorialDog(dog);
+      return;
+    }
+
+    // Otherwise, select and view the dog normally
     selectDog(dog);
     onViewDog();
+  };
+
+  const handleRevive = (dogId: string) => {
+    const result = reviveDeadDog(dogId);
+    if (result.success) {
+      setMemorialDog(null);
+      alert(result.message);
+    } else {
+      alert(result.message);
+    }
+  };
+
+  const handleRetire = (dogId: string) => {
+    if (confirm('Are you sure you want to retire this dog? This cannot be undone.')) {
+      const result = retireDog(dogId);
+      setMemorialDog(null);
+      if (result.success) {
+        alert(result.message);
+      }
+    }
   };
 
   // If showing upgrade panel, render that instead
@@ -165,6 +195,11 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                     💤 Tired
                   </div>
                 )}
+                {dog.active_puppy_training && (
+                  <div className="bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-bold">
+                    🎓 Training
+                  </div>
+                )}
               </div>
 
               {/* Nameplate */}
@@ -270,6 +305,16 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
         );
       })}
     </div>
+
+    {/* Memorial Modal */}
+    {memorialDog && (
+      <DogMemorialModal
+        dog={memorialDog}
+        onClose={() => setMemorialDog(null)}
+        onRevive={handleRevive}
+        onStartFresh={handleRetire}
+      />
+    )}
   </div>
 );
 }

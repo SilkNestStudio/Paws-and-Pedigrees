@@ -115,11 +115,27 @@ CREATE TABLE public.stud_listings (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Story Mode Progress table
+CREATE TABLE public.story_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  current_chapter TEXT,
+  completed_chapters TEXT[] DEFAULT '{}',
+  chapter_objectives JSONB DEFAULT '{}',
+  claimed_rewards TEXT[] DEFAULT '{}',
+  story_completed BOOLEAN DEFAULT FALSE,
+  started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dogs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.competition_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stud_listings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.story_progress ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
 CREATE POLICY "Users can view own profile"
@@ -173,6 +189,19 @@ CREATE POLICY "Users can delete own listings"
   ON public.stud_listings FOR DELETE
   USING (auth.uid() = user_id);
 
+-- Story progress policies
+CREATE POLICY "Users can view own story progress"
+  ON public.story_progress FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own story progress"
+  ON public.story_progress FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own story progress"
+  ON public.story_progress FOR UPDATE
+  USING (auth.uid() = user_id);
+
 -- Functions for automatic timestamps
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
@@ -213,6 +242,7 @@ CREATE INDEX competition_results_user_id_idx ON public.competition_results(user_
 CREATE INDEX competition_results_dog_id_idx ON public.competition_results(dog_id);
 CREATE INDEX stud_listings_user_id_idx ON public.stud_listings(user_id);
 CREATE INDEX stud_listings_dog_id_idx ON public.stud_listings(dog_id);
+CREATE INDEX story_progress_user_id_idx ON public.story_progress(user_id);
 
 -- Grant permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;

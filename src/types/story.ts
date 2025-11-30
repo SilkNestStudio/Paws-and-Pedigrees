@@ -27,6 +27,13 @@ export interface StoryObjective {
   current_value?: number;
   completed: boolean;
   hint?: string;
+  // Optional type-specific properties
+  action?: string; // For care type: 'feed', 'water', 'rest'
+  competition_tier?: 'local' | 'regional' | 'national'; // For compete type
+  competition_requirement?: 'win' | 'participate'; // For compete type
+  breeding_action?: 'breed' | 'birth'; // For breed type
+  shop_action?: 'buy_food' | 'buy_breed'; // For shop type
+  custom_id?: string; // For custom type
 }
 
 export interface StoryReward {
@@ -37,7 +44,16 @@ export interface StoryReward {
   unlock_feature?: string;
 }
 
+// Client-side story progress state (simplified for in-memory use)
 export interface StoryProgress {
+  completedChapters: string[];
+  currentChapter: string | null;
+  objectiveProgress: Record<string, Record<string, number>>; // chapter_id -> objective_id -> progress
+  claimedRewards: string[];
+}
+
+// Database story progress (for Supabase persistence)
+export interface StoryProgressDb {
   user_id: string;
   current_chapter: string;
   completed_chapters: string[];

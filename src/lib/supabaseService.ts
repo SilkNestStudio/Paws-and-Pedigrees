@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Dog, UserProfile } from '../types';
+import { StoryProgress } from '../types/story';
 
 // ============ USER PROFILE ============
 
@@ -134,18 +135,90 @@ export async function loadCompetitionResults(userId: string) {
   return data;
 }
 
+// ============ STORY PROGRESS ============
+
+export async function loadStoryProgress(userId: string): Promise<StoryProgress | null> {
+  const { data, error } = await supabase
+    .from('story_progress')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error loading story progress:', error);
+    return null;
+  }
+
+  if (!data) {
+    // Return default story progress if none exists
+    return {
+      completedChapters: [],
+      currentChapter: null,
+      objectiveProgress: {},
+      claimedRewards: [],
+    };
+  }
+
+  // Transform database format to client format
+  return {
+    completedChapters: data.completed_chapters || [],
+    currentChapter: data.current_chapter || null,
+    objectiveProgress: data.chapter_objectives || {},
+    claimedRewards: data.claimed_rewards || [],
+  };
+}
+
+export async function saveStoryProgress(userId: string, progress: StoryProgress): Promise<boolean> {
+  console.log('Attempting to save story progress:', { userId, progress });
+
+  // Transform client format to database format
+  const dbProgress = {
+    user_id: userId,
+    current_chapter: progress.currentChapter,
+    completed_chapters: progress.completedChapters,
+    chapter_objectives: progress.objectiveProgress,
+    claimed_rewards: progress.claimedRewards,
+    story_completed: progress.completedChapters.length >= 10, // Assuming 10 chapters total
+  };
+
+  const { data, error } = await supabase
+    .from('story_progress')
+    .upsert(dbProgress, { onConflict: 'user_id' });
+
+  if (error) {
+    console.error('❌ ERROR saving story progress:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      userId
+    });
+
+    if (error.code === '42501' || error.message.includes('permission denied') || error.message.includes('policy')) {
+      console.error('🔒 RLS POLICY ERROR: The story_progress table has Row Level Security enabled but no policy allows this insert/update.');
+      console.error('💡 FIX: Go to Supabase Dashboard → Authentication → Policies and add an INSERT/UPDATE policy for the story_progress table');
+    }
+
+    return false;
+  }
+
+  console.log('✅ Story progress saved successfully:', data);
+  return true;
+}
+
 // ============ SYNC HELPERS ============
 
 /**
  * Load all user data from Supabase
  */
 export async function loadUserData(userId: string) {
-  const [profile, dogs] = await Promise.all([
+  const [profile, dogs, storyProgress] = await Promise.all([
     loadUserProfile(userId),
     loadUserDogs(userId),
+    loadStoryProgress(userId),
   ]);
 
-  return { profile, dogs };
+  return { profile, dogs, storyProgress };
 }
 
 /**
