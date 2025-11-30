@@ -258,14 +258,6 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
             </div>
           </div>
 
-          {/* Rescue Story */}
-          {selectedDog.is_rescue && selectedDog.rescue_story && (
-            <div className="mt-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-bold text-earth-900 mb-3">🏠 Rescue Story</h3>
-              <p className="text-sm text-earth-700 italic">"{selectedDog.rescue_story}"</p>
-            </div>
-          )}
-
           {/* Age & Breeding Info */}
           <div className="mt-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
             <h3 className="text-xl font-bold text-earth-900 mb-3">📋 Additional Info</h3>
