@@ -207,7 +207,7 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
                 <div className="w-full bg-kennel-200 rounded-full h-2">
                   <div
                     className="bg-kennel-600 h-2 rounded-full transition-all"
-                    style={{ width: `${(selectedDog.bond_xp / 50) * 100}%` }}
+                    style={{ width: `${Math.round((selectedDog.bond_xp / 50) * 100)}%` }}
                   />
                 </div>
               </div>

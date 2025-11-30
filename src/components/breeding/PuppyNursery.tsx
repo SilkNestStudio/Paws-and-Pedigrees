@@ -117,7 +117,7 @@ export default function PuppyNursery() {
                       <div
                         className="bg-kennel-600 h-2 rounded-full transition-all"
                         style={{
-                          width: `${((BREEDING_CONSTANTS.PREGNANCY_DURATION - weeksRemaining) / BREEDING_CONSTANTS.PREGNANCY_DURATION) * 100}%`,
+                          width: `${Math.round(((BREEDING_CONSTANTS.PREGNANCY_DURATION - weeksRemaining) / BREEDING_CONSTANTS.PREGNANCY_DURATION) * 100)}%`,
                         }}
                       />
                     </div>

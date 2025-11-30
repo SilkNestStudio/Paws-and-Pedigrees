@@ -267,7 +267,7 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                 <div className="w-full bg-kennel-200 rounded-full h-1.5 mt-1">
                   <div
                     className="bg-kennel-600 h-1.5 rounded-full transition-all"
-                    style={{ width: `${(dog.bond_xp / 50) * 100}%` }}
+                    style={{ width: `${Math.round((dog.bond_xp / 50) * 100)}%` }}
                   />
                 </div>
               </div>

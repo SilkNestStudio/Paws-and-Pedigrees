@@ -160,7 +160,7 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
                     <div
                       className="bg-white h-full rounded-full transition-all"
                       style={{
-                        width: `${(storyProgress.completed_chapters?.length || 0) / storyChapters.length * 100}%`
+                        width: `${Math.round((storyProgress.completed_chapters?.length || 0) / storyChapters.length * 100)}%`
                       }}
                     />
                   </div>
