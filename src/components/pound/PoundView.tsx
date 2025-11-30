@@ -6,17 +6,25 @@ import { Breed } from '../../types';
 
 const ADOPTION_FEE = 100; // Small fee to adopt from pound
 
+interface PoundDog {
+  breed: Breed;
+  gender: 'male' | 'female';
+}
+
 export default function PoundView() {
   const { user, addDog } = useGameStore();
   const [availableDogs, setAvailableDogs] = useState(() => getThreeDogs());
 
-  function getThreeDogs(): Breed[] {
-    // Shuffle rescue breeds and pick 3
+  function getThreeDogs(): PoundDog[] {
+    // Shuffle rescue breeds and pick 3, assigning random genders
     const shuffled = [...rescueBreeds].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 3);
+    return shuffled.slice(0, 3).map(breed => ({
+      breed,
+      gender: Math.random() > 0.5 ? 'male' : 'female'
+    }));
   }
 
-  const handleAdopt = (breed: Breed) => {
+  const handleAdopt = (poundDog: PoundDog) => {
     if (!user) return;
 
     // Check if user has enough cash
@@ -25,32 +33,23 @@ export default function PoundView() {
       return;
     }
 
-    // Ask for gender
-    const genderChoice = prompt(
-      `Choose gender for your ${breed.name}:\nType "male" or "female"`,
-      'male'
-    )?.toLowerCase();
-
-    if (!genderChoice || (genderChoice !== 'male' && genderChoice !== 'female')) {
-      alert('Invalid gender choice. Please type "male" or "female".');
-      return;
-    }
+    const { breed, gender } = poundDog;
 
     // Ask for dog name
     const dogName = prompt(
-      `What would you like to name your ${genderChoice} ${breed.name}?`,
+      `What would you like to name your ${gender} ${breed.name}?`,
       breed.name
     );
     if (!dogName) return;
 
-    // Generate rescue dog with chosen gender
-    const newDog = generateDog(breed, dogName, user.id, true, genderChoice as 'male' | 'female');
+    // Generate rescue dog with pre-assigned gender
+    const newDog = generateDog(breed, dogName, user.id, true, gender);
 
     // Add dog and deduct fee
     addDog(newDog);
     useGameStore.getState().updateUserCash(-ADOPTION_FEE);
 
-    alert(`🎉 You adopted ${dogName} (${genderChoice === 'male' ? '♂️ Male' : '♀️ Female'})! Welcome to your kennel.`);
+    alert(`🎉 You adopted ${dogName} (${gender === 'male' ? '♂️ Male' : '♀️ Female'})! Welcome to your kennel.`);
 
     // Refresh available dogs
     setAvailableDogs(getThreeDogs());
@@ -87,44 +86,54 @@ export default function PoundView() {
 
       {/* Available Dogs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {availableDogs.map((breed, index) => (
+        {availableDogs.map((poundDog, index) => (
           <div
-            key={`${breed.id}-${index}`}
+            key={`${poundDog.breed.id}-${index}`}
             className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-6 hover:shadow-2xl transition-all transform hover:scale-105"
           >
             {/* Dog Image */}
-            {breed.img_sitting && (
+            {poundDog.breed.img_sitting && (
               <div className="h-48 mb-4 bg-earth-100 rounded-lg flex items-center justify-center overflow-hidden">
                 <img
-                  src={breed.img_sitting}
-                  alt={breed.name}
+                  src={poundDog.breed.img_sitting}
+                  alt={poundDog.breed.name}
                   className="h-full w-full object-contain"
                 />
               </div>
             )}
 
             {/* Dog Info */}
-            <h3 className="text-xl font-bold text-earth-900 mb-2">{breed.name}</h3>
-            <p className="text-sm text-earth-600 mb-4">{breed.description}</p>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xl font-bold text-earth-900">{poundDog.breed.name}</h3>
+              <span
+                className={`text-2xl ${
+                  poundDog.gender === 'male' ? 'text-blue-600' : 'text-pink-600'
+                }`}
+                title={poundDog.gender === 'male' ? 'Male' : 'Female'}
+              >
+                {poundDog.gender === 'male' ? '♂️' : '♀️'}
+              </span>
+            </div>
+            <p className="text-sm text-earth-600 mb-4">{poundDog.breed.description}</p>
 
             {/* Stats Preview (60% of breed ranges) */}
             <div className="bg-earth-50 p-3 rounded-lg mb-4 text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-earth-600">Speed:</span>
                 <span className="font-mono text-earth-900">
-                  {Math.round(breed.speed_min * 0.6)}-{Math.round(breed.speed_max * 0.6)}
+                  {Math.round(poundDog.breed.speed_min * 0.6)}-{Math.round(poundDog.breed.speed_max * 0.6)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-earth-600">Agility:</span>
                 <span className="font-mono text-earth-900">
-                  {Math.round(breed.agility_min * 0.6)}-{Math.round(breed.agility_max * 0.6)}
+                  {Math.round(poundDog.breed.agility_min * 0.6)}-{Math.round(poundDog.breed.agility_max * 0.6)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-earth-600">Intelligence:</span>
                 <span className="font-mono text-earth-900">
-                  {Math.round(breed.intelligence_min * 0.6)}-{Math.round(breed.intelligence_max * 0.6)}
+                  {Math.round(poundDog.breed.intelligence_min * 0.6)}-{Math.round(poundDog.breed.intelligence_max * 0.6)}
                 </span>
               </div>
               <p className="text-xs text-earth-500 text-center mt-2">
@@ -134,7 +143,7 @@ export default function PoundView() {
 
             {/* Adopt Button */}
             <button
-              onClick={() => handleAdopt(breed)}
+              onClick={() => handleAdopt(poundDog)}
               disabled={!user || user.cash < ADOPTION_FEE}
               className="w-full py-3 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
             >
