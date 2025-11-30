@@ -68,11 +68,31 @@ export async function loadUserDogs(userId: string): Promise<Dog[]> {
 
 export async function saveDog(dog: Dog): Promise<boolean> {
   // Remove computed fields that don't exist in the database
-  const { age_years, ...dogWithoutComputedFields } = dog as any;
+  const { age_years, ...dogData } = dog as any;
+
+  // Ensure all INTEGER fields are properly rounded (database expects integers, not floats)
+  const sanitizedDog = {
+    ...dogData,
+    // Care stats (INTEGER fields)
+    hunger: Math.round(dogData.hunger),
+    thirst: Math.round(dogData.thirst || 0),
+    happiness: Math.round(dogData.happiness),
+    energy_stat: Math.round(dogData.energy_stat),
+    health: Math.round(dogData.health),
+    // Training (INTEGER fields)
+    training_points: Math.round(dogData.training_points),
+    training_sessions_today: Math.round(dogData.training_sessions_today),
+    tp_refills_today: Math.round(dogData.tp_refills_today || 0),
+    // Bond (INTEGER fields)
+    bond_level: Math.round(dogData.bond_level),
+    bond_xp: Math.round(dogData.bond_xp),
+    // Age (INTEGER field)
+    age_weeks: Math.round(dogData.age_weeks),
+  };
 
   const { error } = await supabase
     .from('dogs')
-    .upsert(dogWithoutComputedFields, { onConflict: 'id' });
+    .upsert(sanitizedDog, { onConflict: 'id' });
 
   if (error) {
     console.error('Error saving dog:', error);
