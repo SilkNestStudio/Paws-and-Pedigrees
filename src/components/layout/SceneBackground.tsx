@@ -47,13 +47,13 @@ function SceneBackground({ scene, children, kennelLevel: _kennelLevel = 1 }: Sce
   const backgroundImage = backgrounds[scene] || backgrounds.kennel;
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative z-0">
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       />
-      <div className="fixed inset-0 bg-black/10 -z-10" />
-      <div className="relative min-h-screen">
+      <div className="fixed inset-0 bg-black/10 z-0 pointer-events-none" />
+      <div className="relative min-h-screen z-10">
         {children}
       </div>
     </div>
