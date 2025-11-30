@@ -177,6 +177,8 @@ export const useGameStore = create<GameState>()(
 
           // If profile doesn't exist, create a new one
           if (!profile) {
+            console.log('No profile found for user, creating new profile...');
+
             // Get auth user metadata for username and kennel name
             const { data: { user: authUser } } = await supabase.auth.getUser();
             const username = authUser?.user_metadata?.username || 'Player';
@@ -207,8 +209,15 @@ export const useGameStore = create<GameState>()(
             };
 
             // Save the new profile to Supabase
-            await saveUserProfile(newProfile);
+            console.log('Saving new profile to Supabase...', newProfile);
+            const saveSuccess = await saveUserProfile(newProfile);
 
+            if (!saveSuccess) {
+              console.error('Failed to save profile to Supabase!');
+              throw new Error('Failed to create user profile. Please check your database permissions.');
+            }
+
+            console.log('Profile created successfully!');
             set({
               user: newProfile,
               dogs: [],

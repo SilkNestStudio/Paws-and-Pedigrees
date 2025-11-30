@@ -169,6 +169,18 @@ function App() {
     );
   }
 
+  // Wait for user profile to be created/loaded before showing adoption screen
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-kennel-700 mb-4">Setting up your kennel...</div>
+          <div className="animate-pulse text-6xl">🏠</div>
+        </div>
+      </div>
+    );
+  }
+
   if (!hasAdoptedFirstDog) {
     if (showIntroStory) {
       return <IntroStory onComplete={() => setShowIntroStory(false)} />;
