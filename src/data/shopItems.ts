@@ -6,68 +6,87 @@ import { ShopItem } from '../types';
  */
 export const shopItems: ShopItem[] = [
   // SUPPLIES - Dog Food Bags (adds to food storage)
+  // BASIC FOOD BAGS - Budget-friendly option
   {
-    id: 'dog_food_small',
-    name: 'Small Dog Food Bag',
+    id: 'dog_food_small_basic',
+    name: 'Small Bag - Basic Food',
     category: 'supplies',
-    description: '8 bags fill storage. Essential for feeding your dogs.',
-    price: 50,
+    description: '10 bags fill storage. Standard nutrition for everyday feeding.',
+    price: 40,
     icon: '🛍️',
     effect: {
-      food_storage: 12.5, // 12.5 units
+      food_storage: 10, // 10 units
     },
     unlock_level: 1,
   },
   {
-    id: 'dog_food_medium',
-    name: 'Medium Dog Food Bag',
+    id: 'dog_food_medium_basic',
+    name: 'Medium Bag - Basic Food',
     category: 'supplies',
-    description: '4 bags fill storage. Better value for active kennels.',
-    price: 90,
+    description: '5 bags fill storage. Good value for growing kennels.',
+    price: 75,
     icon: '📦',
     effect: {
-      food_storage: 25, // 25 units
+      food_storage: 20, // 20 units
     },
     unlock_level: 1,
   },
   {
-    id: 'dog_food_large',
-    name: 'Large Dog Food Bag',
+    id: 'dog_food_large_basic',
+    name: 'Large Bag - Basic Food',
     category: 'supplies',
-    description: '2 bags fill storage. Best value for large kennels.',
-    price: 160,
+    description: '3 bags fill storage. Best value for large kennels.',
+    price: 120,
     icon: '📦',
     effect: {
-      food_storage: 50, // 50 units
+      food_storage: 33, // 33 units
+    },
+    unlock_level: 3,
+  },
+
+  // PREMIUM FOOD BAGS - Higher quality nutrition
+  {
+    id: 'dog_food_small_premium',
+    name: 'Small Bag - Premium Food',
+    category: 'supplies',
+    description: '8 bags fill storage. High-quality nutrition with added benefits.',
+    price: 65,
+    icon: '🛍️',
+    effect: {
+      food_storage: 12.5, // 12.5 units (more efficient than basic)
+      health: 2, // Bonus: Small health boost when purchased
     },
     unlock_level: 5,
   },
+  {
+    id: 'dog_food_medium_premium',
+    name: 'Medium Bag - Premium Food',
+    category: 'supplies',
+    description: '4 bags fill storage. Premium nutrition for healthier, happier dogs.',
+    price: 110,
+    icon: '📦',
+    effect: {
+      food_storage: 25, // 25 units
+      health: 5, // Bonus: Small health boost when purchased
+    },
+    unlock_level: 5,
+  },
+  {
+    id: 'dog_food_large_premium',
+    name: 'Large Bag - Premium Food',
+    category: 'supplies',
+    description: '2 bags fill storage. Maximum nutrition and value for elite kennels.',
+    price: 180,
+    icon: '📦',
+    effect: {
+      food_storage: 50, // 50 units
+      health: 10, // Bonus: Health boost when purchased
+    },
+    unlock_level: 10,
+  },
 
   // FOOD ITEMS - Treats (directly restore hunger, don't require storage)
-  {
-    id: 'kibble_basic',
-    name: 'Basic Kibble',
-    category: 'food',
-    description: 'Standard dry dog food. Restores some hunger.',
-    price: 10,
-    icon: '🥘',
-    effect: {
-      hunger: 20,
-    },
-    unlock_level: 1,
-  },
-  {
-    id: 'kibble_premium',
-    name: 'Premium Kibble',
-    category: 'food',
-    description: 'High-quality dog food. Restores more hunger.',
-    price: 25,
-    icon: '🍖',
-    effect: {
-      hunger: 50,
-    },
-    unlock_level: 1,
-  },
+  // Note: Basic and Premium Kibble removed - use food bags instead
   {
     id: 'raw_diet',
     name: 'Raw Diet Meal',

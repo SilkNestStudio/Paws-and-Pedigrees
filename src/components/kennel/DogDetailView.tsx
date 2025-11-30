@@ -13,9 +13,10 @@ import {
 
 interface DogDetailViewProps {
   onBack: () => void;
+  onNavigateToShop: () => void;
 }
 
-export default function DogDetailView({ onBack }: DogDetailViewProps) {
+export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailViewProps) {
   const { selectedDog } = useGameStore();
   const [interactiveMode, setInteractiveMode] = useState(false);
 
@@ -371,7 +372,11 @@ export default function DogDetailView({ onBack }: DogDetailViewProps) {
           </div>
 
           {/* Render appropriate panel */}
-          {interactiveMode ? <InteractiveCarePanel /> : <DogCarePanel />}
+          {interactiveMode ? (
+            <InteractiveCarePanel onNavigateToShop={onNavigateToShop} />
+          ) : (
+            <DogCarePanel onNavigateToShop={onNavigateToShop} />
+          )}
         </div>
       </div>
     </div>

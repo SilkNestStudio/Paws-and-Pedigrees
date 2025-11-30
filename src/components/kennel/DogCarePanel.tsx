@@ -3,7 +3,11 @@ import { useGameStore } from '../../stores/gameStore';
 import { checkBondLevelUp } from '../../utils/bondSystem';
 import { calculateFoodConsumption, getSizeCategoryName } from '../../utils/careCalculations';
 
-function DogCarePanel() {
+interface DogCarePanelProps {
+  onNavigateToShop: () => void;
+}
+
+function DogCarePanel({ onNavigateToShop }: DogCarePanelProps) {
   const { selectedDog, user, feedDog, waterDog, restDog, updateDog } = useGameStore();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -85,9 +89,15 @@ function DogCarePanel() {
         Care for {selectedDog.name}
       </h3>
 
-      {/* Food Storage Display */}
+      {/* Food Storage Display - Click to Shop */}
       {user && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg">
+        <div
+          onClick={onNavigateToShop}
+          className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg cursor-pointer hover:border-amber-400 hover:shadow-lg transition-all"
+          role="button"
+          tabIndex={0}
+          onKeyPress={(e) => e.key === 'Enter' && onNavigateToShop()}
+        >
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
               📦 Food Storage
@@ -102,8 +112,9 @@ function DogCarePanel() {
               style={{ width: `${user.food_storage ?? 0}%` }}
             />
           </div>
-          <p className="text-xs text-amber-700 mt-2">
-            💡 Buy dog food bags from the shop to fill storage
+          <p className="text-xs text-amber-700 mt-2 flex items-center justify-between">
+            <span>💡 Click to buy dog food bags</span>
+            <span className="font-semibold">🛒 Go to Shop →</span>
           </p>
         </div>
       )}

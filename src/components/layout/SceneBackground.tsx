@@ -15,9 +15,10 @@ interface SceneBackgroundProps {
   kennelLevel?: number; // Used for kennel-related scenes to show level-specific backgrounds
 }
 
-function SceneBackground({ scene, children, kennelLevel = 1 }: SceneBackgroundProps) {
+function SceneBackground({ scene, children, kennelLevel: _kennelLevel = 1 }: SceneBackgroundProps) {
   // Note: Level-specific kennel backgrounds are disabled until images are added
   // To enable: uncomment the useEffect below and add images to /public/assets/kennel/levelX/background.jpg
+  // kennelLevel is preserved for future use (prefixed with _ to avoid unused variable warning)
 
   // const [kennelBgImage, setKennelBgImage] = useState<string>(kennelBg);
   // useEffect(() => {

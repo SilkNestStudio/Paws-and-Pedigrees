@@ -244,7 +244,12 @@ function App() {
             <div className="p-3 md:p-6">
               {currentView === 'kennel' && <KennelView onViewDog={() => setCurrentView('dogDetail')} />}
 
-              {currentView === 'dogDetail' && <DogDetailView onBack={() => setCurrentView('kennel')} />}
+              {currentView === 'dogDetail' && (
+                <DogDetailView
+                  onBack={() => setCurrentView('kennel')}
+                  onNavigateToShop={() => handleViewChange('shop', { shopTab: 'items' })}
+                />
+              )}
 
               {currentView === 'office' && (
                 <OfficeDashboard onNavigate={setCurrentView} />
