@@ -4,7 +4,7 @@ import { getWeeksRemaining } from '../../utils/breedingCalculations';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import HelpButton from '../tutorial/HelpButton';
 
-type View = 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop';
+type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet';
 
 interface OfficeDashboardProps {
   onNavigate: (view: View, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => void;

@@ -9,6 +9,7 @@ interface SidebarProps {
 function Sidebar({ currentView, onViewChange }: SidebarProps) {
   const menuItems = [
     { id: 'office', label: 'Office', icon: '📋' },
+    { id: 'story', label: 'Story', icon: '📖' },
     { id: 'kennel', label: 'Kennel', icon: '🏠' },
     { id: 'training', label: 'Training', icon: '🎯' },
     { id: 'competition', label: 'Compete', icon: '🏆' },

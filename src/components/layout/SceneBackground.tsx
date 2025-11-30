@@ -10,7 +10,7 @@ import jobsBg from '../../assets/images/backgrounds/jobs-background.png';
 import shopBg from '../../assets/images/backgrounds/shop-background.png';
 
 interface SceneBackgroundProps {
-  scene: 'kennel' | 'dogDetail' | 'office' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet';
+  scene: 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet';
   children: React.ReactNode;
   kennelLevel?: number; // Used for kennel-related scenes to show level-specific backgrounds
 }
@@ -37,6 +37,7 @@ function SceneBackground({ scene, children, kennelLevel: _kennelLevel = 1 }: Sce
     dogDetail: kennelBg,
     breeding: kennelBg,
     office: officeBg,
+    story: officeBg, // Story mode uses office background
     training: trainingBg,
     competition: competitionBg,
     jobs: jobsBg,

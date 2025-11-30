@@ -25,11 +25,13 @@ import DailyRewardModal from './components/rewards/DailyRewardModal';
 import { canClaimDailyReward } from './utils/dailyRewards';
 import TutorialManager from './components/tutorial/TutorialManager';
 import VetClinicView from './components/vet/VetClinicView';
+import StoryModeView from './components/story/StoryModeView';
 
 type View =
   | 'kennel'
   | 'dogDetail'
   | 'office'
+  | 'story'
   | 'training'
   | 'competition'
   | 'breeding'
@@ -254,6 +256,8 @@ function App() {
               {currentView === 'office' && (
                 <OfficeDashboard onNavigate={setCurrentView} />
               )}
+
+              {currentView === 'story' && <StoryModeView />}
 
               {currentView === 'training' && <TrainingView />}
 

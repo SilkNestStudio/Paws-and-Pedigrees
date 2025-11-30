@@ -212,3 +212,6 @@ export interface HelpContent {
   content: string;
   tutorialId?: string;
 }
+
+// Story Mode Types
+export * from './story';
