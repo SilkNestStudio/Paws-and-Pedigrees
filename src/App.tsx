@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
 import PoundScene from './components/kennel/PoundScene';
 import KennelView from './components/kennel/KennelView';
 import DogDetailView from './components/kennel/DogDetailView';
@@ -10,7 +11,7 @@ import SceneBackground from './components/layout/SceneBackground';
 import TrainingView from './components/training/TrainingView';
 import { regenerateTP, shouldRegenerateTP } from './utils/tpRegeneration';
 import { regenerateEnergy, shouldRegenerateEnergy } from './utils/energyRegeneration';
-import CompetitionView from './components/competitions/CompetitionView';
+import EventBoardView from './components/competitions/EventBoardView';
 import JobsBoard from './components/jobs/JobsBoard';
 import BreedingPanel from './components/breeding/BreedingPanel';
 import PuppyNursery from './components/breeding/PuppyNursery';
@@ -28,6 +29,7 @@ import VetClinicView from './components/vet/VetClinicView';
 import StoryModeView from './components/story/StoryModeView';
 import LandscapePrompt from './components/layout/LandscapePrompt';
 import { saveUserProfile, saveDog, saveStoryProgress } from './lib/supabaseService';
+import LoadingSpinner from './components/common/LoadingSpinner';
 
 type View =
   | 'kennel'
@@ -48,7 +50,7 @@ function App() {
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
-  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, storyProgress } = useGameStore();
+  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, storyProgress, updateGameWeather } = useGameStore();
 
   // Check for reset flag FIRST, before anything else
   useEffect(() => {
@@ -73,10 +75,26 @@ function App() {
 
   // Check for daily reward after game loads
   useEffect(() => {
-    if (user && !gameLoading && hasAdoptedFirstDog && canClaimDailyReward(user)) {
+    if (user && !gameLoading && hasAdoptedFirstDog && !showDailyReward && canClaimDailyReward(user)) {
       setShowDailyReward(true);
     }
-  }, [user, gameLoading, hasAdoptedFirstDog]);
+  }, [user, gameLoading, hasAdoptedFirstDog, showDailyReward]);
+
+  // Update weather on mount and periodically
+  useEffect(() => {
+    if (user) {
+      // Update weather on mount
+      updateGameWeather();
+
+      // Update weather every hour
+      const weatherInterval = setInterval(() => {
+        updateGameWeather();
+      }, 60 * 60 * 1000); // Every hour
+
+      return () => clearInterval(weatherInterval);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // Only depend on user, not updateGameWeather to avoid infinite loop
 
   const handleDogAdopted = (breed: Breed, name: string, gender: 'male' | 'female') => {
     // Use authUser.id to ensure we always have the correct user ID
@@ -185,7 +203,7 @@ function App() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
-        <div className="text-2xl font-bold text-kennel-700">Loading...</div>
+        <LoadingSpinner size="lg" message="Authenticating..." />
       </div>
     );
   }
@@ -199,10 +217,7 @@ function App() {
   if (gameLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-kennel-700 mb-4">Loading your kennel...</div>
-          <div className="animate-pulse text-6xl">🐕</div>
-        </div>
+        <LoadingSpinner size="lg" message="Loading your kennel..." />
       </div>
     );
   }
@@ -237,10 +252,7 @@ function App() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-kennel-100 to-earth-100">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-kennel-700 mb-4">Setting up your kennel...</div>
-          <div className="animate-pulse text-6xl">🏠</div>
-        </div>
+        <LoadingSpinner size="lg" message="Setting up your kennel..." />
       </div>
     );
   }
@@ -316,7 +328,7 @@ function App() {
 
               {currentView === 'training' && <TrainingView />}
 
-              {currentView === 'competition' && <CompetitionView />}
+              {currentView === 'competition' && <EventBoardView />}
 
               {currentView === 'breeding' && (
                 <div className="grid grid-cols-1 gap-6">
@@ -346,6 +358,9 @@ function App() {
 
       {/* Landscape Prompt for Mobile */}
       <LandscapePrompt />
+
+      {/* Toast Notifications */}
+      <Toaster />
     </div>
   );
 }

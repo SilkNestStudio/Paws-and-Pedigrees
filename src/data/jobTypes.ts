@@ -17,7 +17,7 @@ export const jobTypes: JobType[] = [
     name: 'Dog Walking',
     icon: '🐕',
     description: 'Walk a neighborhood dog',
-    basePay: 20,
+    basePay: 30, // Increased from 20 - early game balance
     duration: 5,
     skillType: 'care_knowledge',
     unlockLevel: 1,
@@ -28,7 +28,7 @@ export const jobTypes: JobType[] = [
     name: 'Kennel Cleaning',
     icon: '🧹',
     description: 'Clean up after dogs',
-    basePay: 50,
+    basePay: 75, // Increased from 50 - early game balance
     duration: 2,
     skillType: null,
     unlockLevel: 1,
@@ -41,7 +41,7 @@ export const jobTypes: JobType[] = [
     name: 'Pet Sitting',
     icon: '🏠',
     description: 'Watch a client\'s dog while they\'re away',
-    basePay: 40,
+    basePay: 60, // Increased from 40 - early game balance
     duration: 8,
     skillType: 'care_knowledge',
     unlockLevel: 3,
@@ -54,7 +54,7 @@ export const jobTypes: JobType[] = [
     name: 'Basic Obedience Class',
     icon: '🦴',
     description: 'Teach basic commands to a group',
-    basePay: 60,
+    basePay: 90, // Increased from 60 - early game balance
     duration: 7,
     skillType: 'training_skill',
     unlockLevel: 5,

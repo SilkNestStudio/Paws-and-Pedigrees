@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { storyChapters, isChapterUnlocked, getNextChapter } from '../../data/storyChapters';
 import { StoryChapter } from '../../types/story';
 import { useGameStore } from '../../stores/gameStore';
-import { isObjectiveCompleted, checkAndCompleteChapter } from '../../utils/storyObjectiveTracking';
+import { isObjectiveCompleted, checkAndCompleteChapter, trackStoryAction } from '../../utils/storyObjectiveTracking';
 
 export default function StoryModeView() {
   const { user, dogs, storyProgress } = useGameStore();
@@ -11,6 +11,15 @@ export default function StoryModeView() {
 
   const completedChapters = storyProgress.completedChapters;
   const chapterProgress = storyProgress.objectiveProgress;
+
+  // Check bond level objectives on mount and when dogs change
+  useEffect(() => {
+    if (dogs && dogs.length > 0) {
+      // Check bond levels to update any bond level objectives
+      trackStoryAction('bond');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dogs.length]); // Only re-run when number of dogs changes, not on every dogs array update
 
   // Check for chapter completion whenever progress updates
   useEffect(() => {

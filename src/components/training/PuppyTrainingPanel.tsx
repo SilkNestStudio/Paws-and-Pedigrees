@@ -105,10 +105,10 @@ export default function PuppyTrainingPanel() {
           <div className="mt-4">
             <p className="text-sm font-semibold text-kennel-700">Completed Puppy Training:</p>
             <div className="flex flex-wrap gap-2 justify-center mt-2">
-              {completedTrainings.map((id) => {
+              {completedTrainings.map((id, index) => {
                 const program = PUPPY_TRAINING_PROGRAMS[id];
                 return program ? (
-                  <span key={id} className="px-3 py-1 bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-300 rounded-full text-sm font-medium text-amber-900">
+                  <span key={`${id}-${index}`} className="px-3 py-1 bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-300 rounded-full text-sm font-medium text-amber-900">
                     {program.icon} {program.name}
                   </span>
                 ) : null;
@@ -209,10 +209,10 @@ export default function PuppyTrainingPanel() {
         <div className="mb-6">
           <p className="text-sm font-bold text-kennel-800 mb-2">✅ Completed Trainings</p>
           <div className="flex flex-wrap gap-2">
-            {completedTrainings.map((id) => {
+            {completedTrainings.map((id, index) => {
               const program = PUPPY_TRAINING_PROGRAMS[id];
               return program ? (
-                <span key={id} className="px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 rounded-full text-sm font-medium text-green-900">
+                <span key={`${id}-${index}`} className="px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 rounded-full text-sm font-medium text-green-900">
                   {program.icon} {program.name}
                 </span>
               ) : null;

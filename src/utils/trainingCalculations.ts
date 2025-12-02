@@ -1,12 +1,17 @@
 import { Dog } from '../types';
+import { Season, WeatherCondition } from '../types/weather';
 import { applyTrainingBonus } from './kennelUpgrades';
+import { getPersonalityEffects } from './personalityGenerator';
+import { getTrainingModifier } from './weatherSystem';
 
 export function calculateTrainingGain(
   dog: Dog,
   statName: 'speed' | 'agility' | 'strength' | 'endurance' | 'obedience',
   multiplier: number,
   userTrainingSkill: number,
-  kennelLevel: number = 1
+  kennelLevel: number = 1,
+  season?: Season,
+  weather?: WeatherCondition
 ): number {
   // Base gain: 0.1 to 0.3 per session
   const baseGain = 0.1 + (Math.random() * 0.2);
@@ -19,13 +24,42 @@ export function calculateTrainingGain(
   // Dog's trainability affects gain (higher = learns faster)
   const trainabilityBonus = 1 + (dog.trainability / 100);
 
+  // Personality effects
+  let personalityMultiplier = 1.0;
+  if (dog.personality) {
+    const effects = getPersonalityEffects(dog.personality);
+
+    // Training speed affects all training
+    if (effects.trainingSpeed) {
+      personalityMultiplier *= effects.trainingSpeed;
+    }
+
+    // Focus bonus helps concentration-based training (obedience)
+    if (statName === 'obedience' && effects.focusBonus) {
+      personalityMultiplier *= effects.focusBonus;
+    }
+
+    // Obedience bonus helps obedience training
+    if (statName === 'obedience' && effects.obedienceBonus) {
+      personalityMultiplier *= effects.obedienceBonus;
+    }
+  }
+
   // Total gain before kennel bonus
-  const baseTotal = baseGain * multiplier * skillBonus * trainabilityBonus * statDifficultyModifier;
+  const baseTotal = baseGain * multiplier * skillBonus * trainabilityBonus * statDifficultyModifier * personalityMultiplier;
 
   // Apply kennel training effectiveness bonus
   const withKennelBonus = applyTrainingBonus(baseTotal * 100, kennelLevel) / 100;
 
-  return parseFloat(withKennelBonus.toFixed(2));
+  // Apply weather/seasonal modifiers if available
+  let weatherModifier = 1.0;
+  if (season && weather) {
+    weatherModifier = getTrainingModifier(season, weather);
+  }
+
+  const finalGain = withKennelBonus * weatherModifier;
+
+  return parseFloat(finalGain.toFixed(2));
 }
 
 export function getTrainingPointsAvailable(dog: Dog): number {

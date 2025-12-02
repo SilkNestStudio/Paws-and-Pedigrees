@@ -6,6 +6,8 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Override default white with a softer, warmer cream color
+        white: '#faf8f5',
         earth: {
           50: '#f9f7f4',
           100: '#f1ebe3',

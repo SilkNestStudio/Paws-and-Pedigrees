@@ -1,4 +1,12 @@
 import { BreedComposition } from '../data/breedComposition';
+import { DogGenetics } from './genetics';
+import { ColorGenes, ShopItemEffect } from './effects';
+import { DogPersonality } from './personality';
+import { UserAchievement } from './achievements';
+import { GameWeather } from './weather';
+import { DogSpecialization } from './specialization';
+import { DogCertification } from './certifications';
+import { StaffMember } from './staff';
 
 export interface Breed {
   id: number;
@@ -30,7 +38,7 @@ export interface Breed {
   protectiveness_min: number;
   protectiveness_max: number;
   coat_types: string[];
-  color_genes?: any;
+  color_genes?: ColorGenes;
   description: string;
   history?: string;
   img_sitting?: string;
@@ -65,7 +73,11 @@ export interface Dog {
   coat_color: string;
   coat_pattern: string;
   eye_color: string;
-  genetics?: any;
+  genetics?: DogGenetics;
+  personality?: DogPersonality;
+  specialization?: DogSpecialization;
+  certifications?: DogCertification[];
+  prestigePoints?: number;
   hunger: number;
   thirst: number; // Water level (0-100)
   happiness: number;
@@ -110,6 +122,27 @@ export interface Dog {
   training_completion_time?: string; // When active training completes
   has_unlocked_third_slot?: boolean; // Whether 3rd training slot was purchased
 
+  // Championship progression fields (AKC model)
+  championship_title?: string; // Current title: 'none' | 'junior_handler' | 'champion' | etc.
+  championship_points?: number; // Total championship points earned
+  major_wins?: number; // Number of major wins (3+ points)
+  judges_won_under?: string[]; // Array of judge IDs this dog has won under
+  qualified_events?: string[]; // Event IDs this dog is qualified to enter
+  discipline_points?: {
+    conformation?: number;
+    agility?: number;
+    obedience?: number;
+    rally?: number;
+    racing?: number;
+    weight_pull?: number;
+    tracking?: number;
+    herding?: number;
+  };
+  specialty_wins?: number; // Number of specialty show wins
+  group_wins?: number; // Number of group show wins
+  all_breed_wins?: number; // Number of all-breed show wins
+  best_in_show_wins?: number; // Number of best in show awards
+
   created_at: string;
   last_fed: string;
   last_watered: string;
@@ -138,6 +171,20 @@ export interface UserProfile {
   competition_wins_regional: number;
   competition_wins_national: number;
   last_streak_claim?: string;
+  inventory?: InventoryItem[]; // User's item inventory
+  achievements?: UserAchievement[]; // Unlocked achievements
+  weather?: GameWeather; // Current weather and season data
+  staff?: StaffMember[]; // Hired kennel staff
+  prestigePoints?: number; // Total prestige from all dogs
+}
+
+export interface InventoryItem {
+  itemId: string; // ID of the item (references items.ts)
+  quantity: number; // How many of this item
+  activeBoost?: {
+    multiplier: number;
+    expiresAt: string; // ISO timestamp when boost expires
+  };
 }
 
 export interface TrainingSession {
@@ -173,15 +220,7 @@ export interface ShopItem {
   price: number;
   gem_price?: number;
   icon: string;
-  effect: {
-    hunger?: number;
-    thirst?: number;
-    happiness?: number;
-    health?: number;
-    energy_stat?: number;
-    training_points?: number;
-    food_storage?: number; // Adds to user's food storage
-  };
+  effect: ShopItemEffect;
   unlock_level: number;
 }
 

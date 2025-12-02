@@ -3,6 +3,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { jobTypes } from '../../data/jobTypes';
 import HelpButton from '../tutorial/HelpButton';
 import { applyJobIncomeBonus } from '../../utils/kennelUpgrades';
+import { showToast } from '../../lib/toast';
 
 export default function JobsBoard() {
   const { user, updateUserCash } = useGameStore();
@@ -33,7 +34,7 @@ export default function JobsBoard() {
 
     const completed = jobsCompleted[jobId] || 0;
     if (completed >= job.dailyLimit) {
-      alert(`You've completed this job ${job.dailyLimit} times today. Come back tomorrow!`);
+      showToast.warning(`You've completed this job ${job.dailyLimit} times today. Come back tomorrow!`);
       return;
     }
 
@@ -44,7 +45,7 @@ export default function JobsBoard() {
       updateUserCash(pay);
       setJobsCompleted(prev => ({ ...prev, [jobId]: (prev[jobId] || 0) + 1 }));
       setWorkingJob(null);
-      alert(`Job complete! Earned $${pay}`);
+      showToast.success(`Job complete! Earned $${pay}`);
     }, job.duration * 1000);
   };
 

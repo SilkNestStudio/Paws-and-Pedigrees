@@ -3,6 +3,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { supabase } from '../../lib/supabase';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { Dog } from '../../types';
+import { showToast } from '../../lib/toast';
 
 interface StudListing {
   id: string;
@@ -88,13 +89,13 @@ export default function StudMarketplace() {
       });
 
     if (!error) {
-      alert('Dog listed successfully!');
+      showToast.success('Dog listed successfully!');
       setSelectedDog('');
       setDescription('');
       setStudFee(100);
       loadMyListings();
     } else {
-      alert('Error listing dog: ' + error.message);
+      showToast.error('Error listing dog: ' + error.message);
     }
 
     setLoading(false);
@@ -113,7 +114,7 @@ export default function StudMarketplace() {
 
   const breedWithStud = async (listing: StudListing) => {
     // This would integrate with the breeding system
-    alert(`Breeding with ${listing.dog.name} for $${listing.stud_fee} - Feature coming soon!`);
+    showToast.info(`Breeding with ${listing.dog.name} for $${listing.stud_fee} - Feature coming soon!`);
   };
 
   const availableMales = dogs.filter((d: any) =>

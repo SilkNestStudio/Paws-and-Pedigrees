@@ -8,6 +8,12 @@ import KennelUpgradeView from './KennelUpgradeView';
 import { PUPPY_TRAINING_PROGRAMS } from '../../data/puppyTraining';
 import DogMemorialModal from './DogMemorialModal';
 import { Dog } from '../../types';
+import { showToast } from '../../lib/toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../common/ConfirmModal';
+import PersonalityDisplay from '../dog/PersonalityDisplay';
+import WeatherDisplay from '../weather/WeatherDisplay';
+import SeasonalEventsPanel from '../weather/SeasonalEventsPanel';
 
 interface KennelViewProps {
   onViewDog: () => void;
@@ -15,9 +21,10 @@ interface KennelViewProps {
 
 export default function KennelView({ onViewDog }: KennelViewProps) {
   const { user, dogs, selectDog, reviveDeadDog, retireDog } = useGameStore();
-  const capacityInfo = getKennelCapacityInfo(dogs.length, user?.kennel_level || 1);
+  const capacityInfo = getKennelCapacityInfo(dogs.length, user?.level || 1);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [memorialDog, setMemorialDog] = useState<Dog | null>(null);
+  const { confirm, confirmState, handleCancel } = useConfirm();
 
   const handleDogClick = (dog: typeof dogs[0]) => {
     // If dog is dead, show memorial modal
@@ -35,18 +42,25 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
     const result = reviveDeadDog(dogId);
     if (result.success) {
       setMemorialDog(null);
-      alert(result.message);
+      showToast.success(result.message);
     } else {
-      alert(result.message);
+      showToast.error(result.message);
     }
   };
 
-  const handleRetire = (dogId: string) => {
-    if (confirm('Are you sure you want to retire this dog? This cannot be undone.')) {
+  const handleRetire = async (dogId: string) => {
+    const confirmed = await confirm({
+      title: 'Retire Dog',
+      message: 'Are you sure you want to retire this dog? This cannot be undone.',
+      confirmText: 'Retire',
+      variant: 'warning'
+    });
+
+    if (confirmed) {
       const result = retireDog(dogId);
       setMemorialDog(null);
       if (result.success) {
-        alert(result.message);
+        showToast.info(result.message);
       }
     }
   };
@@ -84,7 +98,7 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
             <HelpButton helpId="kennel-management" tooltip="Learn about kennel management" />
           </div>
           <div className="flex items-center gap-3 mt-1">
-            <p className="text-earth-600">Level {user?.kennel_level}</p>
+            <p className="text-earth-600">Level {user?.level}</p>
             <span className="text-earth-400">•</span>
             <p className={`font-semibold ${!capacityInfo.canAddMore ? 'text-red-600' : 'text-earth-700'}`}>
               {capacityInfo.current}/{capacityInfo.max} dogs
@@ -113,6 +127,12 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
           </div>
         </div>
       </div>
+    </div>
+
+    {/* Weather and Seasonal Events */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <WeatherDisplay />
+      <SeasonalEventsPanel />
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -218,10 +238,10 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                     className={`h-2 rounded-full transition-all ${
                       dog.hunger > 70 ? 'bg-green-500' : dog.hunger > 30 ? 'bg-yellow-500' : 'bg-red-500'
                     }`}
-                    style={{ width: `${dog.hunger}%` }}
+                    style={{ width: `${Math.round(dog.hunger)}%` }}
                   />
                 </div>
-                <span className="text-xs text-earth-700 w-8">{dog.hunger}%</span>
+                <span className="text-xs text-earth-700 w-8">{Math.round(dog.hunger)}%</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -231,10 +251,10 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                     className={`h-2 rounded-full transition-all ${
                       dog.happiness > 70 ? 'bg-green-500' : dog.happiness > 30 ? 'bg-yellow-500' : 'bg-red-500'
                     }`}
-                    style={{ width: `${dog.happiness}%` }}
+                    style={{ width: `${Math.round(dog.happiness)}%` }}
                   />
                 </div>
-                <span className="text-xs text-earth-700 w-8">{dog.happiness}%</span>
+                <span className="text-xs text-earth-700 w-8">{Math.round(dog.happiness)}%</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -242,10 +262,10 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                 <div className="flex-1 bg-earth-200 rounded-full h-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition-all"
-                    style={{ width: `${dog.energy_stat}%` }}
+                    style={{ width: `${Math.round(dog.energy_stat)}%` }}
                   />
                 </div>
-                <span className="text-xs text-earth-700 w-8">{dog.energy_stat}%</span>
+                <span className="text-xs text-earth-700 w-8">{Math.round(dog.energy_stat)}%</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -253,10 +273,10 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                 <div className="flex-1 bg-earth-200 rounded-full h-2">
                   <div
                     className="bg-green-500 h-2 rounded-full transition-all"
-                    style={{ width: `${dog.health}%` }}
+                    style={{ width: `${Math.round(dog.health)}%` }}
                   />
                 </div>
-                <span className="text-xs text-earth-700 w-8">{dog.health}%</span>
+                <span className="text-xs text-earth-700 w-8">{Math.round(dog.health)}%</span>
               </div>
 
               <div className="pt-2 border-t border-earth-200">
@@ -271,6 +291,13 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
                   />
                 </div>
               </div>
+
+              {/* Personality */}
+              {dog.personality && (
+                <div className="pt-2 border-t border-earth-200">
+                  <PersonalityDisplay personality={dog.personality} compact={true} />
+                </div>
+              )}
 
               {/* Puppy Training Badges */}
               {dog.completed_puppy_training && dog.completed_puppy_training.length > 0 && (
@@ -315,6 +342,9 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
         onStartFresh={handleRetire}
       />
     )}
+
+    {/* Confirm Modal */}
+    <ConfirmModal {...confirmState} onCancel={handleCancel} />
   </div>
 );
 }

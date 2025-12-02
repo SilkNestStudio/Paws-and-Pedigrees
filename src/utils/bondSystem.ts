@@ -1,13 +1,36 @@
 import { Dog } from '../types';
 
 /**
+ * Get XP required for next bond level
+ * Increases progressively to make higher bonds take much longer
+ */
+export function getXPForNextBondLevel(currentLevel: number): number {
+  const xpRequirements: Record<number, number> = {
+    0: 100,   // Level 1: 100 XP (easy start)
+    1: 150,   // Level 2: 150 XP
+    2: 200,   // Level 3: 200 XP
+    3: 300,   // Level 4: 300 XP
+    4: 400,   // Level 5: 400 XP
+    5: 500,   // Level 6: 500 XP
+    6: 750,   // Level 7: 750 XP
+    7: 1000,  // Level 8: 1000 XP
+    8: 1500,  // Level 9: 1500 XP
+    9: 2000,  // Level 10: 2000 XP (max bond is special)
+  };
+
+  return xpRequirements[currentLevel] || 2000;
+}
+
+/**
  * Check if a dog should level up their bond and return updated stats
  */
 export function checkBondLevelUp(dog: Dog): Partial<Dog> | null {
-  if (dog.bond_xp >= 50 && dog.bond_level < 10) {
+  const xpNeeded = getXPForNextBondLevel(dog.bond_level);
+
+  if (dog.bond_xp >= xpNeeded && dog.bond_level < 10) {
     return {
       bond_level: dog.bond_level + 1,
-      bond_xp: dog.bond_xp - 50, // Carry over excess XP
+      bond_xp: dog.bond_xp - xpNeeded, // Carry over excess XP
     };
   }
   return null;
@@ -59,4 +82,12 @@ export function getRescueDogBonusDescription(dog: Dog): string | null {
  */
 export function getBondCompetitionBonus(bondLevel: number): number {
   return (bondLevel / 10) * 0.1; // Up to 10% at max bond
+}
+
+/**
+ * Calculate bond XP gain with rescue dog bonus
+ * Rescue dogs bond 50% faster! (1.5x multiplier)
+ */
+export function calculateBondXpGain(baseXp: number, isRescue: boolean): number {
+  return isRescue ? Math.ceil(baseXp * 1.5) : baseXp;
 }

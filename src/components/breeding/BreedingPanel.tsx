@@ -6,6 +6,7 @@ import {
 } from '../../utils/breedingCalculations';
 import { BREEDING_CONSTANTS } from '../../data/breedingConstants';
 import HelpButton from '../tutorial/HelpButton';
+import { showToast } from '../../lib/toast';
 
 export default function BreedingPanel() {
   const { dogs, user, updateUserCash, breedDogs } = useGameStore();
@@ -29,7 +30,7 @@ export default function BreedingPanel() {
     // Check if either dog is in puppy training
     if (dog1.active_puppy_training || dog2.active_puppy_training) {
       const busyDog = dog1.active_puppy_training ? dog1.name : dog2.name;
-      alert(`${busyDog} is currently in puppy training and cannot breed!`);
+      showToast.warning(`${busyDog} is currently in puppy training and cannot breed!`);
       return;
     }
 
@@ -51,7 +52,7 @@ export default function BreedingPanel() {
     breedDogs(sire.id, dam.id, litterSize);
 
     // Show success message
-    alert(
+    showToast.success(
       `Breeding successful! ${dam.name} is now pregnant with ${litterSize} puppies. They'll be born in ${BREEDING_CONSTANTS.PREGNANCY_DURATION} weeks.`
     );
 

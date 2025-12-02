@@ -1,6 +1,6 @@
 export const BREEDING_CONSTANTS = {
   // Costs
-  BREEDING_FEE: 500, // Base cost to breed two dogs
+  BREEDING_FEE: 350, // Reduced from 500 - early game balance
 
   // Age requirements (in weeks)
   MIN_BREEDING_AGE: 52, // 12 weeks to be an adult, but need mature for breeding (1 year = 52 weeks)
@@ -31,8 +31,8 @@ export const BREEDING_CONSTANTS = {
   GEM_COST_PER_WEEK: 10, // 10 gems to skip 1 week of pregnancy
 
   // Puppy pricing (base values, adjusted by stats)
-  PUPPY_BASE_PRICE: 500,
-  PUPPY_PRICE_PER_STAT_POINT: 10, // Extra $10 per point above 50 average
+  PUPPY_BASE_PRICE: 600, // Increased from 500 - better breeding ROI
+  PUPPY_PRICE_PER_STAT_POINT: 15, // Increased from 10 - rewards quality breeding
 };
 
 // Helper to calculate total weeks to skip

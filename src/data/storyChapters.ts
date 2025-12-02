@@ -30,7 +30,7 @@ export const storyChapters: StoryChapter[] = [
       {
         id: 'complete_training_session',
         description: 'Complete 1 training session',
-        type: 'training',
+        type: 'train',
         target_value: 1,
         completed: false,
         hint: 'Visit the Training tab and train any stat',
@@ -128,12 +128,13 @@ export const storyChapters: StoryChapter[] = [
         hint: 'Balance training across multiple stats',
       },
       {
-        id: 'reach_100_in_any_stat',
-        description: 'Reach 100 in any trained stat',
+        id: 'reach_30_in_any_stat',
+        description: 'Reach 30 in any trained stat',
         type: 'custom',
-        target_value: 100,
+        target_value: 30,
+        custom_id: 'trained_stat_milestone',
         completed: false,
-        hint: 'Focus training on one stat to reach 100',
+        hint: 'Focus training on one stat to reach 30',
       },
     ],
     rewards: {

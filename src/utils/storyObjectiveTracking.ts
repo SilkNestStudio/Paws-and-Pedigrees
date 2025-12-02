@@ -16,9 +16,10 @@ export function trackStoryAction(
     levelGained?: number;
     customId?: string;
     amount?: number; // Amount to increment (default 1)
+    bondLevel?: number; // Current bond level (for bond level objectives)
   } = {}
 ) {
-  const { storyProgress, updateObjectiveProgress } = useGameStore.getState();
+  const { storyProgress, updateObjectiveProgress, dogs } = useGameStore.getState();
   const amount = details.amount || 1;
 
   // Find all active (not completed) chapters
@@ -69,7 +70,21 @@ export function trackStoryAction(
             break;
 
           case 'bond':
-            shouldTrack = true; // Any bonding action counts
+            // Check if this is a bond level objective (description contains "Bond Level")
+            if (objective.description.includes('Bond Level') || objective.description.includes('bond level')) {
+              // For bond level objectives, check if any dog has reached the target level
+              const maxBondLevel = Math.max(...dogs.map((d: any) => d.bond_level || 0));
+              if (maxBondLevel >= objective.target_value) {
+                // Set progress to the target value (complete the objective)
+                const currentProgress = storyProgress.objectiveProgress[chapter.id]?.[objective.id] || 0;
+                if (currentProgress < objective.target_value) {
+                  updateObjectiveProgress(chapter.id, objective.id, objective.target_value - currentProgress);
+                }
+              }
+              shouldTrack = false; // Don't increment, we handle it above
+            } else {
+              shouldTrack = true; // Any bonding action counts for other bond objectives
+            }
             break;
 
           case 'shop':

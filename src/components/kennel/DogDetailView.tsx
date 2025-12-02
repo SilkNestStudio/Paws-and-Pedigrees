@@ -10,6 +10,9 @@ import {
   getCompositionEmoji,
   getSimplifiedComposition,
 } from '../../data/breedComposition';
+import { showToast } from '../../lib/toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../common/ConfirmModal';
 
 interface DogDetailViewProps {
   onBack: () => void;
@@ -17,8 +20,9 @@ interface DogDetailViewProps {
 }
 
 export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailViewProps) {
-  const { selectedDog } = useGameStore();
+  const { selectedDog, sellDog } = useGameStore();
   const [interactiveMode, setInteractiveMode] = useState(false);
+  const { confirm, confirmState, handleCancel } = useConfirm();
 
   if (!selectedDog) {
     return (
@@ -47,15 +51,108 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
     return breedData?.img_sitting || '';
   };
 
+  // Calculate estimated sell price (matches gameStore logic)
+  const calculateSellPrice = () => {
+    const baseStats = (selectedDog.speed + selectedDog.agility + selectedDog.strength + selectedDog.intelligence + selectedDog.trainability) / 5;
+    let sellPrice = baseStats * 15;
+
+    // Add value for training
+    const trainedStats = (selectedDog.speed_trained || 0) + (selectedDog.agility_trained || 0) + (selectedDog.strength_trained || 0);
+    sellPrice += trainedStats * 50;
+
+    // Add value for competition wins
+    const totalWins = (selectedDog.competition_wins_local || 0) +
+                      (selectedDog.competition_wins_regional || 0) * 2 +
+                      (selectedDog.competition_wins_national || 0) * 5;
+    sellPrice += totalWins * 100;
+
+    // Add value for certifications
+    if (selectedDog.certifications && selectedDog.certifications.length > 0) {
+      sellPrice += selectedDog.certifications.length * 300;
+    }
+
+    // Add value for prestige
+    if (selectedDog.prestige_points && selectedDog.prestige_points > 0) {
+      sellPrice += selectedDog.prestige_points * 50;
+    }
+
+    // Add value for obedience
+    if (selectedDog.obedience_trained && selectedDog.obedience_trained > 0) {
+      sellPrice += selectedDog.obedience_trained * 20;
+    }
+
+    // Add value for specialization
+    if (selectedDog.specialization && selectedDog.specialization.level > 1) {
+      sellPrice += (selectedDog.specialization.level - 1) * 500;
+    }
+
+    // Add value for puppy training
+    if (selectedDog.completed_puppy_training && selectedDog.completed_puppy_training.length > 0) {
+      sellPrice += selectedDog.completed_puppy_training.length * 200;
+    }
+
+    // Age factor
+    const ageYears = (selectedDog.age_weeks || 0) / 52;
+    let ageFactor = 1.0;
+    if (ageYears < 1) ageFactor = 0.8;
+    else if (ageYears >= 1 && ageYears < 7) ageFactor = 1.2;
+    else if (ageYears >= 7) ageFactor = 0.8;
+    sellPrice *= ageFactor;
+
+    // Health penalty
+    if (selectedDog.health < 50) sellPrice *= 0.7;
+    else if (selectedDog.health < 80) sellPrice *= 0.9;
+
+    // Bond bonus
+    const bondBonus = 1 + (selectedDog.bond_level * 0.02);
+    sellPrice *= bondBonus;
+
+    // Minimum
+    const minPrice = Math.max(100, baseStats * 10);
+    return Math.max(minPrice, Math.floor(sellPrice));
+  };
+
+  const handleSellDog = async () => {
+    const estimatedPrice = calculateSellPrice();
+
+    const confirmed = await confirm({
+      title: 'Sell Dog',
+      message: `Are you sure you want to sell ${selectedDog.name}? You will receive approximately $${estimatedPrice}.${selectedDog.bond_level > 5 ? '\n\n⚠️ Warning: This dog has a high bond level with you!' : ''}`,
+      confirmText: 'Sell Dog',
+      variant: 'danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const result = sellDog(selectedDog.id);
+
+    if (result.success) {
+      showToast.success(`💰 Sold ${selectedDog.name} for $${result.price}!`);
+      onBack(); // Go back to kennel view
+    } else {
+      showToast.error(result.message || 'Failed to sell dog');
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Back Button */}
-      <button
-        onClick={onBack}
-        className="mb-4 px-4 py-2 bg-white/90 backdrop-blur-sm text-earth-900 rounded-lg hover:bg-white shadow-lg transition-all flex items-center gap-2"
-      >
-        ← Back to Kennel
-      </button>
+      {/* Back Button and Sell Button */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={onBack}
+          className="px-4 py-2 bg-white/90 backdrop-blur-sm text-earth-900 rounded-lg hover:bg-white shadow-lg transition-all flex items-center gap-2"
+        >
+          ← Back to Kennel
+        </button>
+        <button
+          onClick={handleSellDog}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-lg transition-all flex items-center gap-2 ml-auto"
+        >
+          💰 Sell Dog (~${calculateSellPrice()})
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Dog Display */}
@@ -141,10 +238,10 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
                     className={`h-3 rounded-full transition-all ${
                       selectedDog.hunger > 70 ? 'bg-green-500' : selectedDog.hunger > 30 ? 'bg-yellow-500' : 'bg-red-500'
                     }`}
-                    style={{ width: `${selectedDog.hunger}%` }}
+                    style={{ width: `${Math.round(selectedDog.hunger)}%` }}
                   />
                 </div>
-                <span className="text-sm text-earth-700 w-12">{selectedDog.hunger}%</span>
+                <span className="text-sm text-earth-700 w-12">{Math.round(selectedDog.hunger)}%</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -154,10 +251,10 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
                     className={`h-3 rounded-full transition-all ${
                       selectedDog.thirst > 70 ? 'bg-blue-500' : selectedDog.thirst > 30 ? 'bg-yellow-500' : 'bg-red-500'
                     }`}
-                    style={{ width: `${selectedDog.thirst}%` }}
+                    style={{ width: `${Math.round(selectedDog.thirst)}%` }}
                   />
                 </div>
-                <span className="text-sm text-earth-700 w-12">{selectedDog.thirst}%</span>
+                <span className="text-sm text-earth-700 w-12">{Math.round(selectedDog.thirst)}%</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -167,10 +264,10 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
                     className={`h-3 rounded-full transition-all ${
                       selectedDog.happiness > 70 ? 'bg-green-500' : selectedDog.happiness > 30 ? 'bg-yellow-500' : 'bg-red-500'
                     }`}
-                    style={{ width: `${selectedDog.happiness}%` }}
+                    style={{ width: `${Math.round(selectedDog.happiness)}%` }}
                   />
                 </div>
-                <span className="text-sm text-earth-700 w-12">{selectedDog.happiness}%</span>
+                <span className="text-sm text-earth-700 w-12">{Math.round(selectedDog.happiness)}%</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -178,10 +275,10 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
                 <div className="flex-1 bg-earth-200 rounded-full h-3">
                   <div
                     className="bg-blue-500 h-3 rounded-full transition-all"
-                    style={{ width: `${selectedDog.energy_stat}%` }}
+                    style={{ width: `${Math.round(selectedDog.energy_stat)}%` }}
                   />
                 </div>
-                <span className="text-sm text-earth-700 w-12">{selectedDog.energy_stat}%</span>
+                <span className="text-sm text-earth-700 w-12">{Math.round(selectedDog.energy_stat)}%</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -189,10 +286,10 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
                 <div className="flex-1 bg-earth-200 rounded-full h-3">
                   <div
                     className="bg-green-500 h-3 rounded-full transition-all"
-                    style={{ width: `${selectedDog.health}%` }}
+                    style={{ width: `${Math.round(selectedDog.health)}%` }}
                   />
                 </div>
-                <span className="text-sm text-earth-700 w-12">{selectedDog.health}%</span>
+                <span className="text-sm text-earth-700 w-12">{Math.round(selectedDog.health)}%</span>
               </div>
 
               {/* Bond Level */}
@@ -220,23 +317,29 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center">
                 <p className="text-sm text-earth-600">Speed</p>
-                <p className="text-3xl font-bold text-earth-900">{selectedDog.speed}</p>
+                <p className="text-3xl font-bold text-earth-900">
+                  {(selectedDog.speed + (selectedDog.speed_trained || 0)).toFixed(1)}
+                </p>
                 {selectedDog.speed_trained > 0 && (
-                  <p className="text-xs text-green-600">+{selectedDog.speed_trained.toFixed(1)} trained</p>
+                  <p className="text-xs text-gray-500">{selectedDog.speed} + {selectedDog.speed_trained.toFixed(1)} trained</p>
                 )}
               </div>
               <div className="text-center">
                 <p className="text-sm text-earth-600">Agility</p>
-                <p className="text-3xl font-bold text-earth-900">{selectedDog.agility}</p>
+                <p className="text-3xl font-bold text-earth-900">
+                  {(selectedDog.agility + (selectedDog.agility_trained || 0)).toFixed(1)}
+                </p>
                 {selectedDog.agility_trained > 0 && (
-                  <p className="text-xs text-green-600">+{selectedDog.agility_trained.toFixed(1)} trained</p>
+                  <p className="text-xs text-gray-500">{selectedDog.agility} + {selectedDog.agility_trained.toFixed(1)} trained</p>
                 )}
               </div>
               <div className="text-center">
                 <p className="text-sm text-earth-600">Strength</p>
-                <p className="text-3xl font-bold text-earth-900">{selectedDog.strength}</p>
+                <p className="text-3xl font-bold text-earth-900">
+                  {(selectedDog.strength + (selectedDog.strength_trained || 0)).toFixed(1)}
+                </p>
                 {selectedDog.strength_trained > 0 && (
-                  <p className="text-xs text-green-600">+{selectedDog.strength_trained.toFixed(1)} trained</p>
+                  <p className="text-xs text-gray-500">{selectedDog.strength} + {selectedDog.strength_trained.toFixed(1)} trained</p>
                 )}
               </div>
               <div className="text-center">
@@ -371,6 +474,9 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
           )}
         </div>
       </div>
+
+      {/* Confirm Modal */}
+      <ConfirmModal {...confirmState} onCancel={handleCancel} />
     </div>
   );
 }

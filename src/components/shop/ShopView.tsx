@@ -6,6 +6,9 @@ import { generateDog } from '../../utils/dogGenerator';
 import { Breed, ShopItem } from '../../types';
 import PoundView from '../pound/PoundView';
 import HelpButton from '../tutorial/HelpButton';
+import { showToast } from '../../lib/toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../common/ConfirmModal';
 
 interface ShopViewProps {
   initialTab?: 'breeds' | 'items' | 'pound';
@@ -14,8 +17,9 @@ interface ShopViewProps {
 export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
   const { user, selectedDog, purchaseBreed, purchaseItem } = useGameStore();
   const [activeTab, setActiveTab] = useState<'breeds' | 'items' | 'pound'>(initialTab);
+  const { confirm, confirmState, handleCancel } = useConfirm();
 
-  const handlePurchaseBreed = (breed: Breed) => {
+  const handlePurchaseBreed = async (breed: Breed) => {
     if (!user) return;
 
     const cashCost = breed.purchase_price || 0;
@@ -23,11 +27,11 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
 
     // Check if user has enough currency
     if (cashCost > 0 && user.cash < cashCost) {
-      alert(`Not enough cash! Need $${cashCost} (have $${user.cash})`);
+      showToast.error(`Not enough cash! Need $${cashCost} (have $${user.cash})`);
       return;
     }
     if (gemCost > 0 && user.gems < gemCost) {
-      alert(`Not enough gems! Need ${gemCost} gems (have ${user.gems})`);
+      showToast.error(`Not enough gems! Need ${gemCost} gems (have ${user.gems})`);
       return;
     }
 
@@ -41,7 +45,14 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
       costText = `💎${gemCost} gems`;
     }
 
-    if (!confirm(`Purchase ${breed.name} for ${costText}?`)) {
+    const confirmed = await confirm({
+      title: 'Purchase Breed',
+      message: `Purchase ${breed.name} for ${costText}?`,
+      confirmText: 'Purchase',
+      variant: 'info'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -52,7 +63,7 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
     )?.toLowerCase();
 
     if (!genderChoice || (genderChoice !== 'male' && genderChoice !== 'female')) {
-      alert('Invalid gender choice. Please type "male" or "female".');
+      showToast.warning('Invalid gender choice. Please type "male" or "female".');
       return;
     }
 
@@ -63,14 +74,18 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
     const newDog = generateDog(breed, dogName, user.id, false, genderChoice as 'male' | 'female');
 
     // Purchase the dog
-    purchaseBreed(newDog, cashCost, gemCost);
+    const result = purchaseBreed(newDog, cashCost, gemCost);
 
-    alert(`🎉 Purchased ${dogName} (${genderChoice === 'male' ? '♂️ Male' : '♀️ Female'})!`);
+    if (result.success) {
+      showToast.success(`🎉 Purchased ${dogName} (${genderChoice === 'male' ? '♂️ Male' : '♀️ Female'})!`);
+    } else {
+      showToast.error(result.message || 'Purchase failed!');
+    }
   };
 
-  const handlePurchaseItem = (item: ShopItem) => {
+  const handlePurchaseItem = async (item: ShopItem) => {
     if (!user || !selectedDog) {
-      alert('Select a dog first!');
+      showToast.warning('Select a dog first!');
       return;
     }
 
@@ -79,11 +94,11 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
 
     // Check if user has enough currency
     if (cashCost > 0 && user.cash < cashCost) {
-      alert(`Not enough cash! Need $${cashCost} (have $${user.cash})`);
+      showToast.error(`Not enough cash! Need $${cashCost} (have $${user.cash})`);
       return;
     }
     if (gemCost > 0 && user.gems < gemCost) {
-      alert(`Not enough gems! Need ${gemCost} gems (have ${user.gems})`);
+      showToast.error(`Not enough gems! Need ${gemCost} gems (have ${user.gems})`);
       return;
     }
 
@@ -97,14 +112,21 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
       costText = `💎${gemCost} gems`;
     }
 
-    if (!confirm(`Use ${item.name} on ${selectedDog.name} for ${costText}?`)) {
+    const confirmed = await confirm({
+      title: 'Use Item',
+      message: `Use ${item.name} on ${selectedDog.name} for ${costText}?`,
+      confirmText: 'Use Item',
+      variant: 'info'
+    });
+
+    if (!confirmed) {
       return;
     }
 
     // Purchase the item
     purchaseItem(selectedDog.id, item.effect, cashCost, gemCost);
 
-    alert(`✅ Used ${item.name} on ${selectedDog.name}!`);
+    showToast.success(`✅ Used ${item.name} on ${selectedDog.name}!`);
   };
 
   // Filter breeds by unlock level
@@ -419,6 +441,9 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
 
       {/* Pound Tab */}
       {activeTab === 'pound' && <PoundView />}
+
+      {/* Confirm Modal */}
+      <ConfirmModal {...confirmState} onCancel={handleCancel} />
     </div>
   );
 }

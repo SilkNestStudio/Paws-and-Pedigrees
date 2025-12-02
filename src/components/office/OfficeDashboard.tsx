@@ -4,6 +4,7 @@ import { getWeeksRemaining } from '../../utils/breedingCalculations';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import HelpButton from '../tutorial/HelpButton';
 import { storyChapters } from '../../data/storyChapters';
+import InventoryPanel from './InventoryPanel';
 
 type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet';
 
@@ -348,6 +349,11 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Inventory Section */}
+      <div className="mb-6">
+        <InventoryPanel />
       </div>
 
     </div>

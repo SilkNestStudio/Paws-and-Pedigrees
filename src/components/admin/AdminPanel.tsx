@@ -1,13 +1,27 @@
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { isAdmin } from '../../config/adminConfig';
+import { storyChapters } from '../../data/storyChapters';
+import { items } from '../../data/items';
+import { showToast } from '../../lib/toast';
 
 interface AdminPanelProps {
   onClose: () => void;
 }
 
 export default function AdminPanel({ onClose }: AdminPanelProps) {
-  const { user, setUser } = useGameStore();
+  const {
+    user,
+    setUser,
+    dogs,
+    selectedDog,
+    selectDog,
+    updateDog,
+    storyProgress,
+    setCurrentChapter,
+    completeChapter,
+    addItemToInventory,
+  } = useGameStore();
   const userIsAdmin = isAdmin(user?.id);
 
   // Show setup instructions if not yet added as admin
@@ -68,6 +82,20 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     business_acumen: user?.business_acumen || 1,
   });
 
+  const [dogBondValues, setDogBondValues] = useState({
+    bond_level: selectedDog?.bond_level || 0,
+    bond_xp: selectedDog?.bond_xp || 0,
+  });
+
+  const [storyChapterSlider, setStoryChapterSlider] = useState(
+    storyChapters.findIndex(ch => ch.id === storyProgress.currentChapter) !== -1
+      ? storyChapters.findIndex(ch => ch.id === storyProgress.currentChapter)
+      : 0
+  );
+
+  const [selectedItemId, setSelectedItemId] = useState('');
+  const [itemQuantity, setItemQuantity] = useState(1);
+
   const handleChange = (field: string, value: string | number) => {
     // If already a number (from button clicks), use it directly
     if (typeof value === 'number') {
@@ -79,6 +107,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     const numValue = value === '' ? 0 : parseInt(value);
     if (!isNaN(numValue)) {
       setValues(prev => ({ ...prev, [field]: numValue }));
+    }
+  };
+
+  const handleDogBondChange = (field: string, value: string | number) => {
+    const numValue = typeof value === 'number' ? value : (value === '' ? 0 : parseInt(value));
+    if (!isNaN(numValue)) {
+      setDogBondValues(prev => ({ ...prev, [field]: numValue }));
     }
   };
 
@@ -100,7 +135,21 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       business_acumen: values.business_acumen,
     });
 
-    alert('Admin values applied! 🎮');
+    showToast.success('Admin values applied! 🎮');
+  };
+
+  const handleApplyDogBond = () => {
+    if (!selectedDog) {
+      showToast.warning('Please select a dog first!');
+      return;
+    }
+
+    updateDog(selectedDog.id, {
+      bond_level: Math.min(10, Math.max(0, dogBondValues.bond_level)),
+      bond_xp: Math.max(0, dogBondValues.bond_xp),
+    });
+
+    showToast.success(`Bond values applied to ${selectedDog.name}! 🐕`);
   };
 
   const handleQuickAdd = (field: string, amount: number) => {
@@ -108,6 +157,48 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       ...prev,
       [field]: Math.max(0, prev[field as keyof typeof prev] + amount)
     }));
+  };
+
+  const handleStoryChapterChange = (index: number) => {
+    setStoryChapterSlider(index);
+    const chapter = storyChapters[index];
+    if (chapter) {
+      setCurrentChapter(chapter.id);
+    }
+  };
+
+  const handleToggleChapterCompletion = (chapterId: string) => {
+    if (storyProgress.completedChapters.includes(chapterId)) {
+      // Remove from completed chapters by resetting story progress
+      showToast.warning('Cannot uncomplete chapters yet. Use "Reset Story Progress" to start over.');
+    } else {
+      completeChapter(chapterId);
+      showToast.success('Chapter marked as completed!');
+    }
+  };
+
+  const handleResetStoryProgress = () => {
+    if (confirm('Are you sure you want to reset ALL story progress? This cannot be undone!')) {
+      useGameStore.setState({
+        storyProgress: {
+          completedChapters: [],
+          currentChapter: null,
+          objectiveProgress: {},
+          claimedRewards: [],
+        },
+      });
+      setStoryChapterSlider(0);
+      showToast.success('Story progress reset!');
+    }
+  };
+
+  const handleAddItem = () => {
+    if (!selectedItemId) {
+      showToast.warning('Please select an item!');
+      return;
+    }
+    addItemToInventory(selectedItemId, itemQuantity);
+    showToast.success(`Added ${itemQuantity}x ${items[selectedItemId]?.name || selectedItemId} to inventory!`);
   };
 
   if (!user) return null;
@@ -148,7 +239,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     type="number"
                     value={values.level}
                     onChange={(e) => handleChange('level', e.target.value)}
-                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-purple-500"
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-purple-500 text-slate-900"
                     min="1"
                     max="100"
                   />
@@ -171,7 +262,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     type="number"
                     value={values.xp}
                     onChange={(e) => handleChange('xp', e.target.value)}
-                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-purple-500"
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-purple-500 text-slate-900"
                     min="0"
                   />
                   <button
@@ -201,7 +292,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     type="number"
                     value={values.cash}
                     onChange={(e) => handleChange('cash', e.target.value)}
-                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-500"
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-500 text-slate-900"
                     min="0"
                   />
                   <button
@@ -229,7 +320,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     type="number"
                     value={values.gems}
                     onChange={(e) => handleChange('gems', e.target.value)}
-                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 text-slate-900"
                     min="0"
                   />
                   <button
@@ -265,7 +356,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     type="number"
                     value={values.food_storage}
                     onChange={(e) => handleChange('food_storage', e.target.value)}
-                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-amber-500 text-slate-900"
                     min="0"
                     max="100"
                   />
@@ -288,7 +379,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     type="number"
                     value={values.kennel_level}
                     onChange={(e) => handleChange('kennel_level', e.target.value)}
-                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-orange-500"
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-orange-500 text-slate-900"
                     min="1"
                     max="10"
                   />
@@ -318,7 +409,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   type="number"
                   value={values.training_skill}
                   onChange={(e) => handleChange('training_skill', e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
                   min="1"
                   max="100"
                 />
@@ -333,7 +424,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   type="number"
                   value={values.care_knowledge}
                   onChange={(e) => handleChange('care_knowledge', e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
                   min="1"
                   max="100"
                 />
@@ -348,7 +439,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   type="number"
                   value={values.breeding_expertise}
                   onChange={(e) => handleChange('breeding_expertise', e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
                   min="1"
                   max="100"
                 />
@@ -363,7 +454,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   type="number"
                   value={values.competition_strategy}
                   onChange={(e) => handleChange('competition_strategy', e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
                   min="1"
                   max="100"
                 />
@@ -378,7 +469,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   type="number"
                   value={values.business_acumen}
                   onChange={(e) => handleChange('business_acumen', e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
                   min="1"
                   max="100"
                 />
@@ -403,6 +494,256 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Story Mode Section */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span>📖</span> Story Mode Controls
+            </h3>
+
+            {/* Chapter Slider */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Current Chapter: {storyChapters[storyChapterSlider]?.title || 'None'}
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0"
+                  max={storyChapters.length - 1}
+                  value={storyChapterSlider}
+                  onChange={(e) => handleStoryChapterChange(parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <span className="text-sm font-medium text-slate-700 min-w-[60px]">
+                  {storyChapterSlider + 1} / {storyChapters.length}
+                </span>
+              </div>
+              <div className="mt-2 text-xs text-slate-600">
+                {storyChapters[storyChapterSlider]?.icon} Chapter {storyChapters[storyChapterSlider]?.chapter_number}
+              </div>
+            </div>
+
+            {/* Chapter List */}
+            <div className="mb-4 max-h-48 overflow-y-auto border-2 border-slate-200 rounded-lg p-3">
+              <p className="text-sm font-semibold text-slate-700 mb-2">All Chapters:</p>
+              <div className="space-y-2">
+                {storyChapters.map((chapter) => {
+                  const isCompleted = storyProgress.completedChapters.includes(chapter.id);
+                  const isCurrent = storyProgress.currentChapter === chapter.id;
+                  const isRewardClaimed = storyProgress.claimedRewards?.includes(chapter.id);
+
+                  return (
+                    <div
+                      key={chapter.id}
+                      className={`flex items-center justify-between p-2 rounded ${
+                        isCurrent ? 'bg-purple-100 border-2 border-purple-300' : 'bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{chapter.icon}</span>
+                        <span className="text-sm font-medium text-slate-800">
+                          Ch. {chapter.chapter_number}: {chapter.title}
+                        </span>
+                        {isCompleted && <span className="text-green-600 text-xs">✓ Completed</span>}
+                        {isRewardClaimed && <span className="text-blue-600 text-xs">🎁 Claimed</span>}
+                      </div>
+                      <button
+                        onClick={() => handleToggleChapterCompletion(chapter.id)}
+                        className={`text-xs px-2 py-1 rounded ${
+                          isCompleted
+                            ? 'bg-slate-300 text-slate-600'
+                            : 'bg-green-500 text-white hover:bg-green-600'
+                        }`}
+                        disabled={isCompleted}
+                      >
+                        {isCompleted ? 'Done' : 'Complete'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Story Progress Stats */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <p className="text-xs text-purple-600 mb-1">Completed Chapters</p>
+                <p className="text-xl font-bold text-purple-800">
+                  {storyProgress.completedChapters.length} / {storyChapters.length}
+                </p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-600 mb-1">Rewards Claimed</p>
+                <p className="text-xl font-bold text-blue-800">
+                  {storyProgress.claimedRewards?.length || 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Reset Story Button */}
+            <button
+              onClick={handleResetStoryProgress}
+              className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold text-sm"
+            >
+              Reset All Story Progress
+            </button>
+          </div>
+
+          {/* Inventory Admin Section */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span>🎒</span> Add Items to Inventory
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Item Selection */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Select Item
+                </label>
+                <select
+                  value={selectedItemId}
+                  onChange={(e) => setSelectedItemId(e.target.value)}
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
+                >
+                  <option value="">-- Select an item --</option>
+                  {Object.values(items).map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.icon} {item.name} ({item.rarity})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quantity */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Quantity
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={itemQuantity}
+                  onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
+                />
+              </div>
+            </div>
+
+            {/* Add Item Button */}
+            <button
+              onClick={handleAddItem}
+              disabled={!selectedItemId}
+              className="w-full mt-3 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:from-indigo-600 hover:to-purple-600 disabled:from-gray-400 disabled:to-gray-500 transition-colors font-semibold"
+            >
+              Add Item to Inventory
+            </button>
+          </div>
+
+          {/* Dog Bond Section */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span>❤️</span> Dog Bond
+            </h3>
+
+            {/* Dog Selection */}
+            {dogs.length > 0 ? (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Select Dog
+                </label>
+                <select
+                  value={selectedDog?.id || ''}
+                  onChange={(e) => {
+                    const dog = dogs.find(d => d.id === e.target.value);
+                    if (dog) {
+                      selectDog(dog);
+                      setDogBondValues({
+                        bond_level: dog.bond_level || 0,
+                        bond_xp: dog.bond_xp || 0,
+                      });
+                    }
+                  }}
+                  className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-pink-500 text-slate-900"
+                >
+                  <option value="">-- Select a dog --</option>
+                  {dogs.map((dog: any) => (
+                    <option key={dog.id} value={dog.id}>
+                      {dog.name} (Bond Lvl {dog.bond_level})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600 mb-4">No dogs in kennel</p>
+            )}
+
+            {selectedDog && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Bond Level */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Bond Level (0-10)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      value={dogBondValues.bond_level}
+                      onChange={(e) => handleDogBondChange('bond_level', parseInt(e.target.value))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      value={dogBondValues.bond_level}
+                      onChange={(e) => handleDogBondChange('bond_level', e.target.value)}
+                      className="w-20 px-3 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-pink-500 text-slate-900"
+                      min="0"
+                      max="10"
+                    />
+                  </div>
+                </div>
+
+                {/* Bond XP */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Bond XP (0-50)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="50"
+                      value={dogBondValues.bond_xp}
+                      onChange={(e) => handleDogBondChange('bond_xp', parseInt(e.target.value))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      value={dogBondValues.bond_xp}
+                      onChange={(e) => handleDogBondChange('bond_xp', e.target.value)}
+                      className="w-20 px-3 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-pink-500 text-slate-900"
+                      min="0"
+                      max="50"
+                    />
+                  </div>
+                </div>
+
+                {/* Apply Bond Button */}
+                <div className="md:col-span-2">
+                  <button
+                    onClick={handleApplyDogBond}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:from-pink-600 hover:to-rose-600 transition-colors font-semibold"
+                  >
+                    Apply Bond Values to {selectedDog.name}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Warning Notice */}

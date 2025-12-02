@@ -9,10 +9,11 @@ import ObstacleCourseGame from './ObstacleCourseGame';
 import WeightPullTrainingGame from './WeightPullTrainingGame';
 import DistanceRunGame from './DistanceRunGame';
 import CommandDrillsGame from './CommandDrillsGame';
-import { checkBondLevelUp, getRescueDogTrainingBonus } from '../../utils/bondSystem';
+import { checkBondLevelUp, getRescueDogTrainingBonus, calculateBondXpGain } from '../../utils/bondSystem';
 import HelpButton from '../tutorial/HelpButton';
 import { ENERGY_THRESHOLDS } from '../../utils/careCalculations';
 import { trackStoryAction } from '../../utils/storyObjectiveTracking';
+import { showToast } from '../../lib/toast';
 
 
 export default function TrainingView() {
@@ -37,18 +38,18 @@ export default function TrainingView() {
 
     // Check if dog is in puppy training
     if (selectedDog.active_puppy_training) {
-      alert(`${selectedDog.name} is currently in puppy training and cannot do regular training sessions!`);
+      showToast.warning(`${selectedDog.name} is currently in puppy training and cannot do regular training sessions!`);
       return;
     }
 
     // Check energy level
     if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING) {
-      alert(`${selectedDog.name} is too tired to train! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_TRAINING}%. Feed or rest your dog first.`);
+      showToast.error(`${selectedDog.name} is too tired to train! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_TRAINING}%. Feed or rest your dog first.`);
       return;
     }
 
     if (!canTrain(selectedDog, training.tpCost)) {
-      alert(`Not enough Training Points! Need ${training.tpCost} TP.`);
+      showToast.error(`Not enough Training Points! Need ${training.tpCost} TP.`);
       return;
     }
 
@@ -78,37 +79,54 @@ export default function TrainingView() {
     const rescueBonusedGain = baseGain * (1 + rescueBonus);
     const finalGain = rescueBonusedGain * performanceMultiplier;
 
+    // Calculate bond XP gain - training together builds strong bonds!
+    // Give 5 XP base (more for difficult training sessions)
+    const bondXpGain = calculateBondXpGain(5, selectedDog.is_rescue || false);
+    const newBondXp = selectedDog.bond_xp + bondXpGain;
+
     // Update dog's trained stat
     const updates: Partial<Dog> = {
       training_points: selectedDog.training_points - training.tpCost,
-      bond_xp: selectedDog.bond_xp + 3,
+      bond_xp: newBondXp,
     };
 
     // Check if dog should level up bond
-    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: selectedDog.bond_xp + 3 });
+    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: newBondXp });
     if (bondLevelUp) {
       Object.assign(updates, bondLevelUp);
     }
 
     switch(training.statImproved) {
       case 'speed':
-        updates.speed_trained = (selectedDog.speed_trained || 0) + finalGain;
+        updates.speed_trained = Math.min(100, (selectedDog.speed_trained || 0) + finalGain);
         break;
       case 'agility':
-        updates.agility_trained = (selectedDog.agility_trained || 0) + finalGain;
+        updates.agility_trained = Math.min(100, (selectedDog.agility_trained || 0) + finalGain);
         break;
       case 'strength':
-        updates.strength_trained = (selectedDog.strength_trained || 0) + finalGain;
+        updates.strength_trained = Math.min(100, (selectedDog.strength_trained || 0) + finalGain);
         break;
       case 'endurance':
-        updates.endurance_trained = (selectedDog.endurance_trained || 0) + finalGain;
+        updates.endurance_trained = Math.min(100, (selectedDog.endurance_trained || 0) + finalGain);
         break;
       case 'obedience':
-        updates.obedience_trained = (selectedDog.obedience_trained || 0) + finalGain;
+        updates.obedience_trained = Math.min(100, (selectedDog.obedience_trained || 0) + finalGain);
         break;
     }
 
     updateDog(selectedDog.id, updates);
+
+    // Check if any TOTAL stat (base + trained) reached milestone for story objective
+    const maxTotalStat = Math.max(
+      selectedDog.speed + (updates.speed_trained || selectedDog.speed_trained || 0),
+      selectedDog.agility + (updates.agility_trained || selectedDog.agility_trained || 0),
+      selectedDog.strength + (updates.strength_trained || selectedDog.strength_trained || 0),
+      selectedDog.endurance + (updates.endurance_trained || selectedDog.endurance_trained || 0),
+      selectedDog.intelligence + (updates.obedience_trained || selectedDog.obedience_trained || 0)
+    );
+    if (maxTotalStat >= 30) {
+      trackStoryAction('custom', { customId: 'trained_stat_milestone', amount: 30 });
+    }
 
     // Increase user training skill (max 100)
     if (user && user.training_skill < 100) {
@@ -123,7 +141,7 @@ export default function TrainingView() {
       if (Math.floor(newSkill / 10) > Math.floor(user.training_skill / 10)) {
         const skillLevel = Math.floor(newSkill / 10) * 10;
         setTimeout(() => {
-          alert(`🎓 Training Skill improved to level ${skillLevel}!\nYour self-training effectiveness increased!`);
+          showToast.success(`🎓 Training Skill improved to level ${skillLevel}!\nYour self-training effectiveness increased!`);
         }, 500);
       }
     }
@@ -146,11 +164,18 @@ export default function TrainingView() {
       ? ` (${Math.round(rescueBonus * 100)}% rescue bond bonus!)`
       : '';
 
-    const bondLevelUpText = bondLevelUp
-      ? `\n🎉 Bond level increased to ${bondLevelUp.bond_level}!`
-      : '';
+    // Show training success
+    showToast.success(`${performanceText}${selectedDog.name} gained +${finalGain.toFixed(1)} ${training.statImproved}!${rescueBonusText}`);
 
-    alert(`${performanceText}${selectedDog.name} gained +${finalGain.toFixed(1)} ${training.statImproved}!${rescueBonusText}${bondLevelUpText}`);
+    // Show bond increase notification
+    showToast.bondIncrease(`${selectedDog.name} gained +${bondXpGain} bond XP!${selectedDog.is_rescue ? ' (Rescue bonus)' : ''}`);
+
+    // Show bond level up notification
+    if (bondLevelUp) {
+      setTimeout(() => {
+        showToast.levelUp(`${selectedDog.name} bond level increased to ${bondLevelUp.bond_level}!`);
+      }, 300);
+    }
   };
 
   const handleNpcTrain = (trainingId: string, trainerType: 'basic' | 'pro') => {
@@ -161,25 +186,25 @@ export default function TrainingView() {
 
     // Check if dog is in puppy training
     if (selectedDog.active_puppy_training) {
-      alert(`${selectedDog.name} is currently in puppy training and cannot do regular training sessions!`);
+      showToast.warning(`${selectedDog.name} is currently in puppy training and cannot do regular training sessions!`);
       return;
     }
 
     // Check energy level
     if (selectedDog.energy_stat < ENERGY_THRESHOLDS.MIN_FOR_TRAINING) {
-      alert(`${selectedDog.name} is too tired to train! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_TRAINING}%. Feed or rest your dog first.`);
+      showToast.error(`${selectedDog.name} is too tired to train! Energy must be at least ${ENERGY_THRESHOLDS.MIN_FOR_TRAINING}%. Feed or rest your dog first.`);
       return;
     }
 
     const cost = trainerType === 'basic' ? training.npcBasicCost : training.npcProCost;
 
     if ((user?.cash || 0) < cost) {
-      alert(`Not enough cash! Need $${cost}.`);
+      showToast.error(`Not enough cash! Need $${cost}.`);
       return;
     }
 
     if (!canTrain(selectedDog, training.tpCost)) {
-      alert(`Not enough Training Points! Need ${training.tpCost} TP.`);
+      showToast.error(`Not enough Training Points! Need ${training.tpCost} TP.`);
       return;
     }
 
@@ -192,35 +217,58 @@ export default function TrainingView() {
       user?.kennel_level || 1
     );
 
+    // Calculate bond XP gain - even with NPC trainers, you're there supporting them!
+    const bondXpGain = calculateBondXpGain(3, selectedDog.is_rescue || false);
+    const newBondXp = selectedDog.bond_xp + bondXpGain;
+
     const updates: Partial<Dog> = {
   training_points: selectedDog.training_points - training.tpCost,
+  bond_xp: newBondXp,
 };
+
+// Check if dog should level up bond
+const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: newBondXp });
+if (bondLevelUp) {
+  Object.assign(updates, bondLevelUp);
+}
 
 switch(training.statImproved) {
   case 'speed':
-    updates.speed_trained = (selectedDog.speed_trained || 0) + gain;
+    updates.speed_trained = Math.min(100, (selectedDog.speed_trained || 0) + gain);
     break;
   case 'agility':
-    updates.agility_trained = (selectedDog.agility_trained || 0) + gain;
+    updates.agility_trained = Math.min(100, (selectedDog.agility_trained || 0) + gain);
     break;
   case 'strength':
-    updates.strength_trained = (selectedDog.strength_trained || 0) + gain;
+    updates.strength_trained = Math.min(100, (selectedDog.strength_trained || 0) + gain);
     break;
   case 'endurance':
-    updates.endurance_trained = (selectedDog.endurance_trained || 0) + gain;
+    updates.endurance_trained = Math.min(100, (selectedDog.endurance_trained || 0) + gain);
     break;
   case 'obedience':
-    updates.obedience_trained = (selectedDog.obedience_trained || 0) + gain;
+    updates.obedience_trained = Math.min(100, (selectedDog.obedience_trained || 0) + gain);
     break;
 }
 
 updateDog(selectedDog.id, updates);
 
+    // Check if any TOTAL stat (base + trained) reached milestone for story objective
+    const maxTotalStatTrainer = Math.max(
+      selectedDog.speed + (updates.speed_trained || selectedDog.speed_trained || 0),
+      selectedDog.agility + (updates.agility_trained || selectedDog.agility_trained || 0),
+      selectedDog.strength + (updates.strength_trained || selectedDog.strength_trained || 0),
+      selectedDog.endurance + (updates.endurance_trained || selectedDog.endurance_trained || 0),
+      selectedDog.intelligence + (updates.obedience_trained || selectedDog.obedience_trained || 0)
+    );
+    if (maxTotalStatTrainer >= 30) {
+      trackStoryAction('custom', { customId: 'trained_stat_milestone', amount: 30 });
+    }
+
     // Track story objective for training
     trackStoryAction('train');
 
     updateUserCash(-cost);
-    alert(`${selectedDog.name} gained +${gain} ${training.statImproved} from ${trainerType} trainer!`);
+    showToast.success(`${selectedDog.name} gained +${gain} ${training.statImproved} from ${trainerType} trainer!`);
   };
 
   const breedData = selectedDog ? rescueBreeds.find(b => b.id === selectedDog.breed_id) : null;
@@ -279,9 +327,9 @@ updateDog(selectedDog.id, updates);
                           if (confirm(`Refill Training Points for ${gemCost} gems?${refillCount > 0 ? ` (${refillCount} refills today)` : ''}`)) {
                             const result = refillTrainingPoints(selectedDog.id);
                             if (result.success) {
-                              alert(result.message);
+                              showToast.success(result.message);
                             } else {
-                              alert(result.message);
+                              showToast.error(result.message);
                             }
                           }
                         }}

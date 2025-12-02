@@ -3,6 +3,7 @@ import { rescueBreeds } from '../../data/rescueBreeds';
 import { useGameStore } from '../../stores/gameStore';
 import { generateDog } from '../../utils/dogGenerator';
 import { Breed } from '../../types';
+import { showToast } from '../../lib/toast';
 
 const ADOPTION_FEE = 100; // Small fee to adopt from pound
 
@@ -29,7 +30,7 @@ export default function PoundView() {
 
     // Check if user has enough cash
     if (user.cash < ADOPTION_FEE) {
-      alert(`Not enough cash! Adoption fee is $${ADOPTION_FEE}`);
+      showToast.error(`Not enough cash! Adoption fee is $${ADOPTION_FEE}`);
       return;
     }
 
@@ -49,7 +50,7 @@ export default function PoundView() {
     addDog(newDog);
     useGameStore.getState().updateUserCash(-ADOPTION_FEE);
 
-    alert(`🎉 You adopted ${dogName} (${gender === 'male' ? '♂️ Male' : '♀️ Female'})! Welcome to your kennel.`);
+    showToast.success(`🎉 You adopted ${dogName} (${gender === 'male' ? '♂️ Male' : '♀️ Female'})! Welcome to your kennel.`);
 
     // Refresh available dogs
     setAvailableDogs(getThreeDogs());

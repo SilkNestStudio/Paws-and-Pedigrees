@@ -116,7 +116,7 @@ export default function VetClinicView() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <p className="font-bold text-earth-900">{dog.name}</p>
-                        <p className="text-sm text-earth-600">Health: {dog.health}%</p>
+                        <p className="text-sm text-earth-600">Health: {Math.round(dog.health)}%</p>
                       </div>
                       <div
                         className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -205,7 +205,7 @@ export default function VetClinicView() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <p className="font-bold text-earth-900">{dog.name}</p>
-                        <p className="text-sm text-earth-600">Health: {dog.health}%</p>
+                        <p className="text-sm text-earth-600">Health: {Math.round(dog.health)}%</p>
                       </div>
                       <div
                         className={`px-3 py-1 rounded-full text-xs font-bold ${

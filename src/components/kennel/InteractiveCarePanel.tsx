@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { calculateFoodConsumption, getSizeCategoryName } from '../../utils/careCalculations';
-import { checkBondLevelUp } from '../../utils/bondSystem';
+import { checkBondLevelUp, calculateBondXpGain } from '../../utils/bondSystem';
 import { getHealthStatus, VET_COST, EMERGENCY_VET_COST, REVIVAL_GEM_COST } from '../../utils/healthDecay';
+import RealisticPettingActivity from '../minigames/RealisticPettingActivity';
+import RealisticFetchActivity from '../minigames/RealisticFetchActivity';
+import RealisticWalkActivity from '../minigames/RealisticWalkActivity';
 
 type DragItem = 'bowl' | 'water-bowl' | null;
 type DropZone = 'spigot' | 'food-bin' | 'dog' | null;
@@ -18,6 +21,7 @@ interface InteractiveCarePanelProps {
 
 export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCarePanelProps) {
   const { selectedDog, user, feedDog, waterDog, updateDog, takeToVet, takeToEmergencyVet, reviveDeadDog } = useGameStore();
+  const [activeGame, setActiveGame] = useState<'pet' | 'fetch' | 'walk' | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Drag state
@@ -163,6 +167,29 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
   }, [isDragging, activeDropZone, bowlFilled, dragItem]);
 
   const playWithDog = (activityType: 'pet' | 'fetch' | 'walk') => {
+    // Check last interaction time for this specific activity (1 hour cooldown per activity)
+    const lastPlayedTime = selectedDog.last_played ? new Date(selectedDog.last_played).getTime() : 0;
+    const now = Date.now();
+    const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+
+    if (now - lastPlayedTime < COOLDOWN_MS) {
+      const remainingMs = COOLDOWN_MS - (now - lastPlayedTime);
+      const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+      setMessage({
+        text: `${selectedDog.name} needs rest! Please wait ${remainingMinutes} minutes before playing again`,
+        type: 'error',
+      });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+
+    // Launch the appropriate mini-game
+    setActiveGame(activityType);
+  };
+
+  const handleGameComplete = (activityType: 'pet' | 'fetch' | 'walk') => {
+    setActiveGame(null);
+
     const activities = {
       pet: { happiness: 15, energy: 0, cost: 0, name: 'Pet & Cuddle' },
       fetch: { happiness: 30, energy: -20, cost: 0, name: 'Play Fetch' },
@@ -173,21 +200,28 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
     const newHappiness = Math.min(100, selectedDog.happiness + activity.happiness);
     const newEnergy = Math.max(0, selectedDog.energy_stat + activity.energy);
 
+    // Calculate bond XP gain (more XP now that requirements are higher)
+    // Base XP: pet=10, fetch=15, walk=20
+    const baseXpMap = { pet: 10, fetch: 15, walk: 20 };
+    const bondXpGain = calculateBondXpGain(baseXpMap[activityType], selectedDog.is_rescue || false);
+    const newBondXp = selectedDog.bond_xp + bondXpGain;
+
     const updates: any = {
       happiness: newHappiness,
       energy_stat: newEnergy,
       last_played: new Date().toISOString(),
-      bond_xp: selectedDog.bond_xp + 2,
+      bond_xp: newBondXp,
     };
 
-    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: selectedDog.bond_xp + 2 });
+    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: newBondXp });
     if (bondLevelUp) {
       Object.assign(updates, bondLevelUp);
     }
 
     updateDog(selectedDog.id, updates);
+
     setMessage({
-      text: `${activity.name} with ${selectedDog.name}! +${activity.happiness} happiness`,
+      text: `${activity.name} with ${selectedDog.name}! +${activity.happiness} happiness, +${bondXpGain} bond`,
       type: 'success',
     });
     setTimeout(() => setMessage(null), 3000);
@@ -516,6 +550,29 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
           <li>• Dogs lose 10% health per day without care</li>
         </ul>
       </div>
+
+      {/* Realistic Activities */}
+      {activeGame === 'pet' && (
+        <RealisticPettingActivity
+          dog={selectedDog}
+          onComplete={() => handleGameComplete('pet')}
+          onCancel={() => setActiveGame(null)}
+        />
+      )}
+      {activeGame === 'fetch' && (
+        <RealisticFetchActivity
+          dog={selectedDog}
+          onComplete={() => handleGameComplete('fetch')}
+          onCancel={() => setActiveGame(null)}
+        />
+      )}
+      {activeGame === 'walk' && (
+        <RealisticWalkActivity
+          dog={selectedDog}
+          onComplete={() => handleGameComplete('walk')}
+          onCancel={() => setActiveGame(null)}
+        />
+      )}
     </div>
   );
 }

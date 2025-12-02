@@ -1,4 +1,5 @@
 import { Dog, Breed } from '../types';
+import { generatePersonality } from './personalityGenerator';
 
 export function generateDog(
   breed: Breed,
@@ -65,6 +66,9 @@ export function generateDog(
     coat_color: coatColors[Math.floor(Math.random() * coatColors.length)],
     coat_pattern: coatPatterns[Math.floor(Math.random() * coatPatterns.length)],
     eye_color: eyeColors[Math.floor(Math.random() * eyeColors.length)],
+
+    // Personality
+    personality: generatePersonality(breed),
 
     // Care stats (rescue dogs start slightly lower)
     hunger: isRescue ? 60 : 100,

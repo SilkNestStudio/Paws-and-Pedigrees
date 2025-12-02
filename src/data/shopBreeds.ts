@@ -1,4 +1,5 @@
 import { Breed } from '../types';
+import { getDogImage } from '../utils/dogImages';
 
 /**
  * Purchasable breeds in the shop
@@ -26,7 +27,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'water-resistant'],
     description: 'Friendly, outgoing, and active companion. Great all-around dog.',
     history: 'Originally bred as fishing and hunting dogs in Newfoundland.',
-    img_sitting: '/images/dogs/LabSitting.png',
+    img_sitting: getDogImage('Labrador Retriever', 'Sitting'),
   },
   {
     id: 102,
@@ -48,7 +49,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'dense'],
     description: 'Merry hound with excellent nose. Can be stubborn but lovable.',
     history: 'Developed in England for hunting rabbits and hares.',
-    img_sitting: '/images/dogs/BeagleSitting.png',
+    img_sitting: getDogImage('Beagle', 'Sitting'),
   },
   {
     id: 103,
@@ -70,7 +71,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['long', 'water-repellent'],
     description: 'Intelligent, friendly, and devoted. Perfect family companion.',
     history: 'Scottish gun dog bred to retrieve waterfowl during hunting.',
-    img_sitting: '/images/dogs/GoldenSitting.png',
+    img_sitting: getDogImage('Golden Retriever', 'Sitting'),
   },
   {
     id: 104,
@@ -92,7 +93,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['curly', 'hypoallergenic'],
     description: 'Intelligent, elegant, and active. Excellent in obedience and agility.',
     history: 'Originally bred as water retrievers in Germany, now popular show dogs.',
-    img_sitting: '/images/dogs/PoodleSitting.png',
+    img_sitting: getDogImage('Poodle', 'Sitting'),
   },
   {
     id: 105,
@@ -114,7 +115,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'smooth', 'long'],
     description: 'Clever, lively, and courageous. Small but mighty hunters.',
     history: 'German badger hounds with elongated bodies for burrowing.',
-    img_sitting: '/images/dogs/DachshundSitting.png',
+    img_sitting: getDogImage('Dachshund', 'Sitting'),
   },
   {
     id: 106,
@@ -136,7 +137,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['long', 'silky'],
     description: 'Gentle, happy, and sporting. Loves to please and play.',
     history: 'Spanish sporting breed used to flush game birds.',
-    img_sitting: '/images/dogs/CockerSpanielSitting.png',
+    img_sitting: getDogImage('Cocker Spaniel', 'Sitting'),
   },
 
   // UNCOMMON TIER - Better stats, moderate price
@@ -160,7 +161,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['medium', 'double-coat'],
     description: 'Confident, courageous, and smart. Excellent working dog.',
     history: 'Developed in Germany for herding and guarding sheep.',
-    img_sitting: '/images/dogs/GermanShepherdSitting.png',
+    img_sitting: getDogImage('German Shepherd', 'Sitting'),
   },
   {
     id: 202,
@@ -182,7 +183,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['medium', 'rough'],
     description: 'Smartest breed. Intense, energetic, and driven to work.',
     history: 'Scottish herding breed known for incredible intelligence.',
-    img_sitting: '/images/dogs/BorderCollieSitting.png',
+    img_sitting: getDogImage('Border Collie', 'Sitting'),
   },
   {
     id: 203,
@@ -204,7 +205,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['thick', 'double-coat'],
     description: 'Beautiful, energetic sled dog. Independent and mischievous.',
     history: 'Siberian working dog bred to pull sleds across long distances.',
-    img_sitting: '/images/dogs/HuskySitting.png',
+    img_sitting: getDogImage('Siberian Husky', 'Sitting'),
   },
   {
     id: 204,
@@ -226,7 +227,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['medium', 'wavy'],
     description: 'Versatile, energetic herder. Incredibly smart and loyal.',
     history: 'Despite the name, developed in California for herding livestock.',
-    img_sitting: '/images/dogs/AustralianShepherdSitting.png',
+    img_sitting: getDogImage('Australian Shepherd', 'Sitting'),
   },
   {
     id: 205,
@@ -248,7 +249,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'smooth'],
     description: 'Playful, loyal guardian. Patient with family, protective of home.',
     history: 'German working dog descended from ancient war dogs.',
-    img_sitting: '/images/dogs/BoxerSitting.png',
+    img_sitting: getDogImage('Boxer', 'Sitting'),
   },
   {
     id: 206,
@@ -270,7 +271,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'dense'],
     description: 'Confident, calm, and courageous. Devoted family protector.',
     history: 'Roman drover dog from the German town of Rottweil.',
-    img_sitting: '/images/dogs/RottweilerSitting.png',
+    img_sitting: getDogImage('Rottweiler', 'Sitting'),
   },
 
   // RARE TIER - High stats, expensive
@@ -295,7 +296,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'hard'],
     description: 'Elite working dog. Intense, driven, and incredibly capable.',
     history: 'Belgian herding breed favored by military and police.',
-    img_sitting: '/images/dogs/MalinoisSitting.png',
+    img_sitting: getDogImage('Belgian Malinois', 'Sitting'),
   },
   {
     id: 302,
@@ -318,7 +319,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'sleek'],
     description: 'Fearless guardian. Loyal, alert, and incredibly athletic.',
     history: 'German breed created for personal protection.',
-    img_sitting: '/images/dogs/DobermanSitting.png',
+    img_sitting: getDogImage('Doberman Pinscher', 'Sitting'),
   },
 
   // EXOTIC TIER - Rare breeds with unique traits
@@ -343,7 +344,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'dense'],
     description: 'Strong, athletic lion hunter. Dignified and independent.',
     history: 'South African breed originally used to hunt lions.',
-    img_sitting: '/images/dogs/RidgebackSitting.png',
+    img_sitting: getDogImage('Rhodesian Ridgeback', 'Sitting'),
   },
   {
     id: 402,
@@ -366,7 +367,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['short', 'coarse'],
     description: 'Imposing Italian mastiff. Powerful guardian with noble bearing.',
     history: 'Ancient Roman war dog, now an elite protector.',
-    img_sitting: '/images/dogs/CaneCorsoSitting.png',
+    img_sitting: getDogImage('Cane Corso', 'Sitting'),
   },
   {
     id: 403,
@@ -389,7 +390,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['thick', 'fluffy', 'white'],
     description: 'Gentle, friendly "smiling Sammie". Beautiful white coat and happy disposition.',
     history: 'Siberian sled dog and reindeer herder with stunning appearance.',
-    img_sitting: '/images/dogs/SamoyedSitting.png',
+    img_sitting: getDogImage('Samoyed', 'Sitting'),
   },
   {
     id: 404,
@@ -412,7 +413,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['thick', 'double-coat', 'plush'],
     description: 'Dignified, courageous Japanese guardian. Loyal to family, aloof with strangers.',
     history: 'Ancient Japanese breed, symbol of health and loyalty.',
-    img_sitting: '/images/dogs/AkitaSitting.png',
+    img_sitting: getDogImage('Akita', 'Sitting'),
   },
 
   // LEGENDARY TIER - Best stats, very expensive
@@ -436,7 +437,7 @@ export const shopBreeds: Breed[] = [
     coat_types: ['thick', 'wolf-like'],
     description: 'Wolf-dog hybrid. Unmatched endurance and primal instincts.',
     history: 'Czechoslovakian crossbreed of German Shepherd and Carpathian wolf.',
-    img_sitting: '/images/dogs/WolfdogSitting.png',
+    img_sitting: getDogImage('Czech Wolfdog', 'Sitting'),
   },
   {
     id: 502,
@@ -458,6 +459,6 @@ export const shopBreeds: Breed[] = [
     coat_types: ['long', 'elegant'],
     description: 'Elite Belgian shepherd. Perfect balance of beauty and ability.',
     history: 'Belgian herding breed known for versatility and elegance.',
-    img_sitting: '/images/dogs/TervurenSitting.png',
+    img_sitting: getDogImage('Belgian Tervuren', 'Sitting'),
   },
 ];

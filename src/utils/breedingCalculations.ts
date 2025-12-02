@@ -1,6 +1,7 @@
 import { Dog, Breed } from '../types';
 import { BREEDING_CONSTANTS } from '../data/breedingConstants';
 import { analyzeInbreeding } from './pedigreeAnalysis';
+import { generatePersonality } from './personalityGenerator';
 import {
   createGeneticsFromPhenotype,
   getRandomAllele,
@@ -525,6 +526,7 @@ export function generatePuppy(
     training_points: 100,
     training_sessions_today: 0,
     last_training_reset: new Date().toISOString(),
+    tp_refills_today: 0,
 
     // Bond (start at 1 since born into your kennel)
     bond_level: 1,
@@ -542,6 +544,12 @@ export function generatePuppy(
     // Genetics (store the full genetics object)
     genetics: puppyGenetics,
 
+    // Personality (inherited from parents with breed influence)
+    personality: generatePersonality(
+      sireBreed,
+      [sire.personality, dam.personality].filter(p => p !== undefined) as any[]
+    ),
+
     // Breeding fields (puppy starts at 0 weeks)
     age_weeks: 0,
     is_pregnant: false,
@@ -551,6 +559,7 @@ export function generatePuppy(
 
     created_at: new Date().toISOString(),
     last_fed: new Date().toISOString(),
+    last_watered: new Date().toISOString(),
     last_played: new Date().toISOString(),
   };
 }

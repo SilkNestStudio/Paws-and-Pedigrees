@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { Dog, UserProfile } from '../types';
 import { StoryProgress } from '../types/story';
+import { showToast } from './toast';
 
 // ============ USER PROFILE ============
 
@@ -13,6 +14,7 @@ export async function loadUserProfile(userId: string): Promise<UserProfile | nul
 
   if (error) {
     console.error('Error loading user profile:', error);
+    showToast.error('Failed to load profile. Please try refreshing the page.');
     return null;
   }
 
@@ -23,9 +25,29 @@ export async function loadUserProfile(userId: string): Promise<UserProfile | nul
 export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
   console.log('Attempting to save profile:', { id: profile.id, username: profile.username });
 
+  // Sanitize all integer fields to prevent NaN and decimal values
+  const sanitizedProfile = {
+    ...profile,
+    cash: Math.round(profile.cash || 0),
+    gems: Math.round(profile.gems || 0),
+    level: Math.round(profile.level || 1),
+    xp: Math.round(profile.xp || 0),
+    training_skill: Math.round(profile.training_skill || 0),
+    care_knowledge: Math.round(profile.care_knowledge || 0),
+    breeding_expertise: Math.round(profile.breeding_expertise || 0),
+    competition_strategy: Math.round(profile.competition_strategy || 0),
+    business_acumen: Math.round(profile.business_acumen || 0),
+    kennel_level: Math.round(profile.kennel_level || 1),
+    food_storage: Math.round(profile.food_storage || 0),
+    login_streak: Math.round(profile.login_streak || 0),
+    competition_wins_local: Math.round(profile.competition_wins_local || 0),
+    competition_wins_regional: Math.round(profile.competition_wins_regional || 0),
+    competition_wins_national: Math.round(profile.competition_wins_national || 0),
+  };
+
   const { data, error } = await supabase
     .from('profiles')
-    .upsert(profile, { onConflict: 'id' });
+    .upsert(sanitizedProfile, { onConflict: 'id' });
 
   if (error) {
     console.error('❌ ERROR saving user profile:', {
@@ -60,6 +82,7 @@ export async function loadUserDogs(userId: string): Promise<Dog[]> {
 
   if (error) {
     console.error('Error loading dogs:', error);
+    showToast.error('Failed to load your dogs. Please try refreshing the page.');
     return [];
   }
 

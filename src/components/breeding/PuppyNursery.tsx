@@ -7,9 +7,14 @@ import {
   generateLitter,
 } from '../../utils/breedingCalculations';
 import { BREEDING_CONSTANTS, calculatePuppyPrice, calculateSkipCost } from '../../data/breedingConstants';
+import { showToast } from '../../lib/toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import ConfirmModal from '../common/ConfirmModal';
+import PersonalityDisplay from '../dog/PersonalityDisplay';
 
 export default function PuppyNursery() {
   const { dogs, user, giveBirth, sellPuppy, skipPregnancy, removeDog, updateUserXP } = useGameStore();
+  const { confirm, confirmState, handleCancel } = useConfirm();
 
   // Check for completed pregnancies on component mount and updates
   useEffect(() => {
@@ -33,7 +38,7 @@ export default function PuppyNursery() {
         giveBirth(dam.id, puppies);
 
         // Notify player
-        alert(`🎉 ${dam.name} gave birth to ${puppies.length} puppies!`);
+        showToast.success(`🎉 ${dam.name} gave birth to ${puppies.length} puppies!`);
       }
     });
   }, [dogs]);
@@ -44,35 +49,56 @@ export default function PuppyNursery() {
   // Get puppies (dogs under 52 weeks, not pregnant, and not rescue)
   const puppies = dogs.filter((d: any) => d.age_weeks < BREEDING_CONSTANTS.ADULT_AGE && !d.is_pregnant && !d.is_rescue);
 
-  const handleSellPuppy = (puppy: typeof dogs[0]) => {
+  const handleSellPuppy = async (puppy: typeof dogs[0]) => {
     const price = calculatePuppyPrice(puppy);
-    if (confirm(`Sell ${puppy.name} for $${price}?`)) {
+    const confirmed = await confirm({
+      title: 'Sell Puppy',
+      message: `Sell ${puppy.name} for $${price}?`,
+      confirmText: 'Sell',
+      variant: 'info'
+    });
+
+    if (confirmed) {
       sellPuppy(puppy.id, price);
       updateUserXP(20); // Gain XP for successful sale
-      alert(`${puppy.name} sold for $${price}! (+20 XP)`);
+      showToast.success(`${puppy.name} sold for $${price}! (+20 XP)`);
     }
   };
 
-  const handleRehome = (puppy: typeof dogs[0]) => {
-    if (confirm(`Rehome ${puppy.name} for free? You'll gain XP but no cash.`)) {
+  const handleRehome = async (puppy: typeof dogs[0]) => {
+    const confirmed = await confirm({
+      title: 'Rehome Puppy',
+      message: `Rehome ${puppy.name} for free? You'll gain XP but no cash.`,
+      confirmText: 'Rehome',
+      variant: 'info'
+    });
+
+    if (confirmed) {
       removeDog(puppy.id);
       updateUserXP(10); // Gain XP for rehoming
-      alert(`${puppy.name} rehomed to a loving family! (+10 XP)`);
+      showToast.info(`${puppy.name} rehomed to a loving family! (+10 XP)`);
     }
   };
 
-  const handleSkipPregnancy = (dam: typeof dogs[0]) => {
+  const handleSkipPregnancy = async (dam: typeof dogs[0]) => {
     if (!dam.pregnancy_due) return;
 
     const weeksRemaining = getWeeksRemaining(dam.pregnancy_due);
     const cost = calculateSkipCost(weeksRemaining);
 
     if (!user || user.gems < cost) {
-      alert(`Not enough gems! Need ${cost} gems (have ${user?.gems || 0})`);
+      showToast.error(`Not enough gems! Need ${cost} gems (have ${user?.gems || 0})`);
       return;
     }
 
-    if (confirm(`Skip ${weeksRemaining} weeks for ${cost} gems?`)) {
+    const confirmed = await confirm({
+      title: 'Skip Pregnancy',
+      message: `Skip ${weeksRemaining} weeks for ${cost} gems?`,
+      confirmText: 'Skip',
+      variant: 'info'
+    });
+
+    if (confirmed) {
       skipPregnancy(dam.id, cost);
     }
   };
@@ -220,6 +246,13 @@ export default function PuppyNursery() {
                     <p className="capitalize">{puppy.coat_type} coat</p>
                   </div>
 
+                  {/* Personality */}
+                  {puppy.personality && (
+                    <div className="mb-3 pb-3 border-b border-earth-200">
+                      <PersonalityDisplay personality={puppy.personality} compact={true} />
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="space-y-2">
                     <button
@@ -249,6 +282,9 @@ export default function PuppyNursery() {
           </p>
         </div>
       ) : null}
+
+      {/* Confirm Modal */}
+      <ConfirmModal {...confirmState} onCancel={handleCancel} />
     </div>
   );
 }
