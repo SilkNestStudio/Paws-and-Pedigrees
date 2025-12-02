@@ -201,7 +201,7 @@ export function calculateDailyWages(staffMembers: any[]): number {
 }
 
 // Generate a random staff name
-export function generateStaffName(role: string): string {
+export function generateStaffName(_role: string): string {
   const firstNames = [
     'Alex', 'Jordan', 'Casey', 'Riley', 'Morgan', 'Taylor', 'Jamie', 'Quinn',
     'Avery', 'Skyler', 'Dakota', 'Reese', 'Cameron', 'Parker', 'Drew', 'Sam'

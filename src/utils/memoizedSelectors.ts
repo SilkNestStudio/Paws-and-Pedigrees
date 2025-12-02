@@ -5,7 +5,7 @@
  * that are used frequently throughout the app
  */
 
-import { Dog, UserProfile, Breed } from '../types';
+import { Dog, UserProfile } from '../types';
 
 /**
  * Cache for memoized results

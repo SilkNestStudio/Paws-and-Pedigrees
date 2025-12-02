@@ -327,9 +327,9 @@ updateDog(selectedDog.id, updates);
                           if (confirm(`Refill Training Points for ${gemCost} gems?${refillCount > 0 ? ` (${refillCount} refills today)` : ''}`)) {
                             const result = refillTrainingPoints(selectedDog.id);
                             if (result.success) {
-                              showToast.success(result.message);
+                              showToast.success(result.message || 'Training points refilled');
                             } else {
-                              showToast.error(result.message);
+                              showToast.error(result.message || 'Failed to refill training points');
                             }
                           }
                         }}

@@ -93,8 +93,8 @@ export default function LeaderboardView() {
     }
   };
 
-  const getBreedName = (breedId: string) => {
-    return rescueBreeds.find((b) => b.id === breedId)?.name || 'Unknown';
+  const getBreedName = (breedId: string | number) => {
+    return rescueBreeds.find((b) => b.id === Number(breedId))?.name || 'Unknown';
   };
 
   const getRankBadge = (rank: number) => {

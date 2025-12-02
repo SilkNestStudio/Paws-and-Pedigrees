@@ -43,23 +43,31 @@ function generateShowName(): string {
  */
 function selectBreedForDiscipline(discipline: CompetitionDiscipline): string {
   const breedPool = rescueBreeds.filter(breed => {
+    // Calculate average stats from min/max values
+    const avgAgility = (breed.agility_min + breed.agility_max) / 2;
+    const avgTrainability = (breed.trainability_min + breed.trainability_max) / 2;
+    const avgSpeed = (breed.speed_min + breed.speed_max) / 2;
+    const avgStrength = (breed.strength_min + breed.strength_max) / 2;
+    const avgIntelligence = (breed.intelligence_min + breed.intelligence_max) / 2;
+
     switch (discipline) {
       case 'agility':
-        return breed.agility >= 70;
+        return avgAgility >= 70;
       case 'obedience':
-        return breed.trainability >= 70;
+        return avgTrainability >= 70;
       case 'racing':
-        return breed.speed >= 70;
+        return avgSpeed >= 70;
       case 'weight_pull':
-        return breed.strength >= 70;
+        return avgStrength >= 70;
       case 'conformation':
         return true; // All breeds can compete in conformation
       case 'rally':
-        return breed.trainability >= 60 && breed.agility >= 60;
+        return avgTrainability >= 60 && avgAgility >= 60;
       case 'tracking':
-        return breed.intelligence >= 70;
+        return avgIntelligence >= 70;
       case 'herding':
-        return breed.group === 'Herding' || breed.intelligence >= 70;
+        // Note: breed.group doesn't exist in Breed type, commenting out
+        return avgIntelligence >= 70; // breed.group === 'Herding' ||
       default:
         return true;
     }

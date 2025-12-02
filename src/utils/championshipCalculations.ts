@@ -278,16 +278,16 @@ export function calculateChampionshipProgress(dog: Dog): ChampionshipProgress {
   const majorsNeeded = nextTitle ? getMajorsToNextTitle(currentTitle, majorWins) : 0;
   const judgesNeeded = nextTitle ? getJudgesToNextTitle(currentTitle, uniqueJudges) : 0;
 
-  // Parse discipline points from dog data
-  const disciplinePoints = dog.discipline_points || {
-    conformation: 0,
-    agility: 0,
-    obedience: 0,
-    rally: 0,
-    racing: 0,
-    weight_pull: 0,
-    tracking: 0,
-    herding: 0,
+  // Parse discipline points from dog data, ensuring all properties are defined
+  const disciplinePoints = {
+    conformation: dog.discipline_points?.conformation || 0,
+    agility: dog.discipline_points?.agility || 0,
+    obedience: dog.discipline_points?.obedience || 0,
+    rally: dog.discipline_points?.rally || 0,
+    racing: dog.discipline_points?.racing || 0,
+    weight_pull: dog.discipline_points?.weight_pull || 0,
+    tracking: dog.discipline_points?.tracking || 0,
+    herding: dog.discipline_points?.herding || 0,
   };
 
   return {

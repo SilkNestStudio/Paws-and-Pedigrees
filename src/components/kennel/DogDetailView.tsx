@@ -60,20 +60,14 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
     const trainedStats = (selectedDog.speed_trained || 0) + (selectedDog.agility_trained || 0) + (selectedDog.strength_trained || 0);
     sellPrice += trainedStats * 50;
 
-    // Add value for competition wins
-    const totalWins = (selectedDog.competition_wins_local || 0) +
-                      (selectedDog.competition_wins_regional || 0) * 2 +
-                      (selectedDog.competition_wins_national || 0) * 5;
-    sellPrice += totalWins * 100;
-
     // Add value for certifications
     if (selectedDog.certifications && selectedDog.certifications.length > 0) {
       sellPrice += selectedDog.certifications.length * 300;
     }
 
     // Add value for prestige
-    if (selectedDog.prestige_points && selectedDog.prestige_points > 0) {
-      sellPrice += selectedDog.prestige_points * 50;
+    if (selectedDog.prestigePoints && selectedDog.prestigePoints > 0) {
+      sellPrice += selectedDog.prestigePoints * 50;
     }
 
     // Add value for obedience
@@ -82,8 +76,8 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
     }
 
     // Add value for specialization
-    if (selectedDog.specialization && selectedDog.specialization.level > 1) {
-      sellPrice += (selectedDog.specialization.level - 1) * 500;
+    if (selectedDog.specialization && selectedDog.specialization.tier > 1) {
+      sellPrice += (selectedDog.specialization.tier - 1) * 500;
     }
 
     // Add value for puppy training

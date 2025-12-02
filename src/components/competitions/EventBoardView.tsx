@@ -208,7 +208,7 @@ export default function EventBoardView() {
 
       {/* Tab content */}
       <div className="p-6">
-        {activeTab === 'progress' && <ChampionshipProgressPanel dog={selectedDog} />}
+        {activeTab === 'progress' && <ChampionshipProgressPanel />}
         {activeTab === 'leaderboards' && <LeaderboardView />}
 
         {/* Event list (only show on events tab) */}

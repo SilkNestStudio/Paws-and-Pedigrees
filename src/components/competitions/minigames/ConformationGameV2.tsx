@@ -19,7 +19,7 @@ interface PhaseResult {
 
 export default function ConformationGameV2({ dog, onComplete }: ConformationGameV2Props) {
   const [gameState, setGameState] = useState<GamePhase>('ready');
-  const [currentPhase, setCurrentPhase] = useState(0);
+  // const [currentPhase, setCurrentPhase] = useState(0);
   const [phaseResults, setPhaseResults] = useState<PhaseResult[]>([]);
 
   // Stacking (posing) phase

@@ -47,13 +47,14 @@ const OBSTACLE_ICONS: Record<ObstacleType, string> = {
   tire: '⭕',
 };
 
-const OBSTACLE_NAMES: Record<ObstacleType, string> = {
-  jump: 'Jump',
-  tunnel: 'Tunnel',
-  weave: 'Weave Poles',
-  'a-frame': 'A-Frame',
-  tire: 'Tire Jump',
-};
+// Obstacle names for display
+// const OBSTACLE_NAMES: Record<ObstacleType, string> = {
+//   jump: 'Jump',
+//   tunnel: 'Tunnel',
+//   weave: 'Weave Poles',
+//   'a-frame': 'A-Frame',
+//   tire: 'Tire Jump',
+// };
 
 export default function AgilityGameV2({ dog, onComplete }: AgilityGameV2Props) {
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');

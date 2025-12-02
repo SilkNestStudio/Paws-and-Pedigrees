@@ -108,7 +108,7 @@ export const PERSONALITY_TRAITS: Record<string, PersonalityTraitData> = {
     effects: {
       competitionConfidence: 1.3,
       stressResistance: 1.3,
-      cautious: 0.7
+      // cautious: 0.7
     }
   },
   timid: {

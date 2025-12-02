@@ -146,27 +146,27 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
                   <p className="text-purple-100 text-sm">Path to Championship</p>
                 </div>
               </div>
-              {storyProgress?.current_chapter ? (
+              {storyProgress?.currentChapter ? (
                 <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-lg p-3">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-white font-semibold">
-                      {storyChapters.find(ch => ch.id === storyProgress.current_chapter)?.icon || '📘'}{' '}
-                      {storyChapters.find(ch => ch.id === storyProgress.current_chapter)?.title || 'New Adventure'}
+                      {storyChapters.find(ch => ch.id === storyProgress.currentChapter)?.icon || '📘'}{' '}
+                      {storyChapters.find(ch => ch.id === storyProgress.currentChapter)?.title || 'New Adventure'}
                     </p>
                     <span className="text-white/90 text-sm">
-                      Chapter {storyChapters.find(ch => ch.id === storyProgress.current_chapter)?.chapter_number || 1}
+                      Chapter {storyChapters.find(ch => ch.id === storyProgress.currentChapter)?.chapter_number || 1}
                     </span>
                   </div>
                   <div className="bg-white/30 rounded-full h-2 overflow-hidden">
                     <div
                       className="bg-white h-full rounded-full transition-all"
                       style={{
-                        width: `${Math.round((storyProgress.completed_chapters?.length || 0) / storyChapters.length * 100)}%`
+                        width: `${Math.round((storyProgress.completedChapters?.length || 0) / storyChapters.length * 100)}%`
                       }}
                     />
                   </div>
                   <p className="text-white/90 text-xs mt-1">
-                    {storyProgress.completed_chapters?.length || 0} / {storyChapters.length} chapters completed
+                    {storyProgress.completedChapters?.length || 0} / {storyChapters.length} chapters completed
                   </p>
                 </div>
               ) : (

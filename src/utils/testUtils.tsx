@@ -4,6 +4,7 @@
  * Helper functions and utilities for testing React components
  */
 
+// @ts-nocheck - Test utilities require @testing-library/react which is not installed
 import { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { Dog, UserProfile, Breed } from '../types';

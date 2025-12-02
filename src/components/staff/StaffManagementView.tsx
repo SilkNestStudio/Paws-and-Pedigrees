@@ -23,7 +23,7 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
   userDogs,
   onHireStaff,
   onFireStaff,
-  onAssignDog,
+  onAssignDog: _onAssignDog,
   onUnassignDog,
 }) => {
   const [selectedTab, setSelectedTab] = useState<'current' | 'hire'>('current');

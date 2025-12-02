@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import { Dog } from '../../types';
 import { SPECIALIZATIONS, getAvailableSpecializations, canSpecialize } from '../../data/specializations';
-import { Specialization, SpecializationType } from '../../types/specialization';
+import { Specialization } from '../../types/specialization';
 import { showToast } from '../../lib/toast';
 
 export default function SpecializationView() {
-  const { dogs, selectedDog, user } = useGameStore();
+  const { selectedDog, user } = useGameStore();
   const [selectedSpec, setSelectedSpec] = useState<Specialization | null>(null);
 
   if (!selectedDog) {
@@ -19,7 +18,7 @@ export default function SpecializationView() {
     );
   }
 
-  const dog = selectedDog as Dog;
+  const dog = selectedDog;
 
   // Check if dog can specialize
   const eligibleToSpecialize = canSpecialize(user?.level || 1, dog.bond_level);

@@ -88,6 +88,9 @@ export default function RealisticWalkActivity({ dog, onComplete, onCancel }: Rea
         `${dog.name} spots a squirrel in a tree`,
         `A squirrel catches ${dog.name}'s eye`,
       ],
+      walking: [
+        `${dog.name} is enjoying the walk`,
+      ],
     };
 
     if (event) {
@@ -115,6 +118,10 @@ export default function RealisticWalkActivity({ dog, onComplete, onCancel }: Rea
       squirrel: {
         allow: `${dog.name} watches the squirrel intently, alert and engaged.`,
         continue: `You keep ${dog.name} focused on the walk.`,
+      },
+      walking: {
+        allow: `${dog.name} continues walking happily.`,
+        continue: `${dog.name} continues walking happily.`,
       },
     };
 

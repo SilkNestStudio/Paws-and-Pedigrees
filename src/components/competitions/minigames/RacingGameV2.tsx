@@ -46,7 +46,7 @@ export default function RacingGameV2({ dog, onComplete }: RacingGameV2Props) {
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'finished'>('ready');
   const [playerLane, setPlayerLane] = useState<Lane>(1);
   const [targetLane, setTargetLane] = useState<Lane>(1);
-  const [position, setPosition] = useState(0);
+  const [_position, setPosition] = useState(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [energy, setEnergy] = useState(50);
   const [isBoosting, setIsBoosting] = useState(false);
@@ -95,9 +95,11 @@ export default function RacingGameV2({ dog, onComplete }: RacingGameV2Props) {
       // Move player toward target lane
       setPlayerLane(prev => {
         if (prev < targetLane) {
-          return Math.min(targetLane, (prev + modifiers.handling) as Lane);
+          const newLane = prev + modifiers.handling;
+          return (newLane >= targetLane ? targetLane : prev) as Lane;
         } else if (prev > targetLane) {
-          return Math.max(targetLane, (prev - modifiers.handling) as Lane);
+          const newLane = prev - modifiers.handling;
+          return (newLane <= targetLane ? targetLane : prev) as Lane;
         }
         return prev;
       });

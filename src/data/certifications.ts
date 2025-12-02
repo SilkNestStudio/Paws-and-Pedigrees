@@ -284,7 +284,7 @@ export const PRESTIGE_RANKS: PrestigeRank[] = [
 export function checkCertificationEligibility(
   dog: any,
   certification: Certification,
-  competitionHistory: any[]
+  _competitionHistory: any[]
 ): boolean {
   // Check level
   if (certification.requirements.minLevel && dog.level < certification.requirements.minLevel) {

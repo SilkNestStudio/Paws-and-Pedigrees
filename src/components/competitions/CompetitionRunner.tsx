@@ -67,7 +67,7 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
     // Format results with breed info
     const formattedResults: CompetitionResult[] = winners.slice(0, 8).map(w => ({
       ...w,
-      breed: w.name === dog.name ? (dog.breed || 'Mixed') : aiCompetitors.find(ai => ai.name === w.name)?.breed || 'Mixed',
+      breed: w.name === dog.name ? 'Your Dog' : aiCompetitors.find(ai => ai.name === w.name)?.breed || 'Mixed',
       isPlayer: w.name === dog.name,
     }));
 
@@ -105,8 +105,8 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
         await submitCompetitionScore(
           user.id,
           dog.id,
-          event.discipline,
-          event.eventType,
+          event.discipline as any, // CompetitionDiscipline includes more types than CompetitionType
+          event.eventType as any, // EventType includes 'championship' which is not in CompetitionTier
           playerScore,
           placement,
           playerScore,
@@ -264,7 +264,7 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
           </div>
           <div>
             <p className="text-gray-600">Prize Pool</p>
-            <p className="font-semibold">${event.prizes.first + event.prizes.second + event.prizes.third + event.prizes.fourth}</p>
+            <p className="font-semibold">${event.prizes.first + event.prizes.second + event.prizes.third + event.prizes.participation}</p>
           </div>
           <div>
             <p className="text-gray-600">Championship Points</p>
@@ -277,7 +277,7 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
 
       <div className="bg-blue-50 rounded-lg p-4 mb-6 max-w-2xl mx-auto">
         <p className="text-sm text-blue-900">
-          <strong>Competing:</strong> {dog.name} ({dog.breed})
+          <strong>Competing:</strong> {dog.name}
         </p>
         <p className="text-sm text-blue-800 mt-2">
           Your performance in the minigame will determine your final score. Good luck!

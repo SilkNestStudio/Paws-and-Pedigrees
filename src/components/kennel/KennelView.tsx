@@ -42,9 +42,9 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
     const result = reviveDeadDog(dogId);
     if (result.success) {
       setMemorialDog(null);
-      showToast.success(result.message);
+      showToast.success(result.message || 'Dog revived successfully');
     } else {
-      showToast.error(result.message);
+      showToast.error(result.message || 'Failed to revive dog');
     }
   };
 
@@ -60,7 +60,7 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
       const result = retireDog(dogId);
       setMemorialDog(null);
       if (result.success) {
-        showToast.info(result.message);
+        showToast.info(result.message || 'Dog retired successfully');
       }
     }
   };
