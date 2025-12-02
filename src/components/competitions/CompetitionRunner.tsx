@@ -67,7 +67,7 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
     // Format results with breed info
     const formattedResults: CompetitionResult[] = winners.slice(0, 8).map(w => ({
       ...w,
-      breed: w.name === dog.name ? dog.breed : aiCompetitors.find(ai => ai.name === w.name)?.breed || 'Mixed',
+      breed: w.name === dog.name ? (dog.breed || 'Mixed') : aiCompetitors.find(ai => ai.name === w.name)?.breed || 'Mixed',
       isPlayer: w.name === dog.name,
     }));
 
@@ -80,7 +80,7 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
     if (placement === 1) prizeMoney = event.prizes.first;
     else if (placement === 2) prizeMoney = event.prizes.second;
     else if (placement === 3) prizeMoney = event.prizes.third;
-    else if (placement === 4) prizeMoney = event.prizes.fourth;
+    else prizeMoney = event.prizes.participation;
 
     if (prizeMoney > 0) {
       updateUserCash(prizeMoney);
@@ -96,22 +96,22 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
     );
 
     if (pointsResult.success && pointsResult.titleEarned) {
-      showToast.success(`🏆 ${pointsResult.message}`, { duration: 5000 });
+      showToast.success(`🏆 ${pointsResult.message}`, 5000);
     }
 
     // Submit to leaderboards
     if (user) {
       try {
-        await submitCompetitionScore({
-          user_id: user.id,
-          dog_id: dog.id,
-          event_id: event.id,
-          discipline: event.discipline,
-          score: playerScore,
+        await submitCompetitionScore(
+          user.id,
+          dog.id,
+          event.discipline,
+          event.eventType,
+          playerScore,
           placement,
-          points_awarded: event.pointsAwarded[placement === 1 ? 'first' : placement === 2 ? 'second' : placement === 3 ? 'third' : 'fourth'] || 0,
-          prize_money: prizeMoney,
-        });
+          playerScore,
+          event.id
+        );
       } catch (error) {
         console.error('Failed to submit score to leaderboard:', error);
       }
@@ -221,12 +221,10 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
             <div className="bg-white rounded-lg p-4 text-center">
               <p className="text-sm text-gray-600">Prize</p>
               <p className="text-3xl font-bold text-green-700">
-                ${event.prizes[
-                  playerResult.placement === 1 ? 'first' :
-                  playerResult.placement === 2 ? 'second' :
-                  playerResult.placement === 3 ? 'third' :
-                  'fourth'
-                ] || 0}
+                ${playerResult.placement === 1 ? event.prizes.first :
+                  playerResult.placement === 2 ? event.prizes.second :
+                  playerResult.placement === 3 ? event.prizes.third :
+                  event.prizes.participation}
               </p>
             </div>
           </div>

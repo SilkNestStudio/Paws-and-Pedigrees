@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { LoadingSpinner } from './LoadingSpinner';
+import LoadingSpinner from './LoadingSpinner';
 
 interface LazyLoadWrapperProps {
   children: React.ReactNode;
