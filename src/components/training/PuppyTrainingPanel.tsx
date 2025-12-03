@@ -268,12 +268,20 @@ export default function PuppyTrainingPanel() {
                     </div>
 
                     {selectedProgram?.id === program.id && !isCompleted && (
-                      <button
-                        onClick={() => handleStartTraining(program)}
-                        className="w-full mt-2 px-4 py-2 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 transition-colors font-semibold text-sm"
-                      >
-                        Start Training
-                      </button>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => setSelectedProgram(null)}
+                          className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-semibold text-sm"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleStartTraining(program)}
+                          className="flex-1 px-4 py-2 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 transition-colors font-semibold text-sm"
+                        >
+                          Start Training
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
@@ -325,12 +333,20 @@ export default function PuppyTrainingPanel() {
                 </ul>
               </div>
               {selectedProgram?.id === premiumProgram.id && !completedTrainings.includes(premiumProgram.id) && (
-                <button
-                  onClick={() => handleStartTraining(premiumProgram)}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-bold"
-                >
-                  Begin Elite Training
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedProgram(null)}
+                    className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleStartTraining(premiumProgram)}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-bold"
+                  >
+                    Begin Elite Training
+                  </button>
+                </div>
               )}
             </div>
           </div>

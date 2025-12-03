@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface SprintTrainingGameProps {
   onComplete: (performanceMultiplier: number) => void;
@@ -6,196 +6,316 @@ interface SprintTrainingGameProps {
 }
 
 export default function SprintTrainingGame({ onComplete, dogName }: SprintTrainingGameProps) {
-  const [gameStarted, setGameStarted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15);
-  const [speed, setSpeed] = useState(50);
+  const [phase, setPhase] = useState<'ready' | 'countdown' | 'running' | 'finished'>('ready');
+  const [countdown, setCountdown] = useState(3);
   const [distance, setDistance] = useState(0);
-  const [clicks, setClicks] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
+  const [speed, setSpeed] = useState(0);
+  const [stamina, setStamina] = useState(100);
+  const [acceleration, setAcceleration] = useState(0);
+  const [reactionTime, setReactionTime] = useState<number | null>(null);
+  const [countdownStartTime, setCountdownStartTime] = useState<number>(0);
+  const [earlyStart, setEarlyStart] = useState(false);
 
-  const targetDistance = 1000; // Target distance to run
+  const SPRINT_DISTANCE = 100; // meters
+  const MAX_SPEED = 15; // m/s
+  const STAMINA_DRAIN_RATE = 1.5; // per frame when sprinting
 
+  // Countdown phase
   useEffect(() => {
-    if (!gameStarted || gameOver) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          endGame();
-          return 0;
+    if (phase === 'countdown' && countdown > 0) {
+      const timer = setTimeout(() => {
+        if (countdown === 3) {
+          setCountdownStartTime(Date.now());
         }
-        return prev - 1;
-      });
-    }, 1000);
+        setCountdown(countdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (phase === 'countdown' && countdown === 0) {
+      setPhase('running');
+    }
+  }, [phase, countdown]);
 
-    return () => clearInterval(timer);
-  }, [gameStarted, gameOver]);
-
+  // Game loop for running phase
   useEffect(() => {
-    if (!gameStarted || gameOver) return;
+    if (phase !== 'running' || earlyStart) return;
 
-    const moveInterval = setInterval(() => {
-      // Dog moves based on current speed
-      setDistance((prev) => {
-        const newDistance = prev + (speed / 10);
-        if (newDistance >= targetDistance) {
-          endGame();
-          return targetDistance;
+    const gameLoop = setInterval(() => {
+      setDistance(prev => {
+        const newDistance = prev + speed / 60; // 60 FPS
+        if (newDistance >= SPRINT_DISTANCE) {
+          setPhase('finished');
+          return SPRINT_DISTANCE;
         }
         return newDistance;
       });
 
-      // Speed naturally decreases over time
-      setSpeed((prev) => Math.max(20, prev - 2));
-    }, 100);
+      // Speed decays slightly over time as stamina depletes
+      setSpeed(prev => {
+        if (stamina <= 0) return Math.max(0, prev - 0.3);
+        return prev;
+      });
 
-    return () => clearInterval(moveInterval);
-  }, [gameStarted, gameOver, speed]);
+      // Drain stamina when sprinting
+      if (speed > 5) {
+        setStamina(prev => Math.max(0, prev - STAMINA_DRAIN_RATE));
+      }
+    }, 1000 / 60);
 
-  const handleClick = () => {
-    if (!gameStarted || gameOver) return;
+    return () => clearInterval(gameLoop);
+  }, [phase, speed, stamina, earlyStart]);
 
-    // Increase speed on click
-    setSpeed((prev) => Math.min(100, prev + 15));
-    setClicks((c) => c + 1);
-  };
-
-  const endGame = () => {
-    setGameOver(true);
-
-    // Calculate performance multiplier based on distance covered
-    const completionRatio = Math.min(distance / targetDistance, 1);
-    let multiplier: number;
-
-    if (completionRatio >= 1.0) {
-      multiplier = 1.5; // Perfect - reached target!
-    } else if (completionRatio >= 0.8) {
-      multiplier = 1.2; // Great
-    } else if (completionRatio >= 0.6) {
-      multiplier = 1.0; // Good
-    } else if (completionRatio >= 0.4) {
-      multiplier = 0.8; // Okay
-    } else {
-      multiplier = 0.5; // Poor
+  const handleStart = useCallback(() => {
+    if (phase === 'ready') {
+      setPhase('countdown');
+    } else if (phase === 'countdown') {
+      // Early start - penalty
+      setEarlyStart(true);
+      setReactionTime(-1);
+    } else if (phase === 'running' && reactionTime === null) {
+      // Measure reaction time
+      const reaction = Date.now() - (countdownStartTime + 3000);
+      setReactionTime(reaction);
     }
+  }, [phase, countdownStartTime, reactionTime]);
 
-    setTimeout(() => onComplete(multiplier), 2000);
+  const handleAccelerate = useCallback(() => {
+    if (phase !== 'running' || earlyStart) return;
+
+    setAcceleration(prev => {
+      const newAccel = Math.min(prev + 0.5, 3);
+      return newAccel;
+    });
+
+    setSpeed(prev => {
+      const staminaMultiplier = stamina > 20 ? 1 : stamina / 20;
+      const newSpeed = Math.min(prev + acceleration * staminaMultiplier, MAX_SPEED);
+      return newSpeed;
+    });
+  }, [phase, acceleration, stamina, earlyStart]);
+
+  const handleDecelerate = useCallback(() => {
+    if (phase !== 'running') return;
+
+    setAcceleration(0);
+    setSpeed(prev => Math.max(0, prev - 0.3));
+  }, [phase]);
+
+  const calculatePerformance = () => {
+    if (earlyStart) return 0.3; // Major penalty for early start
+
+    let performance = 0.5; // Base performance
+
+    // Bonus for fast reaction time
+    if (reactionTime !== null && reactionTime < 200) performance += 0.1;
+    else if (reactionTime !== null && reactionTime < 300) performance += 0.05;
+
+    // Bonus for completion percentage
+    const completionRatio = distance / SPRINT_DISTANCE;
+    performance += completionRatio * 0.4;
+
+    // Bonus for remaining stamina (efficient running)
+    performance += (stamina / 100) * 0.1;
+
+    return Math.min(1.5, Math.max(0.3, performance));
   };
 
-  const startGame = () => {
-    setGameStarted(true);
+  const handleFinish = () => {
+    const performance = calculatePerformance();
+    onComplete(performance);
   };
 
-  if (!gameStarted) {
+  if (phase === 'ready') {
     return (
-      <div className="text-center py-8">
-        <h2 className="text-3xl font-bold text-earth-900 mb-4">Sprint Training</h2>
-        <p className="text-earth-600 mb-6">
-          Help {dogName} run as far as possible!
-        </p>
-        <div className="mb-6 text-earth-700 max-w-md mx-auto">
-          <div className="bg-earth-50 rounded-lg p-4 mb-4">
-            <p className="font-bold mb-2">How to Play:</p>
-            <p className="text-sm mb-2">⚡ Click rapidly to maintain speed</p>
-            <p className="text-sm mb-2">🏃 Speed decreases over time - keep clicking!</p>
-            <p className="text-sm mb-2">🎯 Try to reach {targetDistance}m in 15 seconds</p>
+      <div className="bg-gradient-to-b from-green-50 to-blue-50 rounded-lg p-8 min-h-[600px]">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="text-6xl mb-4">🏃</div>
+            <h2 className="text-3xl font-bold text-earth-900 mb-2">Sprint Training</h2>
+            <p className="text-earth-600 text-lg">Teach {dogName} to run fast!</p>
           </div>
-          <p className="mb-2 text-sm">🏆 Reach target = 1.5x training bonus</p>
-          <p className="mb-2 text-sm">⭐ 800m+ = 1.2x bonus</p>
-          <p className="text-sm">💪 Less than 400m = 0.5x penalty</p>
+
+          <div className="bg-white rounded-lg p-6 mb-6">
+            <h3 className="font-bold text-earth-900 mb-4">How to Play:</h3>
+            <ul className="space-y-2 text-earth-700">
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">1.</span>
+                <span>Wait for the countdown (3, 2, 1, GO!)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">2.</span>
+                <span>Click START as soon as you see "GO!" for best reaction time</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">3.</span>
+                <span>Rapidly click ACCELERATE to build speed</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">4.</span>
+                <span>Watch your stamina - running too hard will slow you down!</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">5.</span>
+                <span>Complete the 100m sprint as fast as possible</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-yellow-50 rounded-lg p-4 mb-6">
+            <p className="text-yellow-900 text-sm">
+              <strong>⚠️ Warning:</strong> Don't click before "GO!" or you'll get a penalty for a false start!
+            </p>
+          </div>
+
+          <button
+            onClick={handleStart}
+            className="w-full py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold text-lg"
+          >
+            Start Sprint Training
+          </button>
         </div>
-        <button
-          onClick={startGame}
-          className="px-8 py-4 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 transition-all font-bold text-xl"
-        >
-          Start Training!
-        </button>
       </div>
     );
   }
 
-  const distancePercent = Math.min((distance / targetDistance) * 100, 100);
-
-  return (
-    <div className="text-center py-8">
-      {/* Stats */}
-      <div className="mb-6 flex justify-center gap-8">
-        <div>
-          <p className="text-earth-600 text-sm">Time Left</p>
-          <p className="text-3xl font-bold text-earth-900">{timeLeft}s</p>
-        </div>
-        <div>
-          <p className="text-earth-600 text-sm">Distance</p>
-          <p className="text-3xl font-bold text-kennel-700">{Math.floor(distance)}m</p>
-        </div>
-        <div>
-          <p className="text-earth-600 text-sm">Speed</p>
-          <p className="text-3xl font-bold text-blue-600">{speed}%</p>
+  if (phase === 'countdown') {
+    return (
+      <div className="bg-gradient-to-b from-yellow-50 to-orange-50 rounded-lg p-8 min-h-[600px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-9xl font-bold text-orange-600 mb-8">
+            {countdown === 0 ? 'GO!' : countdown}
+          </div>
+          <p className="text-2xl text-earth-700">
+            {countdown === 0 ? 'Click START NOW!' : 'Get ready...'}
+          </p>
+          {countdown === 0 && (
+            <button
+              onClick={handleStart}
+              className="mt-8 px-12 py-6 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold text-2xl animate-pulse"
+            >
+              START!
+            </button>
+          )}
         </div>
       </div>
+    );
+  }
 
-      {/* Track */}
-      <div className="bg-white rounded-lg p-8 mb-6 max-w-3xl mx-auto">
-        <div className="relative h-32 bg-gradient-to-r from-green-200 via-yellow-100 to-green-300 rounded-lg border-4 border-earth-400 overflow-hidden">
-          {/* Finish Line */}
-          <div className="absolute right-0 top-0 bottom-0 w-2 bg-red-500">
-            <div className="text-xs text-red-600 absolute -top-6 right-0 font-bold">FINISH</div>
+  if (phase === 'running' || phase === 'finished') {
+    const progress = (distance / SPRINT_DISTANCE) * 100;
+
+    return (
+      <div className="bg-gradient-to-b from-blue-50 to-purple-50 rounded-lg p-8 min-h-[600px]">
+        <div className="max-w-4xl mx-auto">
+          {earlyStart && (
+            <div className="bg-red-100 border-2 border-red-500 rounded-lg p-4 mb-6 text-center">
+              <p className="text-red-900 font-bold text-xl">FALSE START!</p>
+              <p className="text-red-700">You started before the signal. Performance penalty applied.</p>
+            </div>
+          )}
+
+          {phase === 'finished' && !earlyStart && (
+            <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 mb-6 text-center">
+              <p className="text-green-900 font-bold text-xl">🏁 Sprint Complete!</p>
+              <p className="text-green-700">Great job, {dogName}!</p>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-600">Distance</p>
+              <p className="text-2xl font-bold text-blue-700">{distance.toFixed(1)}m</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-600">Speed</p>
+              <p className="text-2xl font-bold text-green-700">{speed.toFixed(1)} m/s</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-600">Stamina</p>
+              <p className="text-2xl font-bold text-orange-700">{stamina.toFixed(0)}%</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-600">Reaction</p>
+              <p className="text-2xl font-bold text-purple-700">
+                {reactionTime === null ? '--' : reactionTime === -1 ? 'EARLY' : `${reactionTime}ms`}
+              </p>
+            </div>
           </div>
 
-          {/* Distance markers */}
-          <div className="absolute top-0 bottom-0 left-1/4 w-px bg-earth-300" />
-          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-earth-300" />
-          <div className="absolute top-0 bottom-0 left-3/4 w-px bg-earth-300" />
+          {/* Track visualization */}
+          <div className="bg-white rounded-lg p-6 mb-6">
+            <div className="relative h-24 bg-gradient-to-r from-green-200 to-blue-200 rounded-lg overflow-hidden">
+              {/* Finish line */}
+              <div className="absolute right-0 top-0 bottom-0 w-2 bg-black"></div>
 
-          {/* Running Dog */}
-          <div
-            className="absolute top-1/2 -translate-y-1/2 transition-all duration-100"
-            style={{ left: `${distancePercent}%` }}
-          >
-            <div className={`text-6xl ${speed > 60 ? 'animate-bounce' : ''}`}>🐕</div>
+              {/* Dog position */}
+              <div
+                className="absolute top-1/2 transform -translate-y-1/2 transition-all duration-100"
+                style={{ left: `${progress}%` }}
+              >
+                <div className="text-4xl">🐕</div>
+              </div>
+
+              {/* Distance markers */}
+              {[25, 50, 75].map(marker => (
+                <div
+                  key={marker}
+                  className="absolute top-0 bottom-0 w-px bg-gray-400"
+                  style={{ left: `${marker}%` }}
+                >
+                  <span className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-gray-600">
+                    {marker}m
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Stamina bar */}
+          <div className="mb-6">
+            <div className="flex justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-700">Stamina</span>
+              <span className="text-sm text-gray-600">{stamina.toFixed(0)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+              <div
+                className={`h-full transition-all ${
+                  stamina > 60 ? 'bg-green-500' :
+                  stamina > 30 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}
+                style={{ width: `${stamina}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          {phase === 'running' && !earlyStart && (
+            <div className="flex gap-4 justify-center">
+              <button
+                onMouseDown={handleAccelerate}
+                onMouseUp={handleDecelerate}
+                onTouchStart={handleAccelerate}
+                onTouchEnd={handleDecelerate}
+                className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors font-bold text-lg"
+              >
+                🏃 ACCELERATE (Click Rapidly!)
+              </button>
+            </div>
+          )}
+
+          {phase === 'finished' && (
+            <button
+              onClick={handleFinish}
+              className="w-full py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold text-lg"
+            >
+              Complete Training
+            </button>
+          )}
         </div>
-
-        {/* Speed Bar */}
-        <div className="mt-6">
-          <p className="text-sm text-earth-600 mb-2">Current Speed</p>
-          <div className="h-8 bg-earth-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-200 ${
-                speed > 70 ? 'bg-green-500' : speed > 40 ? 'bg-yellow-500' : 'bg-red-500'
-              }`}
-              style={{ width: `${speed}%` }}
-            />
-          </div>
-        </div>
-
-        {!gameOver && (
-          <button
-            onClick={handleClick}
-            className="mt-6 w-full py-6 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 active:scale-95 transition-all font-bold text-2xl"
-          >
-            ACCELERATE! ⚡
-          </button>
-        )}
-
-        {gameOver && (
-          <div className="mt-6 text-center">
-            <p className="text-2xl font-bold text-earth-900 mb-2">
-              {distance >= targetDistance
-                ? '🏆 Perfect! Reached the finish line!'
-                : distance >= 800
-                ? '⭐ Great job!'
-                : distance >= 600
-                ? '👍 Good effort!'
-                : distance >= 400
-                ? '💪 Keep practicing!'
-                : '😅 Need more work!'}
-            </p>
-            <p className="text-earth-600">Final Distance: {Math.floor(distance)}m</p>
-            <p className="text-earth-600">Total Clicks: {clicks}</p>
-          </div>
-        )}
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
