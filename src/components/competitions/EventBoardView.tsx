@@ -172,37 +172,37 @@ export default function EventBoardView() {
         {/* Filter buttons (only show on events tab) */}
         {activeTab === 'events' && (
           <div className="flex gap-2">
-          <button
-            onClick={() => setFilter('open')}
-            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-              filter === 'open'
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Open for Registration
-          </button>
-          <button
-            onClick={() => setFilter('upcoming')}
-            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-              filter === 'upcoming'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Upcoming Events
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-              filter === 'all'
-                ? 'bg-kennel-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            All Events
-          </button>
-        </div>
+            <button
+              onClick={() => setFilter('open')}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                filter === 'open'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Open for Registration
+            </button>
+            <button
+              onClick={() => setFilter('upcoming')}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                filter === 'upcoming'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Upcoming Events
+            </button>
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                filter === 'all'
+                  ? 'bg-kennel-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              All Events
+            </button>
+          </div>
         )}
       </div>
 
@@ -308,24 +308,24 @@ export default function EventBoardView() {
           </div>
         )}
 
-        {/* Info box */}
-        {filteredEvents.length > 0 && (
-          <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 mt-6">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl">ℹ️</span>
-              <div className="flex-1">
-                <h4 className="font-bold text-blue-900 mb-1">About the Competition System</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• <strong>Match Shows:</strong> Practice events with no championship points</li>
-                  <li>• <strong>Point Shows:</strong> Standard competitions awarding 1-2 points</li>
-                  <li>• <strong>Major Shows:</strong> High-stakes events worth 3+ points (marked with ⭐)</li>
-                  <li>• <strong>Championship Path:</strong> Earn 15 points + 2 majors to become a Champion!</li>
-                </ul>
+            {/* Info box */}
+            {filteredEvents.length > 0 && (
+              <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 mt-6">
+                <div className="flex items-start gap-3">
+                  <span className="text-3xl">ℹ️</span>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-blue-900 mb-1">About the Competition System</h4>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• <strong>Match Shows:</strong> Practice events with no championship points</li>
+                      <li>• <strong>Point Shows:</strong> Standard competitions awarding 1-2 points</li>
+                      <li>• <strong>Major Shows:</strong> High-stakes events worth 3+ points (marked with ⭐)</li>
+                      <li>• <strong>Championship Path:</strong> Earn 15 points + 2 majors to become a Champion!</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
         )}
       </div>
 
