@@ -2,17 +2,32 @@ import { useState, useEffect } from 'react';
 
 /**
  * Landscape Prompt - Suggests users rotate to landscape on mobile
- * Only shows on portrait mobile devices, hides in landscape
+ * Only shows once per session on portrait mobile devices
  */
 export default function LandscapePrompt() {
-  const [isPortrait, setIsPortrait] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [hasShownOnce, setHasShownOnce] = useState(false);
 
   useEffect(() => {
+    // Check if user has already dismissed it in this session
+    const dismissed = sessionStorage.getItem('landscapePromptDismissed');
+    if (dismissed) {
+      return;
+    }
+
     const checkOrientation = () => {
       // Only show on mobile devices (< 768px width) in portrait mode
       const isMobile = window.innerWidth < 768;
       const isPortraitMode = window.innerHeight > window.innerWidth;
-      setIsPortrait(isMobile && isPortraitMode);
+
+      // Only show once per session
+      if (isMobile && isPortraitMode && !hasShownOnce) {
+        setShowPrompt(true);
+        setHasShownOnce(true);
+      } else if (!isPortraitMode) {
+        // Hide when rotated to landscape
+        setShowPrompt(false);
+      }
     };
 
     // Check on mount
@@ -26,9 +41,14 @@ export default function LandscapePrompt() {
       window.removeEventListener('resize', checkOrientation);
       window.removeEventListener('orientationchange', checkOrientation);
     };
-  }, []);
+  }, [hasShownOnce]);
 
-  if (!isPortrait) return null;
+  const handleDismiss = () => {
+    setShowPrompt(false);
+    sessionStorage.setItem('landscapePromptDismissed', 'true');
+  };
+
+  if (!showPrompt) return null;
 
   return (
     <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-6">
@@ -56,7 +76,7 @@ export default function LandscapePrompt() {
 
         {/* Optional: Dismiss Button */}
         <button
-          onClick={() => setIsPortrait(false)}
+          onClick={handleDismiss}
           className="mt-6 px-6 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-all"
         >
           Continue in Portrait
