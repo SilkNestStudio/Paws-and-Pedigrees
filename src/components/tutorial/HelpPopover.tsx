@@ -12,7 +12,7 @@ interface HelpPopoverProps {
 export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const { startTutorial } = useGameStore();
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, transform: 'translateX(-100%)' });
 
   const helpContent = HELP_CONTENT[helpId];
 
@@ -20,9 +20,34 @@ export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverP
   useEffect(() => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const popoverWidth = 320; // max-w-xs is approximately 320px
+      const viewportWidth = window.innerWidth;
+      const isMobile = viewportWidth < 640;
+
+      let top = rect.bottom + 8;
+      let left = rect.right;
+      let transform = 'translateX(-100%)';
+
+      if (isMobile) {
+        // On mobile, center the popover horizontally
+        left = viewportWidth / 2;
+        transform = 'translateX(-50%)';
+
+        // Make sure it doesn't go off the bottom
+        const maxTop = window.innerHeight - 300; // Approximate popover height
+        top = Math.min(top, maxTop);
+      } else {
+        // On desktop, check if popover would go off left edge
+        if (left - popoverWidth < 8) {
+          left = 8;
+          transform = 'translateX(0)';
+        }
+      }
+
       setPosition({
-        top: rect.bottom + 8,
-        left: rect.right,
+        top,
+        left,
+        transform,
       });
     }
   }, [buttonRef]);
@@ -45,7 +70,7 @@ export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverP
       <div
         ref={popoverRef}
         className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[999999]"
-        style={{ top: `${position.top}px`, left: `${position.left}px`, transform: 'translateX(-100%)' }}
+        style={{ top: `${position.top}px`, left: `${position.left}px`, transform: position.transform }}
       >
         <p className="text-sm text-red-600">Help content not found for "{helpId}"</p>
         <button
@@ -70,7 +95,7 @@ export default function HelpPopover({ helpId, onClose, buttonRef }: HelpPopoverP
     <div
       ref={popoverRef}
       className="fixed bg-white rounded-lg shadow-xl border-2 border-kennel-200 p-4 max-w-xs z-[999999] animate-fadeIn"
-      style={{ top: `${position.top}px`, left: `${position.left}px`, transform: 'translateX(-100%)' }}
+      style={{ top: `${position.top}px`, left: `${position.left}px`, transform: position.transform }}
     >
       <h3 className="text-lg font-bold text-kennel-800 mb-2">{helpContent.title}</h3>
       <p className="text-sm text-earth-700 leading-relaxed whitespace-pre-line">{helpContent.content}</p>
