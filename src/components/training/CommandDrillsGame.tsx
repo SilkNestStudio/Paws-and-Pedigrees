@@ -1,111 +1,197 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface CommandDrillsGameProps {
   onComplete: (performanceMultiplier: number) => void;
   dogName: string;
 }
 
-const COMMANDS = [
-  { name: 'Sit', emoji: '🪑' },
-  { name: 'Stay', emoji: '✋' },
-  { name: 'Down', emoji: '⬇️' },
-  { name: 'Come', emoji: '🤝' },
-  { name: 'Heel', emoji: '👣' },
-  { name: 'Leave It', emoji: '🚫' },
-  { name: 'Drop It', emoji: '📦' },
-  { name: 'Wait', emoji: '⏸️' },
+interface Command {
+  name: string;
+  emoji: string;
+  color: string;
+}
+
+const COMMANDS: Command[] = [
+  { name: 'Sit', emoji: '🪑', color: 'bg-blue-500' },
+  { name: 'Stay', emoji: '✋', color: 'bg-green-500' },
+  { name: 'Down', emoji: '⬇️', color: 'bg-purple-500' },
+  { name: 'Come', emoji: '🤝', color: 'bg-yellow-500' },
+  { name: 'Heel', emoji: '👣', color: 'bg-pink-500' },
+  { name: 'Fetch', emoji: '🎾', color: 'bg-orange-500' },
 ];
 
 export default function CommandDrillsGame({ onComplete, dogName }: CommandDrillsGameProps) {
   const [phase, setPhase] = useState<'ready' | 'playing' | 'finished'>('ready');
-  const [currentCommand, setCurrentCommand] = useState<typeof COMMANDS[0] | null>(null);
+  const [currentCommand, setCurrentCommand] = useState<Command | null>(null);
   const [commandStartTime, setCommandStartTime] = useState(0);
-  const [commandsCompleted, setCommandsCompleted] = useState(0);
-  const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [totalResponseTime, setTotalResponseTime] = useState(0);
-  const [feedback, setFeedback] = useState<{ type: 'correct' | 'incorrect' | 'fast' | 'slow'; text: string } | null>(null);
-  const [isWaiting, setIsWaiting] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(30); // 30 second timer
+  const [score, setScore] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [maxCombo, setMaxCombo] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [incorrectCount, setIncorrectCount] = useState(0);
+  const [fastResponses, setFastResponses] = useState(0);
+  const [feedback, setFeedback] = useState<{ text: string; color: string; points: number } | null>(null);
+  const [difficulty, setDifficulty] = useState(1000); // ms between commands
+  const gameTimerRef = useRef<number>();
+  const commandTimerRef = useRef<number>();
 
-  const TOTAL_COMMANDS = 10;
-  const FAST_RESPONSE = 1000; // ms
-  const GOOD_RESPONSE = 2000; // ms
-  const SLOW_RESPONSE = 3500; // ms
+  const FAST_RESPONSE = 500; // ms
+  const GOOD_RESPONSE = 1000; // ms
 
-  // Issue next command
+  // Update max combo
   useEffect(() => {
-    if (phase === 'playing' && !currentCommand && !isWaiting && commandsCompleted < TOTAL_COMMANDS) {
-      setIsWaiting(true);
-      setFeedback(null);
-
-      // Random delay before next command (0.5-1.5 seconds)
-      const delay = 500 + Math.random() * 1000;
-
-      setTimeout(() => {
-        issueNextCommand();
-        setIsWaiting(false);
-      }, delay);
-    } else if (phase === 'playing' && commandsCompleted >= TOTAL_COMMANDS) {
-      setTimeout(() => setPhase('finished'), 1500);
+    if (combo > maxCombo) {
+      setMaxCombo(combo);
     }
-  }, [phase, currentCommand, isWaiting, commandsCompleted]);
+  }, [combo, maxCombo]);
 
-  const issueNextCommand = () => {
+  // Increase difficulty as game progresses
+  useEffect(() => {
+    if (combo >= 10) {
+      setDifficulty(600);
+    } else if (combo >= 5) {
+      setDifficulty(800);
+    } else {
+      setDifficulty(1000);
+    }
+  }, [combo]);
+
+  // Game timer (30 seconds)
+  useEffect(() => {
+    if (phase !== 'playing') return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          // Clear any pending command timers before finishing
+          if (commandTimerRef.current) {
+            clearTimeout(commandTimerRef.current);
+          }
+          setPhase('finished');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  // Issue new command
+  const issueCommand = useCallback(() => {
+    if (phase !== 'playing') return;
+
     const randomCommand = COMMANDS[Math.floor(Math.random() * COMMANDS.length)];
     setCurrentCommand(randomCommand);
     setCommandStartTime(Date.now());
+
+    // Auto-miss if no response in time
+    commandTimerRef.current = window.setTimeout(() => {
+      if (currentCommand) {
+        handleMiss();
+      }
+    }, 2500);
+  }, [phase, currentCommand]);
+
+  // Start issuing commands
+  useEffect(() => {
+    if (phase !== 'playing') return;
+
+    // Initial command
+    issueCommand();
+
+    return () => {
+      if (commandTimerRef.current) {
+        clearTimeout(commandTimerRef.current);
+      }
+    };
+  }, [phase]);
+
+  const handleMiss = () => {
+    if (phase !== 'playing') return; // Don't issue commands if game is over
+
+    setCombo(0);
+    setIncorrectCount(i => i + 1);
+    showFeedback('MISSED! 💥', 'text-red-600', -10);
+
+    // Issue next command
+    setTimeout(() => {
+      issueCommand();
+    }, 300);
   };
 
-  const handleCommandResponse = useCallback((selectedCommand: typeof COMMANDS[0]) => {
-    if (!currentCommand || phase !== 'playing' || isWaiting) return;
+  const handleCommandClick = useCallback((selectedCommand: Command) => {
+    if (!currentCommand || phase !== 'playing') return;
+
+    // Clear auto-miss timer
+    if (commandTimerRef.current) {
+      clearTimeout(commandTimerRef.current);
+    }
 
     const responseTime = Date.now() - commandStartTime;
     const isCorrect = selectedCommand.name === currentCommand.name;
 
-    setCommandsCompleted(prev => prev + 1);
-
     if (isCorrect) {
-      setCorrectAnswers(prev => prev + 1);
-      setTotalResponseTime(prev => prev + responseTime);
+      // Calculate points based on speed
+      let points = 100;
+      let feedbackText = 'GOOD! ✓';
+      let feedbackColor = 'text-green-500';
 
-      // Provide feedback based on speed
       if (responseTime < FAST_RESPONSE) {
-        setFeedback({ type: 'fast', text: '⚡ Lightning fast!' });
+        points = 200;
+        feedbackText = 'LIGHTNING! ⚡';
+        feedbackColor = 'text-yellow-500';
+        setFastResponses(f => f + 1);
       } else if (responseTime < GOOD_RESPONSE) {
-        setFeedback({ type: 'correct', text: '✅ Good!' });
-      } else if (responseTime < SLOW_RESPONSE) {
-        setFeedback({ type: 'slow', text: '⏱️ Correct, but slow' });
-      } else {
-        setFeedback({ type: 'slow', text: '🐢 Too slow!' });
+        points = 150;
+        feedbackText = 'QUICK! 🌟';
+        feedbackColor = 'text-blue-500';
       }
+
+      // Add combo multiplier
+      const comboBonus = combo * 10;
+      const totalPoints = points + comboBonus;
+
+      setScore(s => s + totalPoints);
+      setCombo(c => c + 1);
+      setCorrectCount(c => c + 1);
+      showFeedback(feedbackText, feedbackColor, totalPoints);
     } else {
-      setFeedback({ type: 'incorrect', text: `❌ Wrong! It was ${currentCommand.name}!` });
+      // Wrong command!
+      setCombo(0);
+      setIncorrectCount(i => i + 1);
+      showFeedback('WRONG! ✗', 'text-red-500', -20);
     }
 
-    setCurrentCommand(null);
-  }, [currentCommand, commandStartTime, phase, isWaiting]);
+    // Issue next command after brief delay
+    setTimeout(() => {
+      issueCommand();
+    }, difficulty);
+  }, [currentCommand, commandStartTime, phase, combo, difficulty]);
+
+  const showFeedback = (text: string, color: string, points: number) => {
+    setFeedback({ text, color, points });
+    setTimeout(() => setFeedback(null), 500);
+  };
 
   const calculatePerformance = () => {
-    const accuracy = correctAnswers / TOTAL_COMMANDS;
-    const avgResponseTime = totalResponseTime / (correctAnswers || 1);
+    const totalAttempts = correctCount + incorrectCount;
+    const accuracy = totalAttempts > 0 ? correctCount / totalAttempts : 0;
+    const speedBonus = fastResponses / (totalAttempts || 1);
 
-    let performance = 0.3; // Base performance
+    let performance = 0.3 + (accuracy * 0.5) + (speedBonus * 0.3);
 
-    // Performance based on accuracy and speed
-    if (accuracy === 1.0 && avgResponseTime < FAST_RESPONSE) {
-      performance = 1.5; // Perfect - fast and accurate
-    } else if (accuracy >= 0.9 && avgResponseTime < GOOD_RESPONSE) {
-      performance = 1.3; // Excellent
-    } else if (accuracy >= 0.8 && avgResponseTime < SLOW_RESPONSE) {
-      performance = 1.2; // Great
-    } else if (accuracy >= 0.7) {
-      performance = 1.0; // Good
-    } else if (accuracy >= 0.6) {
-      performance = 0.8; // Okay
-    } else if (accuracy >= 0.5) {
-      performance = 0.6; // Poor
-    } else {
-      performance = 0.4; // Very poor
-    }
+    // Combo bonus
+    if (maxCombo >= 20) performance += 0.4;
+    else if (maxCombo >= 15) performance += 0.3;
+    else if (maxCombo >= 10) performance += 0.2;
+    else if (maxCombo >= 5) performance += 0.1;
+
+    // Score bonus
+    if (score >= 3000) performance += 0.3;
+    else if (score >= 2000) performance += 0.2;
+    else if (score >= 1000) performance += 0.1;
 
     return Math.min(1.5, Math.max(0.3, performance));
   };
@@ -124,48 +210,58 @@ export default function CommandDrillsGame({ onComplete, dogName }: CommandDrills
       <div className="bg-gradient-to-b from-purple-50 to-pink-50 rounded-lg p-8 min-h-[600px]">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎯</div>
-            <h2 className="text-3xl font-bold text-earth-900 mb-2">Obedience Command Drills</h2>
-            <p className="text-earth-600 text-lg">Test {dogName}'s command recognition!</p>
+            <div className="text-6xl mb-4">🎯🐕</div>
+            <h2 className="text-3xl font-bold text-earth-900 mb-2">Command Recognition Drills</h2>
+            <p className="text-earth-600 text-lg">Test {dogName}'s speed and accuracy!</p>
           </div>
 
-          <div className="bg-white rounded-lg p-6 mb-6">
-            <h3 className="font-bold text-earth-900 mb-4">How to Play:</h3>
-            <ul className="space-y-2 text-earth-700">
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600">1.</span>
-                <span>Watch for the command that appears in large text</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600">2.</span>
-                <span>Click the SAME command button as quickly as possible</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600">3.</span>
-                <span>Speed matters - faster responses show better training!</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600">4.</span>
-                <span>Complete {TOTAL_COMMANDS} commands correctly</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600">5.</span>
-                <span>Wrong answers count as mistakes!</span>
-              </li>
-            </ul>
+          <div className="bg-white rounded-lg p-6 mb-6 shadow-lg">
+            <h3 className="font-bold text-earth-900 mb-4 text-xl">🎮 How to Play:</h3>
+            <div className="space-y-3 text-earth-700">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                <span className="text-2xl">👀</span>
+                <div>
+                  <p className="font-semibold text-blue-900">Watch the Command</p>
+                  <p className="text-sm">A command will appear in the center - read it quickly!</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                <span className="text-2xl">⚡</span>
+                <div>
+                  <p className="font-semibold text-green-900">Click Fast!</p>
+                  <p className="text-sm">Click the matching command button as fast as possible!</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
+                <span className="text-2xl">🔥</span>
+                <div>
+                  <p className="font-semibold text-yellow-900">Build Combos</p>
+                  <p className="text-sm">Consecutive correct answers build your combo multiplier!</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg">
+                <span className="text-2xl">⏱️</span>
+                <div>
+                  <p className="font-semibold text-purple-900">Beat the Clock</p>
+                  <p className="text-sm">You have 30 seconds - get the highest score possible!</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="bg-yellow-50 rounded-lg p-4 mb-6">
-            <p className="text-yellow-900 text-sm">
-              <strong>💡 Tip:</strong> Focus on accuracy first, then speed. A well-trained dog responds correctly AND quickly!
-            </p>
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-purple-400 rounded-lg p-4 mb-6">
+            <p className="text-purple-900 font-semibold mb-2">💡 Pro Tip:</p>
+            <p className="text-sm text-purple-800">Lightning fast responses (&lt;500ms) give double points! The game speeds up as your combo grows!</p>
           </div>
 
           <button
             onClick={handleStart}
-            className="w-full py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-bold text-lg"
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105 font-bold text-xl shadow-lg"
           >
-            Start Obedience Training
+            🎯 Start Command Drills
           </button>
         </div>
       </div>
@@ -173,153 +269,122 @@ export default function CommandDrillsGame({ onComplete, dogName }: CommandDrills
   }
 
   if (phase === 'playing' || phase === 'finished') {
-    const accuracy = commandsCompleted > 0 ? (correctAnswers / commandsCompleted) * 100 : 100;
-    const avgResponseTime = correctAnswers > 0 ? totalResponseTime / correctAnswers : 0;
+    const totalAttempts = correctCount + incorrectCount;
+    const accuracy = totalAttempts > 0 ? Math.round((correctCount / totalAttempts) * 100) : 100;
 
     return (
-      <div className="bg-gradient-to-b from-pink-50 to-purple-50 rounded-lg p-8 min-h-[600px]">
-        <div className="max-w-4xl mx-auto">
-          {phase === 'finished' && (
-            <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 mb-6 text-center">
-              <p className="text-green-900 font-bold text-xl">🎯 Training Complete!</p>
-              <p className="text-green-700">
-                {accuracy === 100
-                  ? `Perfect obedience, ${dogName}!`
-                  : accuracy >= 80
-                  ? `Great work, ${dogName}!`
-                  : `Keep practicing, ${dogName}!`}
+      <div className="bg-gradient-to-b from-pink-50 to-purple-50 rounded-lg p-6 min-h-[700px]">
+        <div className="max-w-5xl mx-auto">
+          {/* Stats Bar */}
+          <div className="grid grid-cols-5 gap-3 mb-4">
+            <div className="bg-white/90 rounded-lg p-3 text-center shadow">
+              <p className="text-xs text-gray-600 mb-1">Time</p>
+              <p className={`text-2xl font-bold ${timeRemaining <= 10 ? 'text-red-600 animate-pulse' : 'text-blue-700'}`}>
+                {timeRemaining}s
               </p>
             </div>
-          )}
-
-          {/* Stats */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg p-4 text-center">
-              <p className="text-sm text-gray-600">Commands</p>
-              <p className="text-2xl font-bold text-purple-700">
-                {commandsCompleted}/{TOTAL_COMMANDS}
+            <div className="bg-white/90 rounded-lg p-3 text-center shadow">
+              <p className="text-xs text-gray-600 mb-1">Score</p>
+              <p className="text-2xl font-bold text-purple-700">{score}</p>
+            </div>
+            <div className="bg-white/90 rounded-lg p-3 text-center shadow">
+              <p className="text-xs text-gray-600 mb-1">Combo</p>
+              <p className={`text-2xl font-bold ${combo >= 10 ? 'text-yellow-500' : combo >= 5 ? 'text-orange-500' : 'text-gray-700'}`}>
+                {combo > 0 ? `${combo}x 🔥` : '-'}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 text-center">
-              <p className="text-sm text-gray-600">Accuracy</p>
-              <p className={`text-2xl font-bold ${
-                accuracy >= 90 ? 'text-green-700' :
-                accuracy >= 70 ? 'text-yellow-700' :
-                'text-red-700'
-              }`}>
-                {Math.floor(accuracy)}%
-              </p>
+            <div className="bg-white/90 rounded-lg p-3 text-center shadow">
+              <p className="text-xs text-gray-600 mb-1">Correct</p>
+              <p className="text-2xl font-bold text-green-700">{correctCount}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 text-center">
-              <p className="text-sm text-gray-600">Correct</p>
-              <p className="text-2xl font-bold text-green-700">{correctAnswers}</p>
-            </div>
-            <div className="bg-white rounded-lg p-4 text-center">
-              <p className="text-sm text-gray-600">Avg Time</p>
-              <p className={`text-2xl font-bold ${
-                avgResponseTime < FAST_RESPONSE ? 'text-green-700' :
-                avgResponseTime < GOOD_RESPONSE ? 'text-yellow-700' :
-                'text-orange-700'
-              }`}>
-                {avgResponseTime > 0 ? `${Math.floor(avgResponseTime)}ms` : '--'}
+            <div className="bg-white/90 rounded-lg p-3 text-center shadow">
+              <p className="text-xs text-gray-600 mb-1">Accuracy</p>
+              <p className={`text-2xl font-bold ${accuracy >= 90 ? 'text-green-600' : accuracy >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+                {accuracy}%
               </p>
             </div>
           </div>
 
-          {/* Command display area */}
-          <div className="bg-white rounded-lg p-8 mb-6 min-h-[250px] flex flex-col items-center justify-center">
-            {isWaiting && phase === 'playing' && (
-              <div className="text-center">
-                <div className="text-5xl mb-4 animate-pulse">👂</div>
-                <p className="text-2xl text-gray-600 animate-pulse">Listen carefully...</p>
+          {/* Command Display Area */}
+          <div className="relative bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl overflow-hidden shadow-2xl border-4 border-purple-400 h-64 flex items-center justify-center mb-6">
+            {phase === 'playing' && currentCommand && (
+              <div className="text-center animate-pulse">
+                <div className="text-9xl mb-4 animate-bounce">{currentCommand.emoji}</div>
+                <div className="text-6xl font-bold text-purple-900">{currentCommand.name}!</div>
               </div>
             )}
 
-            {currentCommand && phase === 'playing' && (
-              <div className="text-center animate-fade-in">
-                <div className="text-8xl mb-4 animate-bounce">{currentCommand.emoji}</div>
-                <p className="text-6xl font-bold text-purple-700 mb-4 animate-pulse">
-                  {currentCommand.name}!
-                </p>
-                <p className="text-xl text-gray-600">Click the button below!</p>
-              </div>
-            )}
-
-            {feedback && !currentCommand && phase === 'playing' && (
-              <div className="text-center">
-                <div className={`text-5xl font-bold mb-2 ${
-                  feedback.type === 'fast' ? 'text-green-600 animate-bounce' :
-                  feedback.type === 'correct' ? 'text-blue-600' :
-                  feedback.type === 'slow' ? 'text-yellow-600' :
-                  'text-red-600 animate-shake'
-                }`}>
-                  {feedback.text}
-                </div>
-              </div>
-            )}
-
-            {phase === 'finished' && (
-              <div className="text-center">
-                <p className="text-4xl font-bold text-earth-900 mb-4">
-                  {accuracy === 100 && avgResponseTime < FAST_RESPONSE
-                    ? '🏆 Perfect! Flawless obedience!'
-                    : accuracy >= 90
-                    ? '⭐ Excellent training!'
-                    : accuracy >= 80
-                    ? '👍 Great work!'
-                    : accuracy >= 70
-                    ? '💪 Good effort!'
-                    : 'Keep practicing!'}
-                </p>
-                <div className="space-y-2 text-gray-700">
-                  <p>Commands Completed: {commandsCompleted}</p>
-                  <p>Correct Answers: {correctAnswers}</p>
-                  <p>Accuracy: {Math.floor(accuracy)}%</p>
-                  {avgResponseTime > 0 && (
-                    <p>Average Response Time: {Math.floor(avgResponseTime)}ms</p>
+            {/* Feedback overlay */}
+            {feedback && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <div className="text-center">
+                  <div className={`text-6xl font-bold ${feedback.color} drop-shadow-2xl animate-ping`}>
+                    {feedback.text}
+                  </div>
+                  {feedback.points > 0 && (
+                    <div className="text-4xl font-bold text-white mt-4">
+                      +{feedback.points}
+                    </div>
+                  )}
+                  {feedback.points < 0 && (
+                    <div className="text-4xl font-bold text-red-300 mt-4">
+                      {feedback.points}
+                    </div>
                   )}
                 </div>
               </div>
             )}
+
+            {/* Finish overlay */}
+            {phase === 'finished' && (
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center">
+                <div className="bg-white rounded-xl p-8 text-center max-w-md shadow-2xl">
+                  <div className="text-6xl mb-4">
+                    {score >= 3000 ? '🏆' : score >= 2000 ? '⭐' : '💪'}
+                  </div>
+                  <h3 className="text-3xl font-bold text-earth-900 mb-4">Time's Up!</h3>
+                  <div className="space-y-2 text-left mb-6">
+                    <p className="text-gray-700">⭐ Final Score: <span className="font-bold text-purple-600">{score}</span></p>
+                    <p className="text-gray-700">✓ Correct: <span className="font-bold text-green-600">{correctCount}</span></p>
+                    <p className="text-gray-700">✗ Wrong: <span className="font-bold text-red-600">{incorrectCount}</span></p>
+                    <p className="text-gray-700">⚡ Fast Responses: <span className="font-bold text-yellow-600">{fastResponses}</span></p>
+                    <p className="text-gray-700">🔥 Max Combo: <span className="font-bold text-orange-600">{maxCombo}x</span></p>
+                    <p className="text-gray-700">🎯 Accuracy: <span className="font-bold">{accuracy}%</span></p>
+                  </div>
+                  <button
+                    onClick={handleFinish}
+                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all font-bold text-lg shadow-lg"
+                  >
+                    Complete Training
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Progress bar */}
-          <div className="mb-6">
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-semibold text-gray-700">Progress</span>
-              <span className="text-sm text-gray-600">{commandsCompleted}/{TOTAL_COMMANDS}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
-                style={{ width: `${(commandsCompleted / TOTAL_COMMANDS) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Command buttons */}
-          {phase === 'playing' && currentCommand && (
-            <div className="grid grid-cols-4 gap-3">
+          {/* Command Buttons */}
+          {phase === 'playing' && (
+            <div className="grid grid-cols-3 gap-4">
               {COMMANDS.map((command) => (
                 <button
                   key={command.name}
-                  onClick={() => handleCommandResponse(command)}
-                  className="p-4 bg-white rounded-lg hover:bg-purple-100 active:bg-purple-200 border-2 border-purple-300 hover:border-purple-500 transition-all font-bold text-center"
+                  onClick={() => handleCommandClick(command)}
+                  className={`p-6 ${command.color} text-white rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg font-bold`}
                 >
-                  <div className="text-3xl mb-1">{command.emoji}</div>
-                  <div className="text-sm text-gray-800">{command.name}</div>
+                  <div className="text-5xl mb-2">{command.emoji}</div>
+                  <div className="text-xl">{command.name}</div>
                 </button>
               ))}
             </div>
           )}
 
-          {phase === 'finished' && (
-            <button
-              onClick={handleFinish}
-              className="w-full py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold text-lg"
-            >
-              Complete Training
-            </button>
+          {/* Combo indicator */}
+          {phase === 'playing' && combo >= 5 && (
+            <div className="mt-4 text-center">
+              <div className="inline-block bg-gradient-to-r from-orange-400 to-red-500 text-white px-6 py-3 rounded-full font-bold text-xl shadow-lg animate-bounce">
+                🔥 {combo}x COMBO! 🔥
+              </div>
+            </div>
           )}
         </div>
       </div>
