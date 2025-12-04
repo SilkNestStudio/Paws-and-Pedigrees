@@ -33,7 +33,6 @@ export default function CommandDrillsGame({ onComplete, dogName }: CommandDrills
   const [fastResponses, setFastResponses] = useState(0);
   const [feedback, setFeedback] = useState<{ text: string; color: string; points: number } | null>(null);
   const [difficulty, setDifficulty] = useState(1000); // ms between commands
-  const gameTimerRef = useRef<number>();
   const commandTimerRef = useRef<number>();
 
   const FAST_RESPONSE = 500; // ms

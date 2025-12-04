@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface ObstacleCourseGameProps {
   onComplete: (performanceMultiplier: number) => void;
@@ -27,7 +27,6 @@ export default function ObstacleCourseGame({ onComplete, dogName }: ObstacleCour
   const [missed, setMissed] = useState(0);
   const [feedback, setFeedback] = useState<{ text: string; color: string; id: number } | null>(null);
   const gameLoopRef = useRef<number>();
-  const lastActionTimeRef = useRef(0);
   const actionCooldownRef = useRef(false);
 
   const COURSE_LENGTH = 100;

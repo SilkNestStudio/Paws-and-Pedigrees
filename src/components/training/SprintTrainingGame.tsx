@@ -20,7 +20,6 @@ export default function SprintTrainingGame({ onComplete, dogName }: SprintTraini
   const [encouragements, setEncouragements] = useState<Array<{ id: number; text: string; x: number; y: number }>>([]);
   const gameLoopRef = useRef<number>();
   const lastObstacleRef = useRef(0);
-  const lastTreatRef = useRef(0);
   const startTimeRef = useRef(0);
 
   const SPRINT_DISTANCE = 100;
