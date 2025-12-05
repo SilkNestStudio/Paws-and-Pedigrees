@@ -1,14 +1,17 @@
 /**
  * Hunger & Thirst Decay System
  *
- * Dogs' hunger and thirst decay from 100% to 0% over 24 hours
+ * Dogs' hunger and thirst decay from 100% to 0% over 96 hours (4 days)
  * Low levels cause happiness and energy penalties
+ *
+ * This is intentionally SLOWER than the dog aging system to give players
+ * time to care for their dogs without constant micromanagement.
  */
 
 import { Dog } from '../types';
 
-// Decay rate: 100% over 24 hours = ~4.17% per hour
-const DECAY_RATE_PER_HOUR = 100 / 24;
+// Decay rate: 100% over 96 hours (4 days) = ~1.04% per hour
+const DECAY_RATE_PER_HOUR = 100 / 96;
 
 // Penalty thresholds
 const SEVERE_THRESHOLD = 20; // Below 20% = severe penalty
