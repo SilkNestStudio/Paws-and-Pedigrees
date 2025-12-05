@@ -6,7 +6,7 @@ import HelpButton from '../tutorial/HelpButton';
 import { storyChapters } from '../../data/storyChapters';
 import InventoryPanel from './InventoryPanel';
 
-type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet';
+type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet' | 'demo3d';
 
 interface OfficeDashboardProps {
   onNavigate: (view: View, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => void;
@@ -327,6 +327,15 @@ export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
             >
               <p className="font-semibold text-earth-900">💼 Do Jobs</p>
               <p className="text-sm text-earth-600">Earn extra cash</p>
+            </button>
+
+            {/* 3D Demo - Prominent */}
+            <button
+              onClick={() => onNavigate('demo3d')}
+              className="w-full text-left p-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 rounded-lg transition-all shadow-lg border-2 border-yellow-300"
+            >
+              <p className="font-bold text-white text-lg">🎮 3D Game Demo</p>
+              <p className="text-sm text-white/90">See the future of this game!</p>
             </button>
           </div>
         </div>

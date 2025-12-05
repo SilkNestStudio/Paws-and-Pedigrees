@@ -30,6 +30,7 @@ import StoryModeView from './components/story/StoryModeView';
 import LandscapePrompt from './components/layout/LandscapePrompt';
 import { saveUserProfile, saveDog, saveStoryProgress } from './lib/supabaseService';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import Demo3DView from './components/demo/Demo3DView';
 
 type View =
   | 'kennel'
@@ -41,7 +42,8 @@ type View =
   | 'breeding'
   | 'jobs'
   | 'shop'
-  | 'vet';
+  | 'vet'
+  | 'demo3d';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('office');
@@ -342,6 +344,8 @@ function App() {
               {currentView === 'shop' && <ShopView initialTab={shopTab} />}
 
               {currentView === 'vet' && <VetClinicView />}
+
+              {currentView === 'demo3d' && <Demo3DView />}
             </div>
           </SceneBackground>
         </main>
