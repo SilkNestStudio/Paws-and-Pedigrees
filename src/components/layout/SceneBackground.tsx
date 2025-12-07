@@ -10,7 +10,7 @@ import jobsBg from '../../assets/images/backgrounds/jobs-background.png';
 import shopBg from '../../assets/images/backgrounds/shop-background.png';
 
 interface SceneBackgroundProps {
-  scene: 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet';
+  scene: 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet' | 'demo3d';
   children: React.ReactNode;
   kennelLevel?: number; // Used for kennel-related scenes to show level-specific backgrounds
 }
@@ -32,7 +32,7 @@ function SceneBackground({ scene, children, kennelLevel: _kennelLevel = 1 }: Sce
   //   }
   // }, [scene, kennelLevel]);
 
-  const backgrounds = {
+  const backgrounds: Record<SceneBackgroundProps['scene'], string> = {
     kennel: kennelBg,
     dogDetail: kennelBg,
     breeding: kennelBg,
@@ -43,6 +43,7 @@ function SceneBackground({ scene, children, kennelLevel: _kennelLevel = 1 }: Sce
     jobs: jobsBg,
     shop: shopBg,
     vet: kennelBg, // Vet clinic uses generic kennel background
+    demo3d: trainingBg, // 3D demo uses training background
   };
 
   const backgroundImage = backgrounds[scene] || backgrounds.kennel;

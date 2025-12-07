@@ -1,24 +1,44 @@
 import { useState } from 'react';
 import AgilityObstacleCourse3D from '../training/3d/AgilityObstacleCourse3D';
+import SprintTraining3D from '../training/3d/SprintTraining3D';
+
+type DemoType = 'agility' | 'sprint' | null;
 
 export default function Demo3DView() {
-  const [showDemo, setShowDemo] = useState(false);
+  const [showDemo, setShowDemo] = useState<DemoType>(null);
 
   const handleComplete = (performance: number) => {
-    console.log('Course completed with performance:', performance);
-    setShowDemo(false);
+    console.log('Demo completed with performance:', performance);
+    setShowDemo(null);
   };
 
-  if (showDemo) {
+  if (showDemo === 'agility') {
     return (
       <div className="fixed inset-0 z-50 bg-black">
         <button
-          onClick={() => setShowDemo(false)}
+          onClick={() => setShowDemo(null)}
           className="absolute top-4 right-4 z-[100] bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold"
         >
           ← Back to Demo Menu
         </button>
         <AgilityObstacleCourse3D
+          onComplete={handleComplete}
+          dogName="Demo Dog"
+        />
+      </div>
+    );
+  }
+
+  if (showDemo === 'sprint') {
+    return (
+      <div className="fixed inset-0 z-50 bg-black">
+        <button
+          onClick={() => setShowDemo(null)}
+          className="absolute top-4 right-4 z-[100] bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold"
+        >
+          ← Back to Demo Menu
+        </button>
+        <SprintTraining3D
           onComplete={handleComplete}
           dogName="Demo Dog"
         />
@@ -107,12 +127,20 @@ export default function Demo3DView() {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowDemo(true)}
-          className="w-full py-6 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 hover:from-purple-700 hover:via-pink-700 hover:to-orange-700 text-white rounded-xl font-bold text-2xl shadow-2xl transform hover:scale-105 transition-all"
-        >
-          🎮 Launch 3D Demo
-        </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={() => setShowDemo('sprint')}
+            className="py-6 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-xl font-bold text-xl shadow-2xl transform hover:scale-105 transition-all"
+          >
+            🏃 Sprint Training
+          </button>
+          <button
+            onClick={() => setShowDemo('agility')}
+            className="py-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-bold text-xl shadow-2xl transform hover:scale-105 transition-all"
+          >
+            🎯 Agility Course
+          </button>
+        </div>
 
         <div className="mt-8 text-center text-white/60 text-sm">
           <p>
