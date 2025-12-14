@@ -27,7 +27,6 @@ import { canClaimDailyReward } from './utils/dailyRewards';
 import TutorialManager from './components/tutorial/TutorialManager';
 import VetClinicView from './components/vet/VetClinicView';
 import StoryModeView from './components/story/StoryModeView';
-import LandscapePrompt from './components/layout/LandscapePrompt';
 import { saveUserProfile, saveDog, saveStoryProgress } from './lib/supabaseService';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import Demo3DView from './components/demo/Demo3DView';
@@ -359,9 +358,6 @@ function App() {
 
       {/* Tutorial Manager */}
       <TutorialManager />
-
-      {/* Landscape Prompt for Mobile */}
-      <LandscapePrompt />
 
       {/* Toast Notifications */}
       <Toaster />
