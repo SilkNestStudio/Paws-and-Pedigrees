@@ -27,13 +27,15 @@ interface Dog3DProps {
 // Placeholder box dog (temporary)
 function BoxDog({ isRunning, speed }: { isRunning?: boolean; speed?: number }) {
   const groupRef = useRef<Group>(null);
+  const legs = useRef<(Group | null)[]>([]);
 
   // Simple running animation - bob up and down
   useFrame((state) => {
-    if (groupRef.current && isRunning) {
-      const bobSpeed = (speed || 1) * 8;
-      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * bobSpeed) * 0.05;
-    }
+    const phase = state.clock.elapsedTime * (speed || 1) * 8;
+    if (groupRef.current) groupRef.current.position.y = isRunning ? Math.abs(Math.sin(phase)) * 0.035 : 0;
+    legs.current.forEach((leg, i) => {
+      if (leg) leg.rotation.x = isRunning ? Math.sin(phase + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.6 : 0;
+    });
   });
 
   return (
@@ -67,22 +69,9 @@ function BoxDog({ isRunning, speed }: { isRunning?: boolean; speed?: number }) {
       </mesh>
 
       {/* Legs - animated when running */}
-      <mesh position={[-0.15, 0.1, 0.2]} castShadow>
-        <cylinderGeometry args={[0.05, 0.05, 0.2]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
-      <mesh position={[0.15, 0.1, 0.2]} castShadow>
-        <cylinderGeometry args={[0.05, 0.05, 0.2]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
-      <mesh position={[-0.15, 0.1, -0.2]} castShadow>
-        <cylinderGeometry args={[0.05, 0.05, 0.2]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
-      <mesh position={[0.15, 0.1, -0.2]} castShadow>
-        <cylinderGeometry args={[0.05, 0.05, 0.2]} />
-        <meshStandardMaterial color="#654321" />
-      </mesh>
+      {[-0.15, 0.15, -0.15, 0.15].map((x, i) => <group key={i} ref={leg => { legs.current[i] = leg; }} position={[x, 0.2, i < 2 ? 0.2 : -0.2]}>
+        <mesh position={[0, -0.1, 0]} castShadow><cylinderGeometry args={[0.05, 0.05, 0.2]} /><meshStandardMaterial color="#654321" /></mesh>
+      </group>)}
 
       {/* Tail */}
       <mesh position={[0, 0.4, -0.4]} rotation={[0.5, 0, 0]} castShadow>

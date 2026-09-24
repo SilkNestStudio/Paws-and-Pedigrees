@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import type { CompetitionEvent } from '../../types/competition';
 import type { Dog } from '../../types';
 import { useGameStore } from '../../stores/gameStore';
-import { generateAICompetitors, determineWinners, getScoreRange } from '../../utils/competitionAI';
+import { generateAICompetitors, getScoreRange } from '../../utils/competitionAI';
 import { submitCompetitionScore } from '../../utils/leaderboardService';
 import { showToast } from '../../lib/toast';
-import AgilityGameV2 from './minigames/AgilityGameV2';
+import { leaderboardTier, rankCompetition } from '../../utils/competitionResults';
+import type { CompetitionType } from '../../types/leaderboard';
+const AgilityGame = lazy(() => import('../../game/agility/AgilityGame'));
 import ObedienceGameV2 from './minigames/ObedienceGameV2';
 import WeightPullGameV2 from './minigames/WeightPullGameV2';
 import RacingGameV2 from './minigames/RacingGameV2';
@@ -28,9 +30,12 @@ interface CompetitionResult {
 export default function CompetitionRunner({ event, dog, onComplete }: CompetitionRunnerProps) {
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'results'>('ready');
   const [results, setResults] = useState<CompetitionResult[] | null>(null);
-  const { user, updateUserCash, awardChampionshipPoints } = useGameStore();
+  const completed = useRef(false);
+  const { user, awardChampionshipPoints } = useGameStore();
 
   const handleMiniGameComplete = async (playerScore: number) => {
+    if (completed.current || !Number.isFinite(playerScore) || playerScore < 0) return;
+    completed.current = true;
     setGameState('results');
 
     // If player cancelled (score = 0), don't run competition
@@ -47,45 +52,10 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
       event.currentEntries
     );
 
-    // Combine player and AI scores
-    const allScores = [
-      { name: dog.name, score: playerScore },
-      ...aiCompetitors,
-    ];
-
-    // Determine placements
-    const winners = determineWinners(allScores);
-
-    // Find player's result
-    const playerResult = winners.find(w => w.name === dog.name);
-    if (!playerResult) {
-      showToast.error('Error calculating results!');
-      onComplete();
-      return;
-    }
-
-    // Format results with breed info
-    const formattedResults: CompetitionResult[] = winners.slice(0, 8).map(w => ({
-      ...w,
-      breed: w.name === dog.name ? 'Your Dog' : aiCompetitors.find(ai => ai.name === w.name)?.breed || 'Mixed',
-      isPlayer: w.name === dog.name,
-    }));
-
-    setResults(formattedResults);
-
-    // Award prize money
+    const winners = rankCompetition({ name: dog.name, score: playerScore }, aiCompetitors);
+    const playerResult = winners.find(w => w.isPlayer)!;
+    setResults(winners);
     const placement = playerResult.placement;
-    let prizeMoney = 0;
-
-    if (placement === 1) prizeMoney = event.prizes.first;
-    else if (placement === 2) prizeMoney = event.prizes.second;
-    else if (placement === 3) prizeMoney = event.prizes.third;
-    else prizeMoney = event.prizes.participation;
-
-    if (prizeMoney > 0) {
-      updateUserCash(prizeMoney);
-      showToast.success(`Won $${prizeMoney}!`);
-    }
 
     // Award championship points if applicable
     const pointsResult = awardChampionshipPoints(
@@ -95,23 +65,31 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
       playerScore
     );
 
-    if (pointsResult.success && pointsResult.titleEarned) {
+    if (!pointsResult.success) {
+      showToast.warning(pointsResult.message);
+      onComplete();
+      return;
+    }
+    if (pointsResult.titleEarned) {
       showToast.success(`🏆 ${pointsResult.message}`, 5000);
     }
 
     // Submit to leaderboards
-    if (user) {
+    const supported: CompetitionType[] = ['agility', 'obedience', 'racing', 'weight_pull', 'conformation'];
+    if (user && supported.includes(event.discipline as CompetitionType) && placement <= 8) {
       try {
-        await submitCompetitionScore(
+        const submission = await submitCompetitionScore(
           user.id,
           dog.id,
-          event.discipline as any, // CompetitionDiscipline includes more types than CompetitionType
-          event.eventType as any, // EventType includes 'championship' which is not in CompetitionTier
+          event.discipline as CompetitionType,
+          leaderboardTier(event.eventType),
           playerScore,
           placement,
           playerScore,
-          event.id
+          // Events are currently generated locally, not registered in the server table.
+          undefined
         );
+        if (!submission.success) showToast.warning('Results saved locally; the online leaderboard could not be updated.');
       } catch (error) {
         console.error('Failed to submit score to leaderboard:', error);
       }
@@ -121,7 +99,10 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
   const renderMinigame = () => {
     switch (event.discipline) {
       case 'agility':
-        return <AgilityGameV2 dog={dog} onComplete={handleMiniGameComplete} />;
+        return <Suspense fallback={<p>Preparing the agility arena…</p>}><AgilityGame
+          dogName={dog.name} agility={dog.agility + dog.agility_trained} mode="competition" onCancel={onComplete}
+          onComplete={performance => handleMiniGameComplete(Math.round(performance * 450 + Math.min(200, dog.agility + dog.agility_trained) * 2))}
+        /></Suspense>;
       case 'obedience':
         return <ObedienceGameV2 dog={dog} onComplete={handleMiniGameComplete} />;
       case 'weight_pull':
@@ -175,7 +156,7 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
           <div className="divide-y divide-gray-200">
             {results.map((result) => (
               <div
-                key={result.name}
+                key={`${result.placement}-${result.name}`}
                 className={`px-6 py-4 flex items-center justify-between ${
                   result.isPlayer ? 'bg-yellow-50 font-bold' : ''
                 }`}

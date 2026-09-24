@@ -1,3 +1,4 @@
+import { isLocalMode } from '../lib/storage/config';
 // Leaderboard and rankings service
 import { supabase } from '../lib/supabase';
 import type {
@@ -22,6 +23,7 @@ export async function submitCompetitionScore(
   minigameScore: number,
   eventId?: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isLocalMode) return { success: true }; // Local championship results live in the game snapshot.
   try {
     const { error } = await supabase.from('competition_scores').insert({
       user_id: userId,

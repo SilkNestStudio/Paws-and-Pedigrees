@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { isLocalMode } from './lib/storage/config';
+import LocalSaveControls from './components/layout/LocalSaveControls';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import PoundScene from './components/kennel/PoundScene';
 import KennelView from './components/kennel/KennelView';
@@ -27,9 +29,9 @@ import { canClaimDailyReward } from './utils/dailyRewards';
 import TutorialManager from './components/tutorial/TutorialManager';
 import VetClinicView from './components/vet/VetClinicView';
 import StoryModeView from './components/story/StoryModeView';
-import { saveUserProfile, saveDog, saveStoryProgress } from './lib/supabaseService';
+import { saveUserProfile, saveDog, saveStoryProgress, debouncedSave, flushPendingSaves } from './lib/supabaseService';
 import LoadingSpinner from './components/common/LoadingSpinner';
-import Demo3DView from './components/demo/Demo3DView';
+const Demo3DView = lazy(() => import('./components/demo/Demo3DView'));
 
 type View =
   | 'kennel'
@@ -51,12 +53,12 @@ function App() {
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
-  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, storyProgress, updateGameWeather } = useGameStore();
+  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, updateGameWeather } = useGameStore();
 
   // Check for reset flag FIRST, before anything else
   useEffect(() => {
     const resetPending = localStorage.getItem('reset-pending');
-    if (resetPending === 'true') {
+    if (resetPending === 'true' && !isLocalMode) {
       setIsResetting(true);
       // Clear ALL localStorage
       localStorage.clear();
@@ -135,58 +137,23 @@ function App() {
     });
   }, []);
 
-  // Auto-save to database every 30 seconds
+  // Read current snapshots on a stable schedule; serialize them with action saves.
   useEffect(() => {
     if (!syncEnabled || !authUser) return;
-
-    const autoSaveInterval = setInterval(() => {
-      console.log('🔄 Auto-saving game state...');
-
-      // Save user profile
-      if (user) {
-        saveUserProfile(user);
-      }
-
-      // Save all dogs
-      dogs.forEach((dog: any) => {
-        saveDog(dog);
-      });
-
-      // Save story progress
-      if (authUser && storyProgress) {
-        saveStoryProgress(authUser.id, storyProgress);
-      }
-
-      console.log('✅ Auto-save completed');
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(autoSaveInterval);
-  }, [syncEnabled, authUser, user, dogs, storyProgress]);
-
-  // Save on page unload/refresh (safety net)
-  useEffect(() => {
-    if (!syncEnabled || !authUser) return;
-
-    const handleBeforeUnload = async () => {
-      console.log('💾 Saving before page close...');
-
-      // Save synchronously to ensure it completes before page closes
-      if (user) {
-        await saveUserProfile(user);
-      }
-
-      dogs.forEach(async (dog: any) => {
-        await saveDog(dog);
-      });
-
-      if (authUser && storyProgress) {
-        await saveStoryProgress(authUser.id, storyProgress);
-      }
+    const save = async () => {
+      const state = useGameStore.getState();
+      if (!state.syncEnabled || state.user?.id !== authUser.id) return;
+      const profile = state.user;
+      debouncedSave('profile:' + profile.id, () => saveUserProfile(profile));
+      for (const dog of state.dogs) debouncedSave('dog:' + dog.id, () => saveDog(dog));
+      debouncedSave('story:' + profile.id, () => saveStoryProgress(profile.id, state.storyProgress));
+      if (!await flushPendingSaves()) console.warn('Cloud save incomplete; local progress is retained for retry.');
     };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [syncEnabled, authUser, user, dogs, storyProgress]);
+    const interval = setInterval(() => { void save(); }, 30000);
+    const visibility = () => { if (document.hidden) void save(); };
+    document.addEventListener('visibilitychange', visibility);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', visibility); };
+  }, [syncEnabled, authUser]);
 
   // Show resetting screen
   if (isResetting) {
@@ -344,7 +311,7 @@ function App() {
 
               {currentView === 'vet' && <VetClinicView />}
 
-              {currentView === 'demo3d' && <Demo3DView />}
+              {currentView === 'demo3d' && <Suspense fallback={<p>Preparing practice…</p>}><Demo3DView /></Suspense>}
             </div>
           </SceneBackground>
         </main>
@@ -360,6 +327,7 @@ function App() {
       <TutorialManager />
 
       {/* Toast Notifications */}
+      {isLocalMode && <LocalSaveControls />}
       <Toaster />
     </div>
   );

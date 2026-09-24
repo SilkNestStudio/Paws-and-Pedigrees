@@ -21,7 +21,7 @@ interface KennelViewProps {
 
 export default function KennelView({ onViewDog }: KennelViewProps) {
   const { user, dogs, selectDog, reviveDeadDog, retireDog } = useGameStore();
-  const capacityInfo = getKennelCapacityInfo(dogs.length, user?.level || 1);
+  const capacityInfo = getKennelCapacityInfo(dogs.length, user?.kennel_level || 1);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [memorialDog, setMemorialDog] = useState<Dog | null>(null);
   const { confirm, confirmState, handleCancel } = useConfirm();

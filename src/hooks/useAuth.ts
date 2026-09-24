@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { isLocalMode } from '../lib/storage/config';
+import { useGameStore } from '../stores/gameStore';
 import { supabase } from '../lib/supabase';
 
 export function useAuth() {
@@ -8,6 +10,11 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isLocalMode) {
+      setUser({ id: useGameStore.getState().user?.id === 'temp-user-id' ? 'local-player' : useGameStore.getState().user?.id || 'local-player' } as User);
+      setLoading(false);
+      return;
+    }
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -28,7 +35,7 @@ export function useAuth() {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (!isLocalMode) await supabase.auth.signOut();
   };
 
   return {

@@ -167,16 +167,21 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
   }, [isDragging, activeDropZone, bowlFilled, dragItem]);
 
   const playWithDog = (activityType: 'pet' | 'fetch' | 'walk') => {
-    // Check last interaction time for this specific activity (1 hour cooldown per activity)
-    const lastPlayedTime = selectedDog.last_played ? new Date(selectedDog.last_played).getTime() : 0;
+    // Check last interaction time for this specific activity (15 min cooldown per activity)
+    const activityTimeMap = {
+      pet: selectedDog.last_pet,
+      fetch: selectedDog.last_fetch,
+      walk: selectedDog.last_walk,
+    };
+    const lastActivityTime = activityTimeMap[activityType] ? new Date(activityTimeMap[activityType]!).getTime() : 0;
     const now = Date.now();
-    const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+    const COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
 
-    if (now - lastPlayedTime < COOLDOWN_MS) {
-      const remainingMs = COOLDOWN_MS - (now - lastPlayedTime);
+    if (now - lastActivityTime < COOLDOWN_MS) {
+      const remainingMs = COOLDOWN_MS - (now - lastActivityTime);
       const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
       setMessage({
-        text: `${selectedDog.name} needs rest! Please wait ${remainingMinutes} minutes before playing again`,
+        text: `${selectedDog.name} needs a break from ${activityType}! Wait ${remainingMinutes} min`,
         type: 'error',
       });
       setTimeout(() => setMessage(null), 3000);
@@ -206,10 +211,18 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
     const bondXpGain = calculateBondXpGain(baseXpMap[activityType], selectedDog.is_rescue || false);
     const newBondXp = selectedDog.bond_xp + bondXpGain;
 
+    // Set the individual activity cooldown
+    const activityTimestampKey = {
+      pet: 'last_pet',
+      fetch: 'last_fetch',
+      walk: 'last_walk',
+    }[activityType];
+
     const updates: any = {
       happiness: newHappiness,
       energy_stat: newEnergy,
       last_played: new Date().toISOString(),
+      [activityTimestampKey]: new Date().toISOString(),
       bond_xp: newBondXp,
     };
 

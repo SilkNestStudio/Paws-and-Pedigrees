@@ -28,7 +28,7 @@ export function getKennelCapacity(kennelLevel: number): number {
     10: 40, // Level 10: 40 dogs (max)
   };
 
-  return capacityByLevel[kennelLevel] || 2; // Default to 2 if invalid level
+  return capacityByLevel[Math.max(1, Math.min(10, Math.floor(kennelLevel)))] || 2;
 }
 
 /**

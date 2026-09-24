@@ -147,6 +147,11 @@ export interface Dog {
   last_fed: string;
   last_watered: string;
   last_played: string;
+
+  // Individual activity cooldowns (15 min each)
+  last_pet?: string;
+  last_fetch?: string;
+  last_walk?: string;
 }
 
 export interface UserProfile {

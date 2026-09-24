@@ -1,4 +1,5 @@
 import { Dog, Breed } from '../types';
+import { MS_PER_WEEK, MAX_BREEDING_AGE_WEEKS, calculatePregnancyDue } from './timeScaling';
 import { BREEDING_CONSTANTS } from '../data/breedingConstants';
 import { analyzeInbreeding } from './pedigreeAnalysis';
 import { generatePersonality } from './personalityGenerator';
@@ -54,6 +55,10 @@ export function checkBreedingEligibility(
   allDogs?: Dog[]
 ): BreedingEligibility {
   const reasons: string[] = [];
+  for (const dog of [dog1, dog2]) {
+    if (dog.is_dead || dog.age_weeks > MAX_BREEDING_AGE_WEEKS) reasons.push(`${dog.name} is no longer eligible for breeding.`);
+    if (dog.current_ailment || dog.recovering_from || dog.active_puppy_training) reasons.push(`${dog.name} needs to finish care or training first.`);
+  }
 
   // Determine sire and dam
   const sire = dog1.gender === 'male' ? dog1 : dog2;
@@ -121,6 +126,9 @@ export function checkBreedingEligibility(
 
   // Check cooldowns
   const male = dog1.gender === 'male' ? dog1 : dog2;
+  if (male.last_bred && allDogs?.some(d => d.is_pregnant && d.last_bred === male.last_bred)) {
+    reasons.push(`${male.name} already has a litter on the way.`);
+  }
   if (female.last_bred) {
     const weeksSinceBreed = getWeeksSince(female.last_bred);
     if (weeksSinceBreed < BREEDING_CONSTANTS.FEMALE_COOLDOWN) {
@@ -154,8 +162,7 @@ function getWeeksSince(dateString: string): number {
   const then = new Date(dateString);
   const now = new Date();
   const msDiff = now.getTime() - then.getTime();
-  const daysDiff = msDiff / (1000 * 60 * 60 * 24);
-  return daysDiff / 7;
+  return Math.max(0, msDiff / MS_PER_WEEK);
 }
 
 /**
@@ -575,9 +582,10 @@ export function generateLitter(
   userId: string,
   allDogs?: Dog[]
 ): Dog[] {
-  const litterSize =
-    BREEDING_CONSTANTS.LITTER_SIZE_MIN +
-    Math.floor(Math.random() * (BREEDING_CONSTANTS.LITTER_SIZE_MAX - BREEDING_CONSTANTS.LITTER_SIZE_MIN + 1));
+  // The litter was determined and nursery spaces reserved at conception.
+  const litterSize = Math.max(BREEDING_CONSTANTS.LITTER_SIZE_MIN, Math.min(
+    BREEDING_CONSTANTS.LITTER_SIZE_MAX, Math.floor(dam.litter_size ?? BREEDING_CONSTANTS.LITTER_SIZE_MIN)
+  ));
 
   const puppies: Dog[] = [];
 
@@ -592,9 +600,7 @@ export function generateLitter(
  * Calculate pregnancy due date
  */
 export function calculatePregnancyDueDate(): string {
-  const now = new Date();
-  const dueDate = new Date(now.getTime() + BREEDING_CONSTANTS.PREGNANCY_DURATION * 7 * 24 * 60 * 60 * 1000);
-  return dueDate.toISOString();
+  return calculatePregnancyDue();
 }
 
 /**
@@ -613,6 +619,5 @@ export function getWeeksRemaining(pregnancyDue: string): number {
   const dueDate = new Date(pregnancyDue);
   const now = new Date();
   const msDiff = dueDate.getTime() - now.getTime();
-  const daysDiff = msDiff / (1000 * 60 * 60 * 24);
-  return Math.max(0, Math.ceil(daysDiff / 7));
+  return Math.max(0, Math.ceil(msDiff / MS_PER_WEEK));
 }

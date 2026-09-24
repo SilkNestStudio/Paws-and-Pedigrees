@@ -23,6 +23,7 @@ export default function Demo3DView() {
         </button>
         <AgilityObstacleCourse3D
           onComplete={handleComplete}
+          onCancel={() => setShowDemo(null)}
           dogName="Demo Dog"
         />
       </div>

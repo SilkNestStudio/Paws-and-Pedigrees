@@ -1,5 +1,6 @@
 import { Dog, Breed } from '../types';
 import { generatePersonality } from './personalityGenerator';
+import { MS_PER_WEEK } from './timeScaling';
 
 export function generateDog(
   breed: Breed,
@@ -10,13 +11,11 @@ export function generateDog(
 ): Dog {
   const gender: 'male' | 'female' = preferredGender || (Math.random() > 0.5 ? 'male' : 'female');
 
-  // Generate random stats within breed ranges (rescue dogs get slightly lower stats)
-  const statMultiplier = isRescue ? 0.6 : 1.0;
-
+  // Rescue describes a dog's history, never a penalty to inherited potential.
   const randomStat = (min: number, max: number) => {
     const range = max - min;
     const value = min + Math.random() * range;
-    return Math.round(value * statMultiplier);
+    return Math.round(value);
   };
 
   const coatColors = ['black', 'brown', 'tan', 'white', 'gold', 'red', 'blue', 'cream'];
@@ -39,7 +38,7 @@ export function generateDog(
     breed_id: breed.id,
     name,
     gender,
-    birth_date: new Date().toISOString(),
+    birth_date: new Date(Date.now() - (isRescue ? 52 * MS_PER_WEEK : 0)).toISOString(),
 
     // Base stats
     size: randomStat(breed.size_min, breed.size_max),

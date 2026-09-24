@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { Dog, UserProfile } from '../types';
 import { StoryProgress } from '../types/story';
 import { showToast } from './toast';
+import { SaveQueue } from '../utils/saveQueue';
 
 // ============ USER PROFILE ============
 
@@ -95,7 +96,9 @@ export async function saveDog(dog: Dog): Promise<boolean> {
 
   // Ensure all INTEGER fields are properly rounded (database expects integers, not floats)
   const sanitizedDog = {
-    ...dogData,
+    // JSON omits undefined values; send explicit nulls when lifecycle actions
+    // clear pregnancy, illness, or recovery fields, or they return on reload.
+    ...Object.fromEntries(Object.entries(dogData).map(([key, value]) => [key, value === undefined ? null : value])),
     // Care stats (INTEGER fields)
     hunger: Math.round(dogData.hunger),
     thirst: Math.round(dogData.thirst || 0),
@@ -126,17 +129,14 @@ export async function saveDog(dog: Dog): Promise<boolean> {
 }
 
 export async function deleteDog(dogId: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('dogs')
-    .delete()
-    .eq('id', dogId);
-
-  if (error) {
-    console.error('Error deleting dog:', error);
-    return false;
-  }
-
-  return true;
+  // Replace any queued upsert, then wait for older in-flight writes before deleting.
+  // Otherwise a pending care save could resurrect a rehomed dog.
+  saveQueue.schedule(`dog:${dogId}`, async () => {
+    const { error } = await supabase.from('dogs').delete().eq('id', dogId);
+    if (error) console.error('Error deleting dog:', error);
+    return !error;
+  });
+  return saveQueue.flush();
 }
 
 // ============ COMPETITION RESULTS ============
@@ -267,8 +267,9 @@ export async function loadUserData(userId: string) {
 /**
  * Sync local state to Supabase (debounced save)
  */
-let saveTimeout: NodeJS.Timeout;
-export function debouncedSave(fn: () => Promise<any>, delay: number = 1000) {
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(fn, delay);
+const saveQueue = new SaveQueue();
+export function debouncedSave(key: string, fn: () => Promise<unknown>, delay = 1000) {
+  saveQueue.schedule(key, fn, delay);
 }
+
+export const flushPendingSaves = () => saveQueue.flush();

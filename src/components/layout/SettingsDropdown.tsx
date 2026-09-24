@@ -1,3 +1,5 @@
+import { isLocalMode } from '../../lib/storage/config';
+import { flushLocalSave } from '../../lib/storage/localDatabase';
 import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { TUTORIALS } from '../../data/tutorials/tutorialSteps';
@@ -48,8 +50,14 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
     setConfirmText('');
   };
 
-  const handleResetStep2Confirm = () => {
+  const handleResetStep2Confirm = async () => {
     if (confirmText.toLowerCase() === 'reset') {
+      if (isLocalMode) {
+        useGameStore.getState().resetGame();
+        try { await flushLocalSave(); window.location.href = window.location.origin; }
+        catch { alert('The reset could not be saved. Keep this tab open and retry.'); }
+        return;
+      }
       // Set a flag to trigger reset on next page load
       // This prevents race conditions with Zustand persist middleware
       localStorage.setItem('reset-pending', 'true');
@@ -82,7 +90,7 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
             <div className="py-1">
               {/* Logout Option */}
-              <button
+              <button disabled={isLocalMode}
                 onClick={() => {
                   setIsOpen(false);
                   onSignOut();
@@ -90,7 +98,7 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
                 className="w-full text-left px-4 py-3 hover:bg-slate-100 transition-colors flex items-center gap-3 text-slate-700"
               >
                 <span className="text-lg">🚪</span>
-                <span className="font-medium">Logout</span>
+                <span className="font-medium">{isLocalMode ? 'Local session' : 'Logout'}</span>
               </button>
 
               {/* Divider */}

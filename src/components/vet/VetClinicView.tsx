@@ -5,10 +5,16 @@ import { VET_COST, EMERGENCY_VET_COST } from '../../utils/healthDecay';
 import { getHealthStatus } from '../../utils/healthDecay';
 import HelpButton from '../tutorial/HelpButton';
 import { applyVetCostReduction } from '../../utils/kennelUpgrades';
+import { shopItems } from '../../data/shopItems';
+import type { ShopItem } from '../../types';
+
+// Health items available at the vet (with 10% discount compared to shop)
+const VET_SUPPLIES: ShopItem[] = shopItems.filter(item => item.category === 'health');
 
 export default function VetClinicView() {
-  const { dogs, user, selectedDog, selectDog, treatDogAilment } = useGameStore();
+  const { dogs, user, selectedDog, selectDog, treatDogAilment, purchaseItem } = useGameStore();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [activeTab, setActiveTab] = useState<'patients' | 'supplies'>('patients');
 
   // Helper to calculate discounted vet cost
   const getDiscountedCost = (baseCost: number): number => {
@@ -47,12 +53,43 @@ export default function VetClinicView() {
           <HelpButton helpId="vet-clinic" tooltip="Learn about veterinary care" />
         </div>
         <p className="text-earth-600">
-          Professional medical care for your dogs. Treat illnesses, injuries, and health issues.
+          Professional medical care for your dogs. Treat illnesses, injuries, and buy health supplies.
         </p>
-        <div className="mt-2 flex items-center gap-4">
+        <div className="mt-3 flex items-center justify-between">
           <div className="text-sm text-earth-600">
             💰 Cash: <span className="font-bold text-kennel-700">${user?.cash || 0}</span>
+            {user?.gems !== undefined && (
+              <span className="ml-3">💎 Gems: <span className="font-bold text-purple-700">{user.gems}</span></span>
+            )}
           </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => setActiveTab('patients')}
+            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              activeTab === 'patients'
+                ? 'bg-kennel-600 text-white'
+                : 'bg-earth-100 text-earth-700 hover:bg-earth-200'
+            }`}
+          >
+            🩺 Patients {(sickOrInjuredDogs.length + healthIssueDogs.length) > 0 && (
+              <span className="ml-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {sickOrInjuredDogs.length + healthIssueDogs.filter((d: any) => !d.current_ailment && !d.recovering_from).length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('supplies')}
+            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              activeTab === 'supplies'
+                ? 'bg-kennel-600 text-white'
+                : 'bg-earth-100 text-earth-700 hover:bg-earth-200'
+            }`}
+          >
+            💊 Vet Supplies
+          </button>
         </div>
       </div>
 
@@ -69,6 +106,9 @@ export default function VetClinicView() {
         </div>
       )}
 
+      {/* Patients Tab */}
+      {activeTab === 'patients' && (
+        <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sick/Injured Dogs */}
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
@@ -350,6 +390,174 @@ export default function VetClinicView() {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {/* Supplies Tab */}
+      {activeTab === 'supplies' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Health Supplies for Purchase */}
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-bold text-earth-900 mb-4">
+              💊 Health Supplies
+            </h3>
+            <p className="text-sm text-earth-600 mb-4">
+              Buy medical supplies to keep your dogs healthy. Select a dog first to apply treatments.
+            </p>
+
+            {!selectedDog ? (
+              <div className="text-center py-8 text-earth-400">
+                <p className="text-lg">🐕 Select a dog first</p>
+                <p className="text-sm mt-2">Choose a dog from the list to buy supplies for them</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {VET_SUPPLIES.map((item) => {
+                  const isLocked = item.unlock_level > (user?.level || 1);
+                  const cashCost = item.price;
+                  const gemCost = item.gem_price || 0;
+                  const canAffordCash = (user?.cash || 0) >= cashCost;
+                  const canAffordGems = gemCost > 0 && (user?.gems || 0) >= gemCost;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-4 border-2 rounded-lg transition-all ${
+                        isLocked
+                          ? 'border-gray-300 bg-gray-50 opacity-60'
+                          : 'border-green-300 bg-green-50 hover:border-green-400'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-3xl">{item.icon}</span>
+                          <div>
+                            <p className="font-bold text-earth-900">{item.name}</p>
+                            <p className="text-xs text-earth-600">{item.description}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Effects */}
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {item.effect.health && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            +{item.effect.health} Health
+                          </span>
+                        )}
+                        {item.effect.happiness && (
+                          <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded">
+                            +{item.effect.happiness} Happiness
+                          </span>
+                        )}
+                        {item.effect.energy_stat && (
+                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                            +{item.effect.energy_stat} Energy
+                          </span>
+                        )}
+                      </div>
+
+                      {isLocked ? (
+                        <p className="text-sm text-gray-600">🔒 Unlocks at level {item.unlock_level}</p>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {/* Cash purchase */}
+                          <button
+                            onClick={() => {
+                              purchaseItem(selectedDog.id, item.effect, cashCost, 0);
+                              setMessage({
+                                text: `Used ${item.name} on ${selectedDog.name}!`,
+                                type: 'success',
+                              });
+                              setTimeout(() => setMessage(null), 3000);
+                            }}
+                            disabled={!canAffordCash}
+                            className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold text-sm"
+                          >
+                            💰 ${cashCost}
+                          </button>
+
+                          {/* Gem purchase option */}
+                          {gemCost > 0 && (
+                            <button
+                              onClick={() => {
+                                purchaseItem(selectedDog.id, item.effect, 0, gemCost);
+                                setMessage({
+                                  text: `Used ${item.name} on ${selectedDog.name}!`,
+                                  type: 'success',
+                                });
+                                setTimeout(() => setMessage(null), 3000);
+                              }}
+                              disabled={!canAffordGems}
+                              className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold text-sm"
+                            >
+                              💎 {gemCost}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Dog Selection */}
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-bold text-earth-900 mb-4">
+              🐕 Select a Dog
+            </h3>
+
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+              {dogs.filter((d: any) => !d.is_dead).map((dog: any) => (
+                <div
+                  key={dog.id}
+                  onClick={() => selectDog(dog)}
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    selectedDog?.id === dog.id
+                      ? 'border-kennel-500 bg-kennel-50'
+                      : 'border-earth-200 hover:border-kennel-300'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-earth-900">{dog.name}</p>
+                      <p className="text-xs text-earth-600">
+                        Health: {Math.round(dog.health)}% • Energy: {Math.round(dog.energy_stat)}%
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="w-20 bg-earth-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            dog.health > 70
+                              ? 'bg-green-500'
+                              : dog.health > 30
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                          }`}
+                          style={{ width: `${dog.health}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Health Tips */}
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-semibold text-blue-900 mb-2">💡 When to use supplies:</p>
+              <ul className="text-xs text-blue-800 space-y-1">
+                <li>• <strong>First Aid Kit</strong> - Minor health issues</li>
+                <li>• <strong>Vitamins</strong> - Daily health maintenance</li>
+                <li>• <strong>Vet Treatment</strong> - Full health restoration</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

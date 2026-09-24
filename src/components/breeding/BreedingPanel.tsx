@@ -7,9 +7,12 @@ import {
 import { BREEDING_CONSTANTS } from '../../data/breedingConstants';
 import HelpButton from '../tutorial/HelpButton';
 import { showToast } from '../../lib/toast';
+import { getKennelCapacity } from '../../utils/kennelCapacity';
+import { APTITUDES, isAptitudeKnown } from '../../utils/dogDevelopment';
+import { PREGNANCY_HOURS } from '../../utils/timeScaling';
 
 export default function BreedingPanel() {
-  const { dogs, user, updateUserCash, breedDogs } = useGameStore();
+  const { dogs, user, breedDogs } = useGameStore();
   const [selectedDog1, setSelectedDog1] = useState<string | null>(null);
   const [selectedDog2, setSelectedDog2] = useState<string | null>(null);
 
@@ -22,7 +25,8 @@ export default function BreedingPanel() {
     : { canBreed: false, reasons: ['Select two dogs'] };
 
   // Get genetics preview
-  const genetics = dog1 && dog2 ? previewGenetics(dog1, dog2, dogs) : null;
+  const parentsAssessed = dog1 && dog2 && APTITUDES.every(a => isAptitudeKnown(dog1, a.key) && isAptitudeKnown(dog2, a.key));
+  const genetics = dog1 && dog2 && parentsAssessed ? previewGenetics(dog1, dog2, dogs) : null;
 
   const handleBreed = () => {
     if (!dog1 || !dog2 || !eligibility.canBreed || !user) return;
@@ -34,14 +38,18 @@ export default function BreedingPanel() {
       return;
     }
 
-    // Deduct breeding fee
-    updateUserCash(-BREEDING_CONSTANTS.BREEDING_FEE);
+    const reserved = dogs.reduce((n, d) => n + (d.is_pregnant ? d.litter_size || 0 : 0), 0);
+    const available = getKennelCapacity(user.kennel_level) - dogs.length - reserved;
+    if (available < BREEDING_CONSTANTS.LITTER_SIZE_MIN) {
+      showToast.warning('Your nursery needs at least three free spaces. Upgrade the kennel before breeding.');
+      return;
+    }
 
     // Calculate litter size
     const litterSize =
       BREEDING_CONSTANTS.LITTER_SIZE_MIN +
       Math.floor(
-        Math.random() * (BREEDING_CONSTANTS.LITTER_SIZE_MAX - BREEDING_CONSTANTS.LITTER_SIZE_MIN + 1)
+        Math.random() * (Math.min(available, BREEDING_CONSTANTS.LITTER_SIZE_MAX) - BREEDING_CONSTANTS.LITTER_SIZE_MIN + 1)
       );
 
     // Determine which is sire/dam
@@ -49,11 +57,12 @@ export default function BreedingPanel() {
     const dam = dog1.gender === 'female' ? dog1 : dog2;
 
     // Update dogs in store (pregnancy due date is calculated automatically)
-    breedDogs(sire.id, dam.id, litterSize);
+    const result = breedDogs(sire.id, dam.id, litterSize);
+    if (!result.success) { showToast.warning(result.message); return; }
 
     // Show success message
     showToast.success(
-      `Breeding successful! ${dam.name} is now pregnant with ${litterSize} puppies. They'll be born in ${BREEDING_CONSTANTS.PREGNANCY_DURATION} weeks.`
+      `Breeding successful! ${dam.name} is now pregnant with ${litterSize} puppies. They'll be born in ${PREGNANCY_HOURS} real hours.`
     );
 
     // Reset selection
@@ -128,7 +137,7 @@ export default function BreedingPanel() {
                 {dog1.gender === 'male' ? '♂️' : '♀️'} {dog1.gender.toUpperCase()} • {dog1.age_weeks} weeks old
               </p>
               <p className="text-xs text-earth-500 mt-1">
-                Speed: {dog1.speed} | Agility: {dog1.agility} | Strength: {dog1.strength}
+                {parentsAssessed ? `Speed: ${dog1.speed} | Agility: ${dog1.agility} | Strength: ${dog1.strength}` : 'Bond and train to assess inherited potential.'}
               </p>
             </div>
           )}
@@ -140,7 +149,7 @@ export default function BreedingPanel() {
                 {dog2.gender === 'male' ? '♂️' : '♀️'} {dog2.gender.toUpperCase()} • {dog2.age_weeks} weeks old
               </p>
               <p className="text-xs text-earth-500 mt-1">
-                Speed: {dog2.speed} | Agility: {dog2.agility} | Strength: {dog2.strength}
+                {parentsAssessed ? `Speed: ${dog2.speed} | Agility: ${dog2.agility} | Strength: ${dog2.strength}` : 'Bond and train to assess inherited potential.'}
               </p>
             </div>
           )}

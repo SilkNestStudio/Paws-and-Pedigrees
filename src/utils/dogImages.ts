@@ -1,5 +1,5 @@
 // Import all dog images using Vite's import.meta.glob
-const images = import.meta.glob('../assets/images/dogs/*.png', { eager: true, as: 'url' });
+const images = import.meta.glob('../assets/images/dogs/*.png', { eager: true, query: '?url', import: 'default' });
 
 // Map breed names to image filenames
 const breedImageMap: { [key: string]: string } = {

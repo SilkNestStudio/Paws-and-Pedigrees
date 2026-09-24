@@ -320,7 +320,7 @@ export function updateChampionshipProgressAfterCompetition(
   isMajor: boolean,
   judgeId: string
 ): ChampionshipProgress {
-  const newProgress = { ...currentProgress };
+  const newProgress = { ...currentProgress, disciplinePoints: { ...currentProgress.disciplinePoints } };
 
   // Add points
   newProgress.totalPoints += pointsAwarded;

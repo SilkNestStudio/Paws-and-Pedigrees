@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
+import { shopBreeds } from '../../data/shopBreeds';
 import {
   isPregnancyComplete,
   getWeeksRemaining,
@@ -27,15 +28,15 @@ export default function PuppyNursery() {
         if (!sire) return;
 
         // Get breeds
-        const sireBreed = rescueBreeds.find(b => b.id === sire.breed_id);
-        const damBreed = rescueBreeds.find(b => b.id === dam.breed_id);
+        const sireBreed = [...rescueBreeds, ...shopBreeds].find(b => b.id === sire.breed_id);
+        const damBreed = [...rescueBreeds, ...shopBreeds].find(b => b.id === dam.breed_id);
         if (!sireBreed || !damBreed) return;
 
         // Generate litter
-        const puppies = generateLitter(sire, dam, sireBreed, damBreed, user?.id || 'temp-user-id');
+        const puppies = generateLitter(sire, dam, sireBreed, damBreed, user?.id || 'temp-user-id', dogs);
 
         // Add puppies to kennel
-        giveBirth(dam.id, puppies);
+        if (!giveBirth(dam.id, puppies)) return;
 
         // Notify player
         showToast.success(`🎉 ${dam.name} gave birth to ${puppies.length} puppies!`);

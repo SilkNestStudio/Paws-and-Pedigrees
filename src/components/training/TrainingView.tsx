@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { trainingTypes } from '../../data/trainingTypes';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { calculateTrainingGain, canTrain, getUserTrainingMultiplier } from '../../utils/trainingCalculations';
 import { Dog } from '../../types';
 import SprintTrainingGame from './SprintTrainingGame';
-import ObstacleCourseGame from './ObstacleCourseGame';
+const AgilityGame = lazy(() => import('../../game/agility/AgilityGame'));
 import WeightPullTrainingGame from './WeightPullTrainingGame';
 import DistanceRunGame from './DistanceRunGame';
 import CommandDrillsGame from './CommandDrillsGame';
@@ -14,6 +14,7 @@ import HelpButton from '../tutorial/HelpButton';
 import { ENERGY_THRESHOLDS } from '../../utils/careCalculations';
 import { trackStoryAction } from '../../utils/storyObjectiveTracking';
 import { showToast } from '../../lib/toast';
+import { activityRestriction, isAptitudeKnown, type Aptitude } from '../../utils/dogDevelopment';
 
 
 export default function TrainingView() {
@@ -21,6 +22,8 @@ export default function TrainingView() {
   const [isTraining] = useState(false);
   const [currentTraining, setCurrentTraining] = useState<string | null>(null);
   const [showMinigame, setShowMinigame] = useState(false);
+  const sessionDogId = useRef<string | null>(null);
+  const sessionComplete = useRef(false);
 
   if (dogs.length === 0) {
     return (
@@ -32,6 +35,8 @@ export default function TrainingView() {
 
   const handleSelfTrain = (trainingId: string) => {
     if (!selectedDog || isTraining) return;
+    const restriction = activityRestriction(selectedDog);
+    if (restriction) { showToast.warning(restriction); return; }
 
     const training = trainingTypes.find(t => t.id === trainingId);
     if (!training) return;
@@ -54,14 +59,25 @@ export default function TrainingView() {
     }
 
     setCurrentTraining(trainingId);
+    sessionDogId.current = selectedDog.id;
+    sessionComplete.current = false;
     setShowMinigame(true);
   };
 
   const handleMinigameComplete = (performanceMultiplier: number) => {
-    if (!selectedDog || !currentTraining) return;
+    if (sessionComplete.current || !currentTraining || !Number.isFinite(performanceMultiplier)) return;
+    const selectedDog = useGameStore.getState().dogs.find(d => d.id === sessionDogId.current);
+    if (!selectedDog) return;
 
     const training = trainingTypes.find(t => t.id === currentTraining);
     if (!training) return;
+    if (!canTrain(selectedDog, training.tpCost)) {
+      setShowMinigame(false);
+      showToast.warning('Your dog needs rest or care before completing training.');
+      return;
+    }
+    sessionComplete.current = true;
+    performanceMultiplier = Math.max(0.3, Math.min(1.5, performanceMultiplier));
 
     const userMultiplier = getUserTrainingMultiplier(user?.training_skill || 1);
 
@@ -87,6 +103,8 @@ export default function TrainingView() {
     // Update dog's trained stat
     const updates: Partial<Dog> = {
       training_points: selectedDog.training_points - training.tpCost,
+      energy_stat: Math.max(0, selectedDog.energy_stat - 10),
+      training_sessions_today: selectedDog.training_sessions_today + 1,
       bond_xp: newBondXp,
     };
 
@@ -180,6 +198,8 @@ export default function TrainingView() {
 
   const handleNpcTrain = (trainingId: string, trainerType: 'basic' | 'pro') => {
     if (!selectedDog || isTraining) return;
+    const restriction = activityRestriction(selectedDog);
+    if (restriction) { showToast.warning(restriction); return; }
 
     const training = trainingTypes.find(t => t.id === trainingId);
     if (!training) return;
@@ -223,6 +243,8 @@ export default function TrainingView() {
 
     const updates: Partial<Dog> = {
   training_points: selectedDog.training_points - training.tpCost,
+  energy_stat: Math.max(0, selectedDog.energy_stat - 10),
+  training_sessions_today: selectedDog.training_sessions_today + 1,
   bond_xp: newBondXp,
 };
 
@@ -410,7 +432,7 @@ updateDog(selectedDog.id, updates);
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-earth-600">Current {training.statImproved}</p>
-                        <p className="text-2xl font-bold text-earth-900">{totalStat.toFixed(1)}</p>
+                        <p className="text-2xl font-bold text-earth-900">{training.statImproved === 'obedience' || isAptitudeKnown(selectedDog, training.statImproved as Aptitude) ? totalStat.toFixed(1) : 'Discovering'}</p>
                         {trainedStat > 0 && (
                           <p className="text-xs text-green-600">+{trainedStat.toFixed(1)} trained</p>
                         )}
@@ -473,10 +495,12 @@ updateDog(selectedDog.id, updates);
                   />
                 )}
                 {currentTraining === 'agility' && (
-                  <ObstacleCourseGame
+                  <Suspense fallback={<p>Preparing your agility course…</p>}><AgilityGame
                     onComplete={handleMinigameComplete}
+                    onCancel={() => { setShowMinigame(false); setCurrentTraining(null); }}
                     dogName={selectedDog.name}
-                  />
+                    agility={selectedDog.agility + selectedDog.agility_trained}
+                  /></Suspense>
                 )}
                 {currentTraining === 'strength' && (
                   <WeightPullTrainingGame

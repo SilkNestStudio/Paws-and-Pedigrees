@@ -1,3 +1,4 @@
+import { isLocalMode } from '../../lib/storage/config';
 import { useState, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import {
@@ -19,6 +20,9 @@ type LeaderboardTab = 'dogs' | 'users' | 'my_stats';
 type CompetitionFilter = 'all' | CompetitionType;
 
 export default function LeaderboardView() {
+  return isLocalMode ? <div className="p-6 bg-white rounded-lg"><h2 className="text-xl font-bold">Local play</h2><p>Online leaderboards will be available with cloud accounts. Your local competitions and championship progression still work.</p></div> : <CloudLeaderboardView />;
+}
+function CloudLeaderboardView() {
   const { user, selectedDog } = useGameStore();
   const [activeTab, setActiveTab] = useState<LeaderboardTab>('dogs');
   const [competitionFilter, setCompetitionFilter] = useState<CompetitionFilter>('all');

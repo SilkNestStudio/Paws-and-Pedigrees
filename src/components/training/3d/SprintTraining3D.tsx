@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { PerspectiveCamera } from '@react-three/drei';
-import { Vector3 } from 'three';
+import { Group, Vector3 } from 'three';
 import Dog3D from './Dog3D';
 
 interface SprintTraining3DProps {
@@ -152,6 +152,7 @@ function GameScene({
   }) => void;
 }) {
   const cameraRef = useRef<any>();
+  const dogModelRef = useRef<Group>(null);
   const initializedRef = useRef(false);
   const lastUpdateTime = useRef(0); // Throttle HUD updates
   const startTime = useRef<number>(0); // Track start time for accurate time measurement
@@ -170,6 +171,7 @@ function GameScene({
 
   useFrame((state, delta) => {
     if (!cameraRef.current) return;
+    delta = Math.min(delta, 0.05);
 
     // Initialize game state on first frame
     if (!initializedRef.current) {
@@ -189,7 +191,7 @@ function GameScene({
       currentPos.y + heightOffset, // Follow dog's height + offset
       currentPos.z - 3 // Slightly behind the dog
     );
-    cameraRef.current.position.lerp(targetCamPos, 0.1);
+    cameraRef.current.position.lerp(targetCamPos, 1 - Math.exp(-6 * delta));
     cameraRef.current.lookAt(new Vector3(currentPos.x, currentPos.y + 0.5, currentPos.z));
 
     // Game loop logic - constant forward movement
@@ -285,6 +287,11 @@ function GameScene({
       jumpVelocity: gameStateRef.current.jumpVelocity,
     };
 
+    // The dog moves every frame; only the HUD is throttled.
+    if (dogModelRef.current) {
+      dogModelRef.current.position.copy(newPosition);
+      dogModelRef.current.rotation.y = newRotation;
+    }
     // Check finish condition
     const finished = newDistance >= 70;
 
@@ -331,7 +338,7 @@ function GameScene({
       ))}
 
       {/* Dog */}
-      <Dog3D position={[dogPosition.x, dogPosition.y, dogPosition.z]} rotation={[0, dogRotation, 0]} isRunning={false} speed={speed} />
+      <group ref={dogModelRef}><Dog3D position={[0, 0, 0]} isRunning={speed > 0} speed={speed} /></group>
 
       {/* Camera */}
       <PerspectiveCamera ref={cameraRef} makeDefault position={[-8, 2, -10]} fov={60} />
@@ -570,7 +577,7 @@ export default function SprintTraining3D({ onComplete, dogName }: SprintTraining
     >
       <Canvas
         shadows
-        gl={{ preserveDrawingBuffer: true, alpha: false, antialias: true }}
+        gl={{ alpha: false, antialias: true }}
         camera={{ position: [0, 5, -10], fov: 60 }}
         style={{ display: 'block', width: '100%', height: '100%' }}
       >

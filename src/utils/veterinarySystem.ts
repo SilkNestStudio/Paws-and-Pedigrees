@@ -29,6 +29,11 @@ export interface Ailment {
 
 // Common Ailments
 export const AILMENTS: Record<string, Ailment> = {
+  care_recovery: {
+    id: 'care_recovery', name: 'Care and reconditioning', type: 'illness', severity: 'mild',
+    description: 'A supported return to daily care and activity after time away.',
+    symptoms: ['Low conditioning'], treatmentCost: 0, recoveryTime: 24, healthImpact: 0,
+  },
   // Illnesses
   kennel_cough: {
     id: 'kennel_cough',
@@ -264,6 +269,7 @@ export function selectRandomAilment(
   severity?: 'mild' | 'moderate' | 'severe'
 ): Ailment {
   const ailmentList = Object.values(AILMENTS).filter(a => {
+    if (a.id === 'care_recovery') return false;
     if (type !== 'any' && a.type !== type) return false;
     if (severity && a.severity !== severity) return false;
     return true;

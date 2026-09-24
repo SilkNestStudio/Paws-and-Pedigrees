@@ -1,4 +1,5 @@
 import { Dog } from '../types';
+import { activityRestriction } from './dogDevelopment';
 import { Season, WeatherCondition } from '../types/weather';
 import { applyTrainingBonus } from './kennelUpgrades';
 import { getPersonalityEffects } from './personalityGenerator';
@@ -78,7 +79,7 @@ export function getTrainingPointsAvailable(dog: Dog): number {
 }
 
 export function canTrain(dog: Dog, tpCost: number): boolean {
-  return dog.training_points >= tpCost;
+  return Number.isFinite(tpCost) && tpCost >= 0 && dog.training_points >= tpCost && !activityRestriction(dog);
 }
 
 export function getUserTrainingMultiplier(userTrainingSkill: number): number {

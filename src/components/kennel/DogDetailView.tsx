@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DevelopmentPanel from '../dog/DevelopmentPanel';
 import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import DogCarePanel from './DogCarePanel';
@@ -305,55 +306,7 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
             </div>
           </div>
 
-          {/* Performance Stats */}
-          <div className="mt-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-            <h3 className="text-xl font-bold text-earth-900 mb-4">Performance Stats</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="text-center">
-                <p className="text-sm text-earth-600">Speed</p>
-                <p className="text-3xl font-bold text-earth-900">
-                  {(selectedDog.speed + (selectedDog.speed_trained || 0)).toFixed(1)}
-                </p>
-                {selectedDog.speed_trained > 0 && (
-                  <p className="text-xs text-gray-500">{selectedDog.speed} + {selectedDog.speed_trained.toFixed(1)} trained</p>
-                )}
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-earth-600">Agility</p>
-                <p className="text-3xl font-bold text-earth-900">
-                  {(selectedDog.agility + (selectedDog.agility_trained || 0)).toFixed(1)}
-                </p>
-                {selectedDog.agility_trained > 0 && (
-                  <p className="text-xs text-gray-500">{selectedDog.agility} + {selectedDog.agility_trained.toFixed(1)} trained</p>
-                )}
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-earth-600">Strength</p>
-                <p className="text-3xl font-bold text-earth-900">
-                  {(selectedDog.strength + (selectedDog.strength_trained || 0)).toFixed(1)}
-                </p>
-                {selectedDog.strength_trained > 0 && (
-                  <p className="text-xs text-gray-500">{selectedDog.strength} + {selectedDog.strength_trained.toFixed(1)} trained</p>
-                )}
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-earth-600">Intelligence</p>
-                <p className="text-3xl font-bold text-earth-900">{selectedDog.intelligence}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-earth-600">Trainability</p>
-                <p className="text-3xl font-bold text-earth-900">{selectedDog.trainability}</p>
-              </div>
-            </div>
-
-            {/* Training Points */}
-            <div className="mt-4 pt-4 border-t border-earth-200">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-earth-600">Training Points:</span>
-                <span className="text-lg font-bold text-blue-700">{selectedDog.training_points}/100 TP</span>
-              </div>
-            </div>
-          </div>
+          <DevelopmentPanel dog={selectedDog} />
 
           {/* Age & Breeding Info */}
           <div className="mt-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
