@@ -90,6 +90,7 @@ export default function BreedingPanel() {
         </p>
       </div>
 
+      <section className="ribbon-guide" aria-label="Breeding readiness"><p className="ribbon-eyebrow">YOUR NEXT GENERATION</p><h2>Make room before making a match.</h2><p>Both parents need age {BREEDING_CONSTANTS.MIN_BREEDING_AGE}+ weeks, bond level {BREEDING_CONSTANTS.MIN_BOND_LEVEL}+, and health {BREEDING_CONSTANTS.MIN_HEALTH}%+. Reserve ${BREEDING_CONSTANTS.BREEDING_FEE} for the fee and at least {BREEDING_CONSTANTS.LITTER_SIZE_MIN} free spaces for puppies. Pregnancy currently lasts {PREGNANCY_HOURS} real hours.</p><p>Your kennel has {Math.max(0,getKennelCapacity(user?.kennel_level??1)-dogs.length-dogs.reduce((n,d)=>n+(d.is_pregnant?d.litter_size??0:0),0))} unreserved spaces. Two parents plus the smallest litter need at least kennel level 3. Until then, focus on bond, training, and saving for expansion.</p></section>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Parent Selection */}
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">

@@ -24,6 +24,34 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   } = useGameStore();
   const userIsAdmin = isAdmin(user?.id);
 
+  const [values, setValues] = useState({
+    level: user?.level || 1,
+    xp: user?.xp || 0,
+    cash: user?.cash || 0,
+    gems: user?.gems || 0,
+    food_storage: user?.food_storage || 0,
+    kennel_level: user?.kennel_level || 1,
+    training_skill: user?.training_skill || 1,
+    care_knowledge: user?.care_knowledge || 1,
+    breeding_expertise: user?.breeding_expertise || 1,
+    competition_strategy: user?.competition_strategy || 1,
+    business_acumen: user?.business_acumen || 1,
+  });
+
+  const [dogBondValues, setDogBondValues] = useState({
+    bond_level: selectedDog?.bond_level || 0,
+    bond_xp: selectedDog?.bond_xp || 0,
+  });
+
+  const [storyChapterSlider, setStoryChapterSlider] = useState(
+    storyChapters.findIndex(ch => ch.id === storyProgress.currentChapter) !== -1
+      ? storyChapters.findIndex(ch => ch.id === storyProgress.currentChapter)
+      : 0
+  );
+
+  const [selectedItemId, setSelectedItemId] = useState('');
+  const [itemQuantity, setItemQuantity] = useState(1);
+
   // Show setup instructions if not yet added as admin
   if (!userIsAdmin) {
     return (
@@ -68,34 +96,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       </div>
     );
   }
-  const [values, setValues] = useState({
-    level: user?.level || 1,
-    xp: user?.xp || 0,
-    cash: user?.cash || 0,
-    gems: user?.gems || 0,
-    food_storage: user?.food_storage || 0,
-    kennel_level: user?.kennel_level || 1,
-    training_skill: user?.training_skill || 1,
-    care_knowledge: user?.care_knowledge || 1,
-    breeding_expertise: user?.breeding_expertise || 1,
-    competition_strategy: user?.competition_strategy || 1,
-    business_acumen: user?.business_acumen || 1,
-  });
-
-  const [dogBondValues, setDogBondValues] = useState({
-    bond_level: selectedDog?.bond_level || 0,
-    bond_xp: selectedDog?.bond_xp || 0,
-  });
-
-  const [storyChapterSlider, setStoryChapterSlider] = useState(
-    storyChapters.findIndex(ch => ch.id === storyProgress.currentChapter) !== -1
-      ? storyChapters.findIndex(ch => ch.id === storyProgress.currentChapter)
-      : 0
-  );
-
-  const [selectedItemId, setSelectedItemId] = useState('');
-  const [itemQuantity, setItemQuantity] = useState(1);
-
   const handleChange = (field: string, value: string | number) => {
     // If already a number (from button clicks), use it directly
     if (typeof value === 'number') {
@@ -122,12 +122,12 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
     setUser({
       ...user,
-      level: values.level,
+      level: Math.min(100, Math.max(1, values.level)),
       xp: values.xp,
       cash: values.cash,
       gems: values.gems,
       food_storage: Math.min(100, values.food_storage), // Cap at 100
-      kennel_level: values.kennel_level,
+      kennel_level: Math.min(10, Math.max(1, values.kennel_level)),
       training_skill: values.training_skill,
       care_knowledge: values.care_knowledge,
       breeding_expertise: values.breeding_expertise,
@@ -237,6 +237,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <div className="flex gap-2">
                   <input
                     type="number"
+                    aria-label="Player level"
                     value={values.level}
                     onChange={(e) => handleChange('level', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-purple-500 text-slate-900"
@@ -377,6 +378,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <div className="flex gap-2">
                   <input
                     type="number"
+                    aria-label="Kennel level"
                     value={values.kennel_level}
                     onChange={(e) => handleChange('kennel_level', e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-orange-500 text-slate-900"

@@ -45,7 +45,7 @@ export const storyChapters: StoryChapter[] = [
       },
     ],
     rewards: {
-      cash: 500,
+      cash: 75,
       xp: 100,
       items: ['energy_treat', 'tennis_ball'],
     },

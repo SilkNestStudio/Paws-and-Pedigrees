@@ -1,9 +1,11 @@
+import { BREEDING_CONSTANTS } from '../breedingConstants';
+import { PREGNANCY_HOURS } from '../../utils/timeScaling';
 import { Tutorial } from '../../types';
 
 export const TUTORIALS: Record<string, Tutorial> = {
   'kennel-basics': {
     id: 'kennel-basics',
-    name: 'Kennel Management',
+    name: 'Your First Ribbon (playable guide)',
     triggerType: 'auto',
     triggerCondition: 'hasAdoptedFirstDog',
     steps: [
@@ -117,7 +119,7 @@ export const TUTORIALS: Record<string, Tutorial> = {
       {
         id: 'intro',
         title: 'Breeding Basics',
-        content: 'Breed dogs to create puppies with inherited stats. Costs $500, takes 2 weeks.',
+        content: `Plan for an entire litter. Breeding costs $${BREEDING_CONSTANTS.BREEDING_FEE}, needs healthy bonded adults and nursery space, and pregnancy lasts ${PREGNANCY_HOURS} real hours.`,
         spotlightMode: false,
         position: 'center',
         canSkip: true

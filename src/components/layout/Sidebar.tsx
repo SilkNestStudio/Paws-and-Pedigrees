@@ -1,64 +1,16 @@
+import { useGameStore } from '../../stores/gameStore';
+import { lessonViewUnlocked, apprenticeshipComplete } from '../../utils/firstRibbon';
 import { memo } from 'react';
-
-interface SidebarProps {
-  currentView: string;
-  onViewChange: (view: string) => void;
-}
-
-// Navigation sidebar (desktop) / bottom nav (mobile)
+import NavIcon from './NavIcon';
+interface SidebarProps { currentView: string; onViewChange: (view: string) => void; }
+const items = [['hub','Kennel home'],['demo3d','Time together'],['kennel','My dogs'],['office','Our story'],['competition','Compete'],['breeding','Build a legacy'],['training','Training'],['jobs','Work'],['shop','Supplies'],['vet','Veterinary']];
 function Sidebar({ currentView, onViewChange }: SidebarProps) {
-  const menuItems = [
-    { id: 'office', label: 'Office', icon: '📋' },
-    { id: 'kennel', label: 'Kennel', icon: '🏠' },
-    { id: 'training', label: 'Training', icon: '🎯' },
-    { id: 'competition', label: 'Compete', icon: '🏆' },
-    { id: 'breeding', label: 'Breeding', icon: '🤰' },
-    { id: 'vet', label: 'Vet Clinic', icon: '🏥' },
-    { id: 'jobs', label: 'Jobs', icon: '💼' },
-    { id: 'shop', label: 'Shop', icon: '🛍️' },
-  ];
-
-  return (
-    <>
-      {/* Desktop Sidebar - hidden on mobile */}
-      <div className="hidden md:flex fixed left-0 top-0 bottom-0 w-20 bg-kennel-800 text-white flex-col items-center py-6 space-y-6 shadow-xl z-20 overflow-y-auto">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onViewChange(item.id)}
-            className={`flex flex-col items-center gap-1 w-16 py-3 rounded-lg transition-all ${
-              currentView === item.id
-                ? 'bg-kennel-600 shadow-lg scale-110'
-                : 'hover:bg-kennel-700 opacity-70 hover:opacity-100'
-            }`}
-          >
-            <span className="text-2xl">{item.icon}</span>
-            <span className="text-xs font-semibold text-center leading-tight">{item.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Mobile Bottom Navigation - hidden on desktop */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-kennel-800 text-white shadow-2xl z-50 safe-area-inset-bottom">
-        <div className="flex justify-around items-center px-2 py-2">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onViewChange(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all flex-1 ${
-                currentView === item.id
-                  ? 'bg-kennel-600 shadow-lg'
-                  : 'opacity-70'
-              }`}
-            >
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  );
+ const progress=useGameStore(s=>s.tutorialProgress);
+ return <aside className="club-sidebar">
+   <div className="club-brand"><span className="club-brand-mark"><NavIcon name="kennel" size={30} /></span><div>Paws &amp;<br/>Pedigrees<span>A LITTLE CARE. A LASTING LEGACY.</span></div></div>
+   <p className="club-nav-caption">YOUR KENNEL</p>
+   <nav aria-label="Main navigation">{items.filter(([id])=>apprenticeshipComplete(progress)||['hub','office','demo3d','kennel'].includes(id)).map(([id,label]) => <button key={id} disabled={!lessonViewUnlocked(progress,id)} className={'club-nav-item inline-button ' + (currentView === id || id === 'kennel' && currentView === 'dogDetail' ? 'is-active' : '')} aria-current={currentView === id ? 'page' : undefined} onClick={() => onViewChange(id)}><NavIcon name={id}/><span>{label}{!lessonViewUnlocked(progress,id)&&<small style={{display:'block',fontSize:9}}>{id==='training'?'After your care lessons':'After your apprenticeship'}</small>}</span></button>)}</nav>
+   <div className="club-sidebar-note"><span>FROM RESCUE TO REMARKABLE</span><p>Great champions start<br/>with a little connection.</p><NavIcon name="breeding" size={25}/></div>
+ </aside>;
 }
-
 export default memo(Sidebar);

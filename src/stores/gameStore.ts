@@ -1,3 +1,6 @@
+import { YARD_CARE_THRESHOLD } from '../game/yard/care';
+import { recordRibbonStep, nextRibbonStep, apprenticeshipComplete, STARTING_CASH, type RibbonStep } from '../utils/firstRibbon';
+import { bondingOutcome, type BondingActivity } from '../utils/companionLoop';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { isLocalMode } from '../lib/storage/config';
@@ -14,7 +17,7 @@ import {
   debouncedSave,
   saveStoryProgress
 } from '../lib/supabaseService';
-import { calculateLoginStreak, getDailyReward } from '../utils/dailyRewards';
+import { calculateLoginStreak, getDailyReward, canClaimDailyReward, dailyRewardUnlocked } from '../utils/dailyRewards';
 import {
   calculateFoodConsumption,
   calculateHungerRestoration,
@@ -124,6 +127,7 @@ interface GameState {
   addDog: (dog: Dog) => void;
   updateDog: (dogId: string, updates: Partial<Dog>) => void;
   selectDog: (dog: Dog | null) => void;
+  setKennelIdentity: (name: string, emblem: string, color: string) => { success: boolean; message: string };
   updateUserCash: (amount: number) => void;
   updateUserGems: (amount: number) => void;
   updateUserXP: (amount: number) => void;
@@ -132,6 +136,10 @@ interface GameState {
   setHasAdoptedFirstDog: (value: boolean) => void;
   claimDailyReward: () => void;
 
+  recordRibbon: (dogId: string, step: RibbonStep) => void;
+  pauseRibbon: () => void;
+  acknowledgeRibbonCare: (dogId: string, step: 'water' | 'feed' | 'rest' | 'fetch') => void;
+  finishRibbon: (dogId: string) => void;
   // Tutorial actions
   startTutorial: (tutorialId: string) => void;
   completeTutorial: (tutorialId: string) => void;
@@ -155,14 +163,16 @@ interface GameState {
 
   // Shop actions
   purchaseBreed: (dog: Dog, cashCost: number, gemCost: number) => { success: boolean; message?: string };
-  purchaseItem: (dogId: string, effects: ShopItemEffect, cashCost: number, gemCost: number) => void;
+  purchaseItem: (dogId: string | null, effects: ShopItemEffect, cashCost: number, gemCost: number) => { success: boolean; message: string };
 
   // Kennel upgrade
   upgradeKennel: () => { success: boolean; message?: string; newLevel?: number };
 
   // Care actions
-  feedDog: (dogId: string) => { success: boolean; message?: string };
-  waterDog: (dogId: string) => { success: boolean; message?: string };
+  bondWithDog: (dogId: string, activity: BondingActivity) => { success: boolean; message: string };
+  prepareYardBowl: (dogId: string, kind: 'food' | 'water') => { success: boolean; message: string };
+  feedDog: (dogId: string, source?: 'bowl') => { success: boolean; message?: string };
+  waterDog: (dogId: string, source?: 'bowl') => { success: boolean; message?: string };
   restDog: (dogId: string) => { success: boolean; message?: string };
   refillTrainingPoints: (dogId: string) => { success: boolean; message?: string; gemCost?: number };
 
@@ -216,8 +226,8 @@ export const useGameStore = create<GameState>()(
         id: 'temp-user-id',
         username: 'Player',
         kennel_name: 'My Kennel',
-        cash: 500,
-        gems: 50,
+        cash: STARTING_CASH,
+        gems: 0,
         level: 1,
         xp: 0,
         training_skill: 1,
@@ -229,7 +239,7 @@ export const useGameStore = create<GameState>()(
         food_storage: 0, // Start with empty food storage
         created_at: new Date().toISOString(),
         last_login: new Date().toISOString(),
-        login_streak: 1,
+        login_streak: 0,
         competition_wins_local: 0,
         competition_wins_regional: 0,
         competition_wins_national: 0,
@@ -289,8 +299,8 @@ export const useGameStore = create<GameState>()(
               id: userId,
               username,
               kennel_name: kennelName,
-              cash: 1000,
-              gems: 50,
+              cash: STARTING_CASH,
+              gems: 0,
               level: 1,
               xp: 0,
               training_skill: 1,
@@ -302,7 +312,7 @@ export const useGameStore = create<GameState>()(
               food_storage: 0,
               created_at: new Date().toISOString(),
               last_login: new Date().toISOString(),
-              login_streak: 1,
+              login_streak: 0,
               competition_wins_local: 0,
               competition_wins_regional: 0,
               competition_wins_national: 0,
@@ -434,6 +444,8 @@ export const useGameStore = create<GameState>()(
         set({ user });
         // Save to Supabase if sync is enabled
         const state = useGameStore.getState();
+        if (!apprenticeshipComplete(state.tutorialProgress)) return { success: false, message: 'Finish your apprenticeship first. Your welcome meet is free and available in the yard.' };
+        if (!apprenticeshipComplete(state.tutorialProgress)) return { success: false, message: 'Finish your apprenticeship first. Your welcome meet is free and available in the yard.' };
         if (state.syncEnabled && user) {
           debouncedSave(`profile:${useGameStore.getState().user?.id}`, () => saveUserProfile(user));
         }
@@ -481,6 +493,17 @@ export const useGameStore = create<GameState>()(
       // @ts-ignore - Type mismatch with Dog | null
       selectDog: (dog: Dog) => set({ selectedDog: dog }),
 
+      setKennelIdentity: (name, emblem, color) => {
+        const clean = name.trim().replace(/\s+/g, ' ');
+        if (clean.length < 2 || clean.length > 36 || /[\x00-\x1f]/.test(clean)) return { success: false, message: 'Use a kennel name between 2 and 36 characters.' };
+        if (!['paw','mountain','star','oak'].includes(emblem) || !['copper','navy','plum'].includes(color)) return { success: false, message: 'Choose one of the available emblems and colors.' };
+        const state = useGameStore.getState();
+        if (!state.user) return { success: false, message: 'Your kennel is not loaded yet.' };
+        const user = { ...state.user, kennel_name: clean, kennel_emblem: emblem as UserProfile['kennel_emblem'], kennel_color: color as UserProfile['kennel_color'] };
+        set({ user });
+        if (state.syncEnabled) debouncedSave(`profile:${user.id}`, () => saveUserProfile(user));
+        return { success: true, message: 'Your kennel identity is saved.' };
+      },
       updateUserCash: (amount: number) => {
         set((state: GameState) => ({
           user: state.user ? { ...state.user, cash: state.user.cash + amount } : null
@@ -787,6 +810,7 @@ export const useGameStore = create<GameState>()(
       // Shop actions
       purchaseBreed: (dog: Dog, cashCost: number, gemCost: number): { success: boolean; message?: string } => {
         const state = useGameStore.getState();
+        if (!apprenticeshipComplete(state.tutorialProgress)) return { success: false, message: 'Complete your apprenticeship before adding another companion.' };
 
         if (!state.user) {
           return { success: false, message: 'No user found' };
@@ -821,76 +845,36 @@ export const useGameStore = create<GameState>()(
         return { success: true };
       },
 
-      purchaseItem: (dogId: string, effects: ShopItemEffect, cashCost: number, gemCost: number) => set((state: GameState) => {
-        if (!state.user) return {};
-
-        // Check if user has enough currency
-        if (cashCost > 0 && state.user.cash < cashCost) return {};
-        if (gemCost > 0 && state.user.gems < gemCost) return {};
-
-        // Check if adding food storage would exceed max capacity
-        if (effects.food_storage !== undefined) {
-          const newStorage = (state.user.food_storage ?? 0) + effects.food_storage;
-          if (newStorage > 100) {
-            // Don't allow purchase if it would overflow storage
-            return {};
+      purchaseItem: (dogId, effects, cashCost, gemCost) => {
+        let result = { success: false, message: 'Your kennel is not loaded.' };
+        set(state => {
+          if (!state.user) return {};
+          if (![cashCost,gemCost,...Object.values(effects)].every(v=>Number.isFinite(v)&&v>=0)) { result.message='Invalid purchase.'; return {}; }
+          const needsDog = Object.keys(effects).some(key => key !== 'food_storage');
+          const dog = state.dogs.find(d=>d.id===dogId&&!d.is_dead);
+          if (needsDog && !dog) { result.message='Choose a living dog for this item.'; return {}; }
+          if (state.user.cash < cashCost || state.user.gems < gemCost) { result.message='You do not have enough currency for this purchase.'; return {}; }
+          const storage = state.user.food_storage + (effects.food_storage ?? 0);
+          const capacity = getKennelLevelInfo(state.user.kennel_level).foodStorageMax;
+          if (storage > capacity) { result.message=`Your pantry holds ${capacity} food units. Make room before buying this bag.`; return {}; }
+          const updated = dog && needsDog ? { ...dog } : null;
+          if (updated) {
+            for (const key of ['hunger','thirst','happiness','health','energy_stat','training_points'] as const) {
+              const amount=effects[key];
+              if(amount!==undefined) updated[key]=key==='training_points'?updated[key]+amount:Math.min(100,updated[key]+amount);
+            }
           }
-        }
-
-        // Track story objective for buying food
-        if (effects.food_storage !== undefined) {
-          trackStoryAction('shop', { shopAction: 'buy_food' });
-        }
-
-        return {
-          dogs: state.dogs.map((dog: Dog) => {
-            if (dog.id !== dogId) return dog;
-
-            // Apply effects to dog
-            const updates: Partial<Dog> = {};
-            if (effects.hunger !== undefined) {
-              updates.hunger = Math.min(100, dog.hunger + effects.hunger);
-            }
-            if (effects.thirst !== undefined) {
-              updates.thirst = Math.min(100, dog.thirst + effects.thirst);
-            }
-            if (effects.happiness !== undefined) {
-              updates.happiness = Math.min(100, dog.happiness + effects.happiness);
-            }
-            if (effects.health !== undefined) {
-              updates.health = Math.min(100, dog.health + effects.health);
-            }
-            if (effects.energy_stat !== undefined) {
-              updates.energy_stat = Math.min(100, dog.energy_stat + effects.energy_stat);
-            }
-            if (effects.training_points !== undefined) {
-              updates.training_points = dog.training_points + effects.training_points;
-            }
-
-            return { ...dog, ...updates };
-          }),
-          selectedDog: state.selectedDog?.id === dogId
-            ? {
-                ...state.selectedDog,
-                ...(effects.hunger !== undefined && { hunger: Math.min(100, state.selectedDog.hunger + effects.hunger) }),
-                ...(effects.thirst !== undefined && { thirst: Math.min(100, state.selectedDog.thirst + effects.thirst) }),
-                ...(effects.happiness !== undefined && { happiness: Math.min(100, state.selectedDog.happiness + effects.happiness) }),
-                ...(effects.health !== undefined && { health: Math.min(100, state.selectedDog.health + effects.health) }),
-                ...(effects.energy_stat !== undefined && { energy_stat: Math.min(100, state.selectedDog.energy_stat + effects.energy_stat) }),
-                ...(effects.training_points !== undefined && { training_points: state.selectedDog.training_points + effects.training_points }),
-              }
-            : state.selectedDog,
-          user: {
-            ...state.user,
-            cash: state.user.cash - cashCost,
-            gems: state.user.gems - gemCost,
-            // Add food storage if item provides it
-            ...(effects.food_storage !== undefined && {
-              food_storage: Math.min(100, (state.user.food_storage ?? 0) + effects.food_storage)
-            }),
-          },
-        };
-      }),
+          const user={...state.user,cash:state.user.cash-cashCost,gems:state.user.gems-gemCost,food_storage:storage};
+          if (state.syncEnabled) {
+            debouncedSave(`profile:${user.id}`,()=>saveUserProfile(user));
+            if(updated) debouncedSave(`dog:${updated.id}`,()=>saveDog(updated));
+          }
+          result={success:true,message:effects.food_storage!==undefined?`Added ${effects.food_storage} food units to your pantry.`:`Used the item on ${dog!.name}.`};
+          return { user, dogs:updated?state.dogs.map(d=>d.id===updated.id?updated:d):state.dogs, selectedDog:updated&&state.selectedDog?.id===updated.id?updated:state.selectedDog };
+        });
+        if(result.success&&effects.food_storage!==undefined)trackStoryAction('shop',{shopAction:'buy_food'});
+        return result;
+      },
 
       // Kennel upgrade
       upgradeKennel: (): { success: boolean; message?: string; newLevel?: number } => {
@@ -900,6 +884,7 @@ export const useGameStore = create<GameState>()(
           return { success: false, message: 'No user found' };
         }
 
+        if (!apprenticeshipComplete(state.tutorialProgress)) return { success: false, message: 'Finish your apprenticeship before expanding your kennel.' };
         const currentLevel: number = state.user.kennel_level;
         const checkResult = canUpgradeKennel(currentLevel, state.user.cash);
 
@@ -932,8 +917,41 @@ export const useGameStore = create<GameState>()(
         };
       },
 
+      // Bonding rules are shared by every care interface; completion rechecks live state.
+      bondWithDog: (dogId: string, activity: BondingActivity) => {
+        const state = useGameStore.getState();
+        const dog = state.dogs.find(d => d.id === dogId);
+        if (!dog) return { success: false, message: 'This dog is no longer in your kennel.' };
+        const result = bondingOutcome(dog, activity);
+        if (result.success) {
+          state.updateDog(dogId, result.updates);
+          if (activity === 'fetch') useGameStore.getState().recordRibbon(dogId, 'fetch');
+          trackStoryAction('care', { action: activity });
+          trackStoryAction('bond', { bondLevel: result.updates.bond_level ?? dog.bond_level });
+        }
+        return { success: result.success, message: result.message };
+      },
+      prepareYardBowl: (dogId, kind) => {
+        let result = { success: false, message: 'Your companion is unavailable.' };
+        set(state => {
+          const dog = state.dogs.find(d => d.id === dogId && !d.is_dead);
+          if (!dog || !state.user) return {};
+          if (dog.yard_bowls?.[kind]) { result.message = 'That bowl is already prepared.'; return {}; }
+          const cost = kind === 'food' ? calculateFoodConsumption(dog.size) : 0;
+          if (state.user.food_storage < cost) { result.message = `You need ${cost} food units. Visit Supplies at the gate first.`; return {}; }
+          const updated = { ...dog, yard_bowls: { food: false, water: false, ...dog.yard_bowls, [kind]: true } };
+          const user = { ...state.user, food_storage: state.user.food_storage - cost };
+          if (state.syncEnabled) {
+            debouncedSave(`dog:${dog.id}`, () => saveDog(updated));
+            if (cost) debouncedSave(`profile:${user.id}`, () => saveUserProfile(user));
+          }
+          result = { success: true, message: kind === 'food' ? `Meal ready for ${dog.name}. Used ${cost} food units; they will eat at ${YARD_CARE_THRESHOLD}% food or below.` : `Water ready for ${dog.name}. They will drink at ${YARD_CARE_THRESHOLD}% water or below.` };
+          return { user, dogs: state.dogs.map(d => d.id === dogId ? updated : d), selectedDog: state.selectedDog?.id === dogId ? updated : state.selectedDog };
+        });
+        return result;
+      },
       // Care actions
-      feedDog: (dogId: string) => {
+      feedDog: (dogId: string, source?: 'bowl') => {
         let result = { success: false, message: '' };
 
         set((state: GameState) => {
@@ -948,12 +966,13 @@ export const useGameStore = create<GameState>()(
             return {};
           }
 
+          if (source === 'bowl' && (!dog.yard_bowls?.food || dog.hunger > YARD_CARE_THRESHOLD)) { result.message = 'The meal is not needed or no longer available.'; return {}; }
           // Calculate food consumption based on dog size
           if (dog.is_dead || (dog.hunger >= 95 && calculateHunger(dog.last_fed) >= 95)) {
             result.message = dog.is_dead ? 'This dog is in your kennel history.' : `${dog.name} has already eaten. Try bonding or training instead.`;
             return {};
           }
-          const foodNeeded = calculateFoodConsumption(dog.size);
+          const foodNeeded = dog.yard_bowls?.food ? 0 : calculateFoodConsumption(dog.size);
 
           // Check if enough food in storage
           if (state.user.food_storage < foodNeeded) {
@@ -975,6 +994,7 @@ export const useGameStore = create<GameState>()(
             if (d.id !== dogId) return d;
             return {
               ...d,
+              yard_bowls: { food: false, water: dog.yard_bowls?.water ?? false },
               hunger: 100, // Reset to full (hunger decays over time)
               energy_stat: Math.min(100, d.energy_stat + energyRestored),
               last_fed: new Date().toISOString(), // Reset hunger decay timer
@@ -1010,10 +1030,11 @@ export const useGameStore = create<GameState>()(
           };
         });
 
+        if (result.success) useGameStore.getState().recordRibbon(dogId, 'feed');
         return result;
       },
 
-      waterDog: (dogId: string) => {
+      waterDog: (dogId: string, source?: 'bowl') => {
         let result = { success: false, message: '' };
 
         set((state: GameState) => {
@@ -1023,6 +1044,7 @@ export const useGameStore = create<GameState>()(
             return {};
           }
 
+          if (source === 'bowl' && (!dog.yard_bowls?.water || dog.thirst > YARD_CARE_THRESHOLD)) { result.message = 'The water is not needed or no longer available.'; return {}; }
           // Calculate thirst restoration
           if (dog.is_dead || (dog.thirst >= 95 && calculateThirst(dog.last_watered || dog.last_fed) >= 95)) {
             result.message = dog.is_dead ? 'This dog is in your kennel history.' : `${dog.name} already has fresh water.`;
@@ -1040,6 +1062,7 @@ export const useGameStore = create<GameState>()(
             if (d.id !== dogId) return d;
             return {
               ...d,
+              yard_bowls: { water: false, food: dog.yard_bowls?.food ?? false },
               thirst: 100, // Reset to full
               last_watered: new Date().toISOString(), // Reset thirst decay timer
               bond_xp: (bondLevelUp?.bond_xp ?? newBondXp) as number,
@@ -1066,6 +1089,7 @@ export const useGameStore = create<GameState>()(
           };
         });
 
+        if (result.success) useGameStore.getState().recordRibbon(dogId, 'water');
         return result;
       },
 
@@ -1121,6 +1145,7 @@ export const useGameStore = create<GameState>()(
           };
         });
 
+        if (result.success) useGameStore.getState().recordRibbon(dogId, 'rest');
         return result;
       },
 
@@ -1188,7 +1213,7 @@ export const useGameStore = create<GameState>()(
       },
 
       claimDailyReward: () => set((state: GameState) => {
-        if (!state.user) return {};
+        if (!state.user || !dailyRewardUnlocked(state.tutorialProgress) || !canClaimDailyReward(state.user)) return {};
 
         // Calculate new streak
         const newStreak = calculateLoginStreak(state.user) + 1;
@@ -1213,7 +1238,34 @@ export const useGameStore = create<GameState>()(
       }),
 
       // Tutorial actions
-      startTutorial: (tutorialId: string) => set({ activeTutorial: tutorialId }),
+      recordRibbon: (dogId, step) => {
+        const state=useGameStore.getState();
+        const progress=recordRibbonStep(state.tutorialProgress,dogId,step);
+        if(progress!==state.tutorialProgress)set({tutorialProgress:progress});
+      },
+      pauseRibbon: () => set(state => ({ activeTutorial: null, tutorialProgress: { ...state.tutorialProgress, firstRibbon: state.tutorialProgress.firstRibbon ? { ...state.tutorialProgress.firstRibbon, status: 'paused' } : undefined } })),
+      acknowledgeRibbonCare: (dogId, step) => {
+        const state = useGameStore.getState(), dog = state.dogs.find(d => d.id === dogId);
+        if (!dog || dog.is_dead) return;
+        const satisfied = step === 'water' ? dog.thirst >= 95 : step === 'feed' ? dog.hunger >= 95 : step === 'rest' ? dog.energy_stat >= 95 : !!dog.last_fetch && Date.parse(dog.last_fetch) > Date.now() - 15*60000;
+        if (satisfied) state.recordRibbon(dogId, step);
+      },
+      finishRibbon: (dogId) => set(state => {
+        const journey = state.tutorialProgress.firstRibbon;
+        if (!journey || journey.dogId !== dogId || journey.status !== 'active' || nextRibbonStep(journey)) return {};
+        return { activeTutorial: null, tutorialProgress: { ...state.tutorialProgress,
+          completedTutorials: [...new Set([...state.tutorialProgress.completedTutorials, 'kennel-basics'])],
+          firstRibbon: { ...journey, status: 'complete', ribbonEarned: true, graduatedAt: journey.graduatedAt ?? new Date().toISOString() } } };
+      }),
+      startTutorial: (tutorialId: string) => set(state => {
+        if (tutorialId !== 'kennel-basics') return { activeTutorial: tutorialId };
+        const previous = state.tutorialProgress.firstRibbon;
+        const dog = state.dogs.find(d => d.id === previous?.dogId && !d.is_dead) ?? (state.selectedDog && !state.selectedDog.is_dead ? state.selectedDog : undefined) ?? state.dogs.find(d => !d.is_dead);
+        if (!dog || dog.is_dead) return {};
+        const continuing = previous?.dogId === dog.id && (previous.status !== 'complete' || !!nextRibbonStep(previous));
+        return { activeTutorial: null, selectedDog: dog, tutorialProgress: { ...state.tutorialProgress,
+          firstRibbon: { dogId: dog.id, status: 'active', completed: continuing ? previous.completed : [], ribbonEarned: previous?.ribbonEarned, graduatedAt: previous?.graduatedAt } } };
+      }),
 
       completeTutorial: (tutorialId: string) => set((state: GameState) => ({
         activeTutorial: null,
@@ -1312,6 +1364,10 @@ export const useGameStore = create<GameState>()(
             return {};
           }
 
+          if (!apprenticeshipComplete(state.tutorialProgress) || !chapter.objectives.every(objective => (state.storyProgress.objectiveProgress[chapterId]?.[objective.id] ?? 0) >= objective.target_value)) {
+            result.message = 'Finish your apprenticeship and this chapter?s objectives before claiming rewards.';
+            return {};
+          }
           const rewards = chapter.rewards;
           const rewardParts: string[] = [];
 
@@ -2511,8 +2567,10 @@ export const useGameStore = create<GameState>()(
             id: userId,
             username: username,
             kennel_name: kennelName,
-            cash: 500,
-            gems: 50,
+            kennel_emblem: state.user?.kennel_emblem,
+            kennel_color: state.user?.kennel_color,
+            cash: STARTING_CASH,
+            gems: 0,
             level: 1,
             xp: 0,
             training_skill: 1,
@@ -2523,7 +2581,7 @@ export const useGameStore = create<GameState>()(
             kennel_level: 1,
             created_at: new Date().toISOString(),
             last_login: new Date().toISOString(),
-            login_streak: 1,
+            login_streak: 0,
             competition_wins_local: 0,
             competition_wins_regional: 0,
             competition_wins_national: 0,

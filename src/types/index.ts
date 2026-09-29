@@ -152,12 +152,16 @@ export interface Dog {
   last_pet?: string;
   last_fetch?: string;
   last_walk?: string;
+  // One reserved meal and one fresh-water serving, persisted with this companion.
+  yard_bowls?: { food: boolean; water: boolean };
 }
 
 export interface UserProfile {
   id: string;
   username: string;
   kennel_name: string;
+  kennel_emblem?: 'paw' | 'mountain' | 'star' | 'oak';
+  kennel_color?: 'copper' | 'navy' | 'plum';
   cash: number;
   gems: number;
   level: number;
@@ -231,6 +235,7 @@ export interface ShopItem {
 
 // Tutorial System Types
 export interface TutorialProgress {
+  firstRibbon?: { dogId: string; status: 'active' | 'paused' | 'complete'; completed: string[]; ribbonEarned?: boolean; graduatedAt?: string };
   completedTutorials: string[];
   skippedTutorials: string[];
   dismissedHelp: string[];

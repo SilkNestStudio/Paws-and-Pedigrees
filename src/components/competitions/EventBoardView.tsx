@@ -75,7 +75,7 @@ export default function EventBoardView() {
     competitionEvents,
     initializeEventSystem,
     updateEventSystem,
-    selectedDog,
+    selectedDog, dogs, selectDog,
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState<'events' | 'progress' | 'leaderboards'>('events');
@@ -111,7 +111,7 @@ export default function EventBoardView() {
       <div className="bg-white rounded-lg shadow-lg p-6 text-center">
         <div className="text-6xl mb-4">📅</div>
         <h3 className="text-xl font-bold text-earth-900 mb-2">Competition Event Board</h3>
-        <p className="text-earth-600">Select a dog to view available competitions</p>
+        <p className="text-earth-600">Choose the dog you want to prepare for an event.</p><select aria-label="Competition companion" value="" onChange={e=>{const dog=dogs.find(d=>d.id===e.target.value);if(dog)selectDog(dog);}}><option value="">Choose your dog</option>{dogs.filter(d=>!d.is_dead).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select>
       </div>
     );
   }
@@ -131,10 +131,11 @@ export default function EventBoardView() {
           </div>
           <div className="text-right">
             <p className="text-xs text-earth-500">Competing with</p>
-            <p className="text-lg font-bold text-kennel-700">{selectedDog.name}</p>
+            <select aria-label="Competition companion" value={selectedDog.id} onChange={e=>{const dog=dogs.find(d=>d.id===e.target.value);if(dog)selectDog(dog);}}>{dogs.filter(d=>!d.is_dead).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select>
           </div>
         </div>
 
+        <div className="ribbon-assignment" style={{marginBottom:18}}><strong>Your first paid event</strong><p>Start with an entry-level event. Open its details, check the fee and your dog's eligibility, then register only if you can still cover care. Registration is not a win; return when the event is ready to compete.</p></div>
         {/* Tab navigation */}
         <div className="flex gap-2 mb-4">
           <button

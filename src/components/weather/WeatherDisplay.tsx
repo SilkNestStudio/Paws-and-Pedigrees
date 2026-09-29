@@ -16,10 +16,10 @@ export default function WeatherDisplay() {
   const outdoorAllowed = canDoOutdoorActivities(currentWeather);
 
   const seasonColors: Record<string, string> = {
-    spring: 'from-green-400 to-green-600',
-    summer: 'from-yellow-400 to-orange-500',
-    fall: 'from-orange-400 to-red-500',
-    winter: 'from-blue-400 to-cyan-500',
+    spring: 'from-kennel-600 to-kennel-700',
+    summer: 'from-amber-700 to-yellow-800',
+    fall: 'from-orange-800 to-amber-800',
+    winter: 'from-slate-600 to-slate-700',
   };
 
   return (

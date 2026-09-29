@@ -1,3 +1,5 @@
+import { BREEDING_CONSTANTS } from '../breedingConstants';
+import { PREGNANCY_HOURS } from '../../utils/timeScaling';
 import { HelpContent } from '../../types';
 
 export const HELP_CONTENT: Record<string, HelpContent> = {
@@ -24,7 +26,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
   'breeding-genetics': {
     id: 'breeding-genetics',
     title: 'Breeding & Genetics',
-    content: 'Puppies inherit stats from parents. Avoid inbreeding for healthy litters. Costs $500, takes 2 weeks.',
+    content: `Puppies inherit potential, not guaranteed titles. Both parents need bond ${BREEDING_CONSTANTS.MIN_BOND_LEVEL} and good health. Reserve nursery space and $${BREEDING_CONSTANTS.BREEDING_FEE}; pregnancy lasts ${PREGNANCY_HOURS} real hours.`,
     tutorialId: 'breeding-basics'
   },
 

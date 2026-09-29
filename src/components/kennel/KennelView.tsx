@@ -4,7 +4,6 @@ import { rescueBreeds } from '../../data/rescueBreeds';
 import HelpButton from '../tutorial/HelpButton';
 import { getKennelCapacityInfo } from '../../utils/kennelCapacity';
 import { getHealthStatus } from '../../utils/healthDecay';
-import KennelUpgradeView from './KennelUpgradeView';
 import { PUPPY_TRAINING_PROGRAMS } from '../../data/puppyTraining';
 import DogMemorialModal from './DogMemorialModal';
 import { Dog } from '../../types';
@@ -17,12 +16,12 @@ import SeasonalEventsPanel from '../weather/SeasonalEventsPanel';
 
 interface KennelViewProps {
   onViewDog: () => void;
+  onUpgrade: () => void;
 }
 
-export default function KennelView({ onViewDog }: KennelViewProps) {
+export default function KennelView({ onViewDog, onUpgrade }: KennelViewProps) {
   const { user, dogs, selectDog, reviveDeadDog, retireDog } = useGameStore();
   const capacityInfo = getKennelCapacityInfo(dogs.length, user?.kennel_level || 1);
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const [memorialDog, setMemorialDog] = useState<Dog | null>(null);
   const { confirm, confirmState, handleCancel } = useConfirm();
 
@@ -65,21 +64,6 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
     }
   };
 
-  // If showing upgrade panel, render that instead
-  if (showUpgrade) {
-    return (
-      <div>
-        <button
-          onClick={() => setShowUpgrade(false)}
-          className="mb-4 px-4 py-2 bg-earth-600 text-white rounded-lg hover:bg-earth-700 transition-all"
-        >
-          ← Back to Kennel
-        </button>
-        <KennelUpgradeView />
-      </div>
-    );
-  }
-
   if (dogs.length === 0) {
     return (
       <div className="text-center py-20">
@@ -91,14 +75,14 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
   return (
   <div className="max-w-6xl mx-auto">
     <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
-      <div className="flex justify-between items-center">
+      <div className="club-kennel-heading">
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-bold text-earth-900">Your Kennel</h2>
             <HelpButton helpId="kennel-management" tooltip="Learn about kennel management" />
           </div>
-          <div className="flex items-center gap-3 mt-1">
-            <p className="text-earth-600">Level {user?.level}</p>
+          <div className="flex flex-wrap items-center gap-3 mt-1">
+            <p className="text-earth-600">Level {user?.kennel_level || 1}</p>
             <span className="text-earth-400">•</span>
             <p className={`font-semibold ${!capacityInfo.canAddMore ? 'text-red-600' : 'text-earth-700'}`}>
               {capacityInfo.current}/{capacityInfo.max} dogs
@@ -115,8 +99,8 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
         </div>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => setShowUpgrade(true)}
-            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-semibold shadow-md flex items-center gap-2"
+            onClick={onUpgrade}
+            className="club-button"
           >
             <span>⬆️</span>
             <span>Upgrade Kennel</span>
@@ -165,15 +149,7 @@ export default function KennelView({ onViewDog }: KennelViewProps) {
             className="relative bg-white/95 backdrop-blur-sm rounded-lg shadow-xl overflow-hidden cursor-pointer transition-all hover:shadow-2xl hover:scale-[1.02]"
           >
             {/* Kennel Pen Frame */}
-            <div className="relative h-64 bg-gradient-to-b from-earth-100 to-earth-200 overflow-hidden">
-              {/* Chain-link fence overlay */}
-              <div className="absolute inset-0 opacity-20 pointer-events-none"
-                style={{
-                  backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, #8a6d47 10px, #8a6d47 11px),
-                                   repeating-linear-gradient(-45deg, transparent, transparent 10px, #8a6d47 10px, #8a6d47 11px)`
-                }}
-              />
-              
+            <div className="club-kennel-portrait relative h-64 overflow-hidden">
               {/* Dog Image */}
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-48 h-48 flex items-end justify-center">
                 <img

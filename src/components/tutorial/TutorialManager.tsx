@@ -1,3 +1,4 @@
+import { nextRibbonStep } from '../../utils/firstRibbon';
 import { useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import TutorialOverlay from './TutorialOverlay';
@@ -14,21 +15,20 @@ export default function TutorialManager() {
   useEffect(() => {
     if (
       hasAdoptedFirstDog &&
-      !tutorialProgress.completedTutorials.includes('kennel-basics') &&
-      !tutorialProgress.skippedTutorials.includes('kennel-basics') &&
+      (!tutorialProgress.firstRibbon || (tutorialProgress.firstRibbon.status === 'complete' && !!nextRibbonStep(tutorialProgress.firstRibbon))) &&
       !activeTutorial
     ) {
       // Delay tutorial slightly to let user see their new dog first
       const timer = setTimeout(() => {
         startTutorial('kennel-basics');
-      }, 1000);
+      }, 0);
 
       return () => clearTimeout(timer);
     }
   }, [hasAdoptedFirstDog, tutorialProgress, activeTutorial, startTutorial]);
 
   // Render active tutorial
-  if (activeTutorial) {
+  if (activeTutorial && activeTutorial !== 'kennel-basics') {
     return <TutorialOverlay tutorialId={activeTutorial} />;
   }
 

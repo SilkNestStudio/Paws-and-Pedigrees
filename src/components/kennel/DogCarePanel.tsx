@@ -1,6 +1,6 @@
-import { memo, useState } from 'react';
+import { memo, useState, useRef } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import { checkBondLevelUp, calculateBondXpGain } from '../../utils/bondSystem';
+import { bondingRestriction } from '../../utils/companionLoop';
 import { calculateFoodConsumption, getSizeCategoryName } from '../../utils/careCalculations';
 import { showToast } from '../../lib/toast';
 import RealisticPettingActivity from '../minigames/RealisticPettingActivity';
@@ -12,7 +12,8 @@ interface DogCarePanelProps {
 }
 
 function DogCarePanel({ onNavigateToShop }: DogCarePanelProps) {
-  const { selectedDog, user, feedDog, waterDog, restDog, updateDog } = useGameStore();
+  const { selectedDog, user, feedDog, waterDog, restDog } = useGameStore();
+  const activityDogId = useRef<string | null>(null);
   const [activeGame, setActiveGame] = useState<'pet' | 'fetch' | 'walk' | null>(null);
 
   if (!selectedDog) {
@@ -51,70 +52,18 @@ function DogCarePanel({ onNavigateToShop }: DogCarePanelProps) {
   };
 
   const playWithDog = (activityType: 'pet' | 'fetch' | 'walk') => {
-    // Check last interaction time (1 hour cooldown)
-    const lastPlayedTime = selectedDog.last_played ? new Date(selectedDog.last_played).getTime() : 0;
-    const now = Date.now();
-    const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-
-    if (now - lastPlayedTime < COOLDOWN_MS) {
-      const remainingMs = COOLDOWN_MS - (now - lastPlayedTime);
-      const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
-      showToast.error(`${selectedDog.name} needs rest! Please wait ${remainingMinutes} minutes before playing again`);
-      return;
-    }
-
-    // Launch the appropriate mini-game
+    const reason = bondingRestriction(selectedDog, activityType);
+    if (reason) { showToast.error(reason); return; }
+    activityDogId.current = selectedDog.id;
     setActiveGame(activityType);
   };
-
   const handleGameComplete = (activityType: 'pet' | 'fetch' | 'walk') => {
     setActiveGame(null);
-
-    const activities = {
-      pet: { happiness: 15, energy: 0, cost: 0, name: 'Pet & Cuddle', emoji: '🤗' },
-      fetch: { happiness: 30, energy: -20, cost: 0, name: 'Play Fetch', emoji: '🎾' },
-      walk: { happiness: 25, energy: -25, cost: 0, name: 'Go for Walk', emoji: '🚶' },
-    };
-
-    const activity = activities[activityType];
-
-    const newHappiness = Math.min(100, selectedDog!.happiness + activity.happiness);
-    const newEnergy = Math.max(0, selectedDog!.energy_stat + activity.energy);
-
-    // Calculate bond XP gain (more XP now that requirements are higher)
-    const baseXpMap = { pet: 10, fetch: 15, walk: 20 };
-    const bondXpGain = calculateBondXpGain(baseXpMap[activityType], selectedDog!.is_rescue || false);
-    const newBondXp = selectedDog!.bond_xp + bondXpGain;
-
-    const updates: any = {
-      happiness: newHappiness,
-      energy_stat: newEnergy,
-      last_played: new Date().toISOString(),
-      bond_xp: newBondXp,
-    };
-
-    // Check if dog should level up bond
-    const bondLevelUp = checkBondLevelUp({ ...selectedDog!, bond_xp: newBondXp });
-    if (bondLevelUp) {
-      Object.assign(updates, bondLevelUp);
-    }
-
-    updateDog(selectedDog!.id, updates);
-
-    // Show appropriate toast
-    showToast.success(`${activity.emoji} ${activity.name} with ${selectedDog!.name}! +${activity.happiness} happiness, +${bondXpGain} bond`);
-
-    // Show bond increase notification
-    if (bondXpGain > 2) {
-      showToast.bondIncrease(`${selectedDog!.name} gained +${bondXpGain} bond XP! (Rescue dog bonus)`);
-    } else {
-      showToast.bondIncrease(`${selectedDog!.name} gained +${bondXpGain} bond XP!`);
-    }
-
-    // Show level up notification if applicable
-    if (bondLevelUp) {
-      showToast.levelUp(`${selectedDog!.name} bond level increased to ${bondLevelUp.bond_level}!`);
-    }
+    const id = activityDogId.current;
+    activityDogId.current = null;
+    if (!id) return;
+    const result = useGameStore.getState().bondWithDog(id, activityType);
+    if (result.success) showToast.success(result.message); else showToast.error(result.message);
   };
 
   const foodNeeded = calculateFoodConsumption(selectedDog.size);

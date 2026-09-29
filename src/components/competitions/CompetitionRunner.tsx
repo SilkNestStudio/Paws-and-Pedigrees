@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { CompetitionEvent } from '../../types/competition';
 import type { Dog } from '../../types';
 import { useGameStore } from '../../stores/gameStore';
@@ -31,10 +31,12 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'results'>('ready');
   const [results, setResults] = useState<CompetitionResult[] | null>(null);
   const completed = useRef(false);
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const { user, awardChampionshipPoints } = useGameStore();
 
   const handleMiniGameComplete = async (playerScore: number) => {
-    if (completed.current || !Number.isFinite(playerScore) || playerScore < 0) return;
+    if (!mounted.current || completed.current || !Number.isFinite(playerScore) || playerScore < 0) return;
     completed.current = true;
     setGameState('results');
 
@@ -100,7 +102,7 @@ export default function CompetitionRunner({ event, dog, onComplete }: Competitio
     switch (event.discipline) {
       case 'agility':
         return <Suspense fallback={<p>Preparing the agility arena…</p>}><AgilityGame
-          dogName={dog.name} agility={dog.agility + dog.agility_trained} mode="competition" onCancel={onComplete}
+          dog={dog} dogName={dog.name} agility={dog.agility + dog.agility_trained} mode="competition" onCancel={onComplete}
           onComplete={performance => handleMiniGameComplete(Math.round(performance * 450 + Math.min(200, dog.agility + dog.agility_trained) * 2))}
         /></Suspense>;
       case 'obedience':

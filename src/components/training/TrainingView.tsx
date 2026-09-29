@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { trainingTypes } from '../../data/trainingTypes';
 import { rescueBreeds } from '../../data/rescueBreeds';
@@ -8,7 +8,7 @@ import SprintTrainingGame from './SprintTrainingGame';
 const AgilityGame = lazy(() => import('../../game/agility/AgilityGame'));
 import WeightPullTrainingGame from './WeightPullTrainingGame';
 import DistanceRunGame from './DistanceRunGame';
-import CommandDrillsGame from './CommandDrillsGame';
+const YardActivity = lazy(() => import('../../game/yard/YardActivity'));
 import { checkBondLevelUp, getRescueDogTrainingBonus, calculateBondXpGain } from '../../utils/bondSystem';
 import HelpButton from '../tutorial/HelpButton';
 import { ENERGY_THRESHOLDS } from '../../utils/careCalculations';
@@ -17,13 +17,25 @@ import { showToast } from '../../lib/toast';
 import { activityRestriction, isAptitudeKnown, type Aptitude } from '../../utils/dogDevelopment';
 
 
-export default function TrainingView() {
+interface SessionReport { dogId: string; dog: string; session: string; stat: string; before: number; after: number; bond: number; energy: number; points: number; }
+export default function TrainingView({ onReturnToDog, initialTraining, onCancelSession }: { onReturnToDog?: () => void; initialTraining?: string; onCancelSession?: () => void }) {
   const { dogs, selectedDog, selectDog, updateDog, user, updateUserCash, setUser, refillTrainingPoints } = useGameStore();
+  const [report, setReport] = useState<SessionReport | null>(null);
+  const reportRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (report) reportRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' }); }, [report]);
   const [isTraining] = useState(false);
   const [currentTraining, setCurrentTraining] = useState<string | null>(null);
   const [showMinigame, setShowMinigame] = useState(false);
   const sessionDogId = useRef<string | null>(null);
   const sessionComplete = useRef(false);
+  const sessionGeneration = useRef(0);
+  const activeSession = sessionGeneration.current;
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const cancelSession=()=>{sessionComplete.current=true;sessionGeneration.current++;sessionDogId.current=null;setShowMinigame(false);setCurrentTraining(null);onCancelSession?.();};
+
+  const initialStarted = useRef(false);
+  useEffect(() => { if (initialTraining && !initialStarted.current && selectedDog) { initialStarted.current = true; handleSelfTrain(initialTraining); } }, [initialTraining, selectedDog]);
 
   if (dogs.length === 0) {
     return (
@@ -61,11 +73,12 @@ export default function TrainingView() {
     setCurrentTraining(trainingId);
     sessionDogId.current = selectedDog.id;
     sessionComplete.current = false;
+    sessionGeneration.current++;
     setShowMinigame(true);
   };
 
   const handleMinigameComplete = (performanceMultiplier: number) => {
-    if (sessionComplete.current || !currentTraining || !Number.isFinite(performanceMultiplier)) return;
+    if (!mounted.current || sessionComplete.current || !currentTraining || !Number.isFinite(performanceMultiplier)) return;
     const selectedDog = useGameStore.getState().dogs.find(d => d.id === sessionDogId.current);
     if (!selectedDog) return;
 
@@ -133,6 +146,8 @@ export default function TrainingView() {
     }
 
     updateDog(selectedDog.id, updates);
+    const statKey = (training.statImproved + '_trained') as 'speed_trained' | 'agility_trained' | 'strength_trained' | 'endurance_trained' | 'obedience_trained';
+    setReport({ dogId: selectedDog.id, dog: selectedDog.name, session: training.name, stat: training.statImproved, before: selectedDog[statKey] || 0, after: updates[statKey] ?? selectedDog[statKey], bond: bondXpGain, energy: updates.energy_stat ?? selectedDog.energy_stat, points: updates.training_points ?? selectedDog.training_points });
 
     // Check if any TOTAL stat (base + trained) reached milestone for story objective
     const maxTotalStat = Math.max(
@@ -152,7 +167,7 @@ export default function TrainingView() {
       const skillGainRate = user.training_skill < 50 ? 0.5 : user.training_skill < 80 ? 0.3 : 0.1;
       const newSkill = Math.min(100, user.training_skill + skillGainRate);
 
-      const updatedUser = { ...user, training_skill: newSkill };
+      const updatedUser = { ...useGameStore.getState().user!, training_skill: newSkill };
       setUser(updatedUser);
 
       // Show level up message at certain milestones
@@ -165,6 +180,7 @@ export default function TrainingView() {
     }
 
     // Track story objective for training
+    if (currentTraining === 'obedience' || currentTraining === 'agility') useGameStore.getState().recordRibbon(selectedDog.id, currentTraining);
     trackStoryAction('train');
 
     setShowMinigame(false);
@@ -273,6 +289,8 @@ switch(training.statImproved) {
 }
 
 updateDog(selectedDog.id, updates);
+const statKey = (training.statImproved + '_trained') as 'speed_trained' | 'agility_trained' | 'strength_trained' | 'endurance_trained' | 'obedience_trained';
+setReport({ dogId: selectedDog.id, dog: selectedDog.name, session: training.name + ' with a trainer', stat: training.statImproved, before: selectedDog[statKey] || 0, after: updates[statKey] ?? selectedDog[statKey], bond: bondXpGain, energy: updates.energy_stat ?? selectedDog.energy_stat, points: updates.training_points ?? selectedDog.training_points });
 
     // Check if any TOTAL stat (base + trained) reached milestone for story objective
     const maxTotalStatTrainer = Math.max(
@@ -297,6 +315,7 @@ updateDog(selectedDog.id, updates);
 
   return (
     <div className="max-w-6xl mx-auto">
+      {report && <section ref={reportRef} className="session-report" role="status"><div><p className="club-eyebrow">SESSION COMPLETE</p><h2>A step forward for {report.dog}.</h2><p>{report.session}</p></div><div className="session-report-stats"><div><strong>+{(report.after-report.before).toFixed(1)}</strong><span>{report.stat} developed</span><small>{report.before.toFixed(1)} to {report.after.toFixed(1)} trained points</small></div><div><strong>+{report.bond}</strong><span>bond XP earned</span></div><div><strong>{report.energy}%</strong><span>energy remaining</span><small>{report.points} training points left</small></div></div><p>Progress comes from good sessions and time to recover. Check in with your companion before choosing what comes next.</p><div className="session-report-actions">{onReturnToDog && <button className="club-button" onClick={() => { const companion = useGameStore.getState().dogs.find(d => d.id === report.dogId); if (companion) selectDog(companion); onReturnToDog(); }}>Back to your companion</button>}<button className="club-text-button" onClick={() => setReport(null)}>Continue at the training grounds</button></div></section>}
       {/* Dog Selection */}
       <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
         <h2 className="text-2xl font-bold text-earth-900 mb-4">Select Dog to Train</h2>
@@ -486,39 +505,40 @@ updateDog(selectedDog.id, updates);
           </div>
 
           {showMinigame && currentTraining && selectedDog && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div role="dialog" aria-modal="true" aria-label="Training session" className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
+              <div className="bg-white rounded-lg p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto"><div className="nested-return"><button onClick={cancelSession}>Cancel session and return</button></div>
                 {currentTraining === 'speed' && (
                   <SprintTrainingGame
-                    onComplete={handleMinigameComplete}
+                    onComplete={score=>{if(sessionGeneration.current===activeSession)handleMinigameComplete(score);}}
                     dogName={selectedDog.name}
                   />
                 )}
                 {currentTraining === 'agility' && (
                   <Suspense fallback={<p>Preparing your agility course…</p>}><AgilityGame
-                    onComplete={handleMinigameComplete}
-                    onCancel={() => { setShowMinigame(false); setCurrentTraining(null); }}
+                    onComplete={score=>{if(sessionGeneration.current===activeSession)handleMinigameComplete(score);}}
+                    onCancel={cancelSession}
                     dogName={selectedDog.name}
+                    dog={selectedDog}
                     agility={selectedDog.agility + selectedDog.agility_trained}
                   /></Suspense>
                 )}
                 {currentTraining === 'strength' && (
                   <WeightPullTrainingGame
-                    onComplete={handleMinigameComplete}
+                    onComplete={score=>{if(sessionGeneration.current===activeSession)handleMinigameComplete(score);}}
                     dogName={selectedDog.name}
                   />
                 )}
                 {currentTraining === 'endurance' && (
                   <DistanceRunGame
-                    onComplete={handleMinigameComplete}
+                    onComplete={score=>{if(sessionGeneration.current===activeSession)handleMinigameComplete(score);}}
                     dogName={selectedDog.name}
                   />
                 )}
                 {currentTraining === 'obedience' && (
-                  <CommandDrillsGame
-                    onComplete={handleMinigameComplete}
-                    dogName={selectedDog.name}
-                  />
+                  <Suspense fallback={<p>Preparing the training yard...</p>}><YardActivity
+                    dog={selectedDog} mode="obedience" onComplete={score=>{if(sessionGeneration.current===activeSession)handleMinigameComplete(score);}}
+                    onCancel={cancelSession}
+                  /></Suspense>
                 )}
               </div>
             </div>

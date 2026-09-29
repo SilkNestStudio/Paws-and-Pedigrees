@@ -22,8 +22,9 @@ function DailyRewardModal({ onClose }: DailyRewardModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div role="dialog" aria-modal="true" aria-label="Daily reward" className="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] p-4 animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="nested-return"><button onClick={onClose}>Close daily reward</button></div>
         {/* Header */}
         <div className="bg-gradient-to-r from-kennel-600 to-kennel-700 p-6 rounded-t-2xl text-white">
           <div className="text-center">

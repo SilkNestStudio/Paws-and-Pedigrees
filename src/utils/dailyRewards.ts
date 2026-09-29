@@ -1,3 +1,5 @@
+import { apprenticeshipComplete } from './firstRibbon';
+import type { TutorialProgress } from '../types';
 import { UserProfile } from '../types';
 
 export interface DailyReward {
@@ -9,38 +11,15 @@ export interface DailyReward {
 }
 
 // Daily reward tiers - scales with streak
-export const DAILY_REWARDS: DailyReward[] = [
-  { day: 1, cash: 100, gems: 0, xp: 10 },
-  { day: 2, cash: 150, gems: 0, xp: 15 },
-  { day: 3, cash: 200, gems: 5, xp: 20, bonus: 'First gems!' },
-  { day: 4, cash: 250, gems: 0, xp: 25 },
-  { day: 5, cash: 300, gems: 10, xp: 30, bonus: 'Keep it up!' },
-  { day: 6, cash: 400, gems: 0, xp: 40 },
-  { day: 7, cash: 500, gems: 25, xp: 50, bonus: '🎉 Week Complete!' },
-  { day: 8, cash: 600, gems: 0, xp: 60 },
-  { day: 9, cash: 700, gems: 15, xp: 70 },
-  { day: 10, cash: 800, gems: 20, xp: 80 },
-  { day: 11, cash: 900, gems: 0, xp: 90 },
-  { day: 12, cash: 1000, gems: 25, xp: 100 },
-  { day: 13, cash: 1100, gems: 0, xp: 110 },
-  { day: 14, cash: 1500, gems: 50, xp: 150, bonus: '🔥 Two Weeks!' },
-  { day: 15, cash: 1200, gems: 30, xp: 120 },
-  { day: 16, cash: 1300, gems: 0, xp: 130 },
-  { day: 17, cash: 1400, gems: 35, xp: 140 },
-  { day: 18, cash: 1500, gems: 0, xp: 150 },
-  { day: 19, cash: 1600, gems: 40, xp: 160 },
-  { day: 20, cash: 1700, gems: 45, xp: 170 },
-  { day: 21, cash: 2500, gems: 100, xp: 250, bonus: '💎 Three Weeks!' },
-  { day: 22, cash: 2000, gems: 50, xp: 200 },
-  { day: 23, cash: 2100, gems: 55, xp: 210 },
-  { day: 24, cash: 2200, gems: 60, xp: 220 },
-  { day: 25, cash: 2300, gems: 65, xp: 230 },
-  { day: 26, cash: 2400, gems: 70, xp: 240 },
-  { day: 27, cash: 2500, gems: 75, xp: 250 },
-  { day: 28, cash: 3000, gems: 150, xp: 300 },
-  { day: 29, cash: 2800, gems: 80, xp: 280 },
-  { day: 30, cash: 5000, gems: 250, xp: 500, bonus: '🏆 MONTHLY LEGEND!' },
-];
+export const DAILY_REWARDS: DailyReward[] = Array.from({length:30},(_,i)=>({
+  day:i+1, cash:(i+1)%7===0?75:20+Math.floor(i/7)*5, gems:(i+1)%7===0?2:0, xp:10,
+  ...((i+1)%7===0?{bonus:'A week of care'}:{})
+}));
+export function dailyRewardUnlocked(progress:TutorialProgress, now=new Date()):boolean {
+ if(!apprenticeshipComplete(progress)||!progress.firstRibbon?.graduatedAt)return false;
+ const graduated=new Date(progress.firstRibbon.graduatedAt);graduated.setHours(0,0,0,0);
+ const today=new Date(now);today.setHours(0,0,0,0);return graduated<today;
+}
 
 /**
  * Check if user can claim daily reward
@@ -87,7 +66,7 @@ export function calculateLoginStreak(user: UserProfile): number {
  */
 export function getDailyReward(streakDay: number): DailyReward {
   // Cap at day 30, repeat day 30 rewards after
-  const day = Math.min(streakDay, 30);
+  const day = Math.min(Math.max(streakDay, 1), 30);
   return DAILY_REWARDS[day - 1] || DAILY_REWARDS[29]; // Fallback to day 30
 }
 

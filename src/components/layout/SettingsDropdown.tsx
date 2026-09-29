@@ -78,7 +78,7 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
         {/* Settings Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="px-2 md:px-4 py-1.5 md:py-2 bg-kennel-800 hover:bg-kennel-900 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1 md:gap-2"
+          className="club-settings inline-button"
           aria-label="Settings"
         >
           <span className="text-lg">⚙️</span>
@@ -87,7 +87,7 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
 
         {/* Dropdown Menu */}
         {isOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+          <div className="absolute right-0 mt-2 w-48 max-h-[65vh] bg-white rounded-lg shadow-xl border border-slate-200 overflow-y-auto z-50">
             <div className="py-1">
               {/* Logout Option */}
               <button disabled={isLocalMode}
@@ -165,7 +165,7 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
                     className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors flex items-center gap-3 text-purple-600"
                   >
                     <span className="text-lg">🎮</span>
-                    <span className="font-medium">Admin Panel</span>
+                    <span className="font-medium">{isLocalMode && import.meta.env.DEV ? 'Testing tools' : 'Admin Panel'}</span>
                   </button>
                 </>
               )}
@@ -188,8 +188,9 @@ export default function SettingsDropdown({ onSignOut }: SettingsDropdownProps) {
 
       {/* Reset Confirmation Modal */}
       {showResetConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 md:p-8">
+        <div role="dialog" aria-modal="true" aria-label="Reset game confirmation" className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 md:p-8">
+            <div className="nested-return"><button onClick={handleCancelReset}>Cancel and return</button></div>
             {resetStep === 1 && (
               <>
                 <div className="text-center mb-6">

@@ -1,11 +1,15 @@
+import { initialNavigation, navigateTo, navigateBack, VIEW_NAMES, type GameView } from './utils/navigation';
+import ReturnNavigation from './components/layout/ReturnNavigation';
+import { lessonViewUnlocked } from './utils/firstRibbon';
+import { dailyRewardUnlocked } from './utils/dailyRewards';
+import { companionConditionUpdates } from './utils/companionLoop';
 import { isLocalMode } from './lib/storage/config';
 import LocalSaveControls from './components/layout/LocalSaveControls';
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Toaster } from 'react-hot-toast';
 import PoundScene from './components/kennel/PoundScene';
 import KennelView from './components/kennel/KennelView';
-import DogDetailView from './components/kennel/DogDetailView';
-import Sidebar from './components/layout/Sidebar';
+import CompanionView from './components/kennel/CompanionView';
 import { Breed } from './types';
 import { useGameStore } from './stores/gameStore';
 import { generateDog } from './utils/dogGenerator';
@@ -19,41 +23,37 @@ import BreedingPanel from './components/breeding/BreedingPanel';
 import PuppyNursery from './components/breeding/PuppyNursery';
 import ShopView from './components/shop/ShopView';
 import { shouldAgeDog, ageDog } from './utils/puppyAging';
-import OfficeDashboard from './components/office/OfficeDashboard';
+import JourneyHome from './components/journey/JourneyHome';
 import AuthView from './components/auth/AuthView';
 import { useAuth } from './hooks/useAuth';
 import IntroStory from './components/intro/IntroStory';
-import SettingsDropdown from './components/layout/SettingsDropdown';
+import KennelHeader from './components/layout/KennelHeader';
+import KennelUpgradeView from './components/kennel/KennelUpgradeView';
 import DailyRewardModal from './components/rewards/DailyRewardModal';
 import { canClaimDailyReward } from './utils/dailyRewards';
 import TutorialManager from './components/tutorial/TutorialManager';
+import FirstRibbonGuide from './components/tutorial/FirstRibbonGuide';
 import VetClinicView from './components/vet/VetClinicView';
 import StoryModeView from './components/story/StoryModeView';
 import { saveUserProfile, saveDog, saveStoryProgress, debouncedSave, flushPendingSaves } from './lib/supabaseService';
 import LoadingSpinner from './components/common/LoadingSpinner';
-const Demo3DView = lazy(() => import('./components/demo/Demo3DView'));
-
-type View =
-  | 'kennel'
-  | 'dogDetail'
-  | 'office'
-  | 'story'
-  | 'training'
-  | 'competition'
-  | 'breeding'
-  | 'jobs'
-  | 'shop'
-  | 'vet'
-  | 'demo3d';
+const KennelInterior = lazy(() => import('./game/kennel/KennelInterior'));
+const Demo3DView = lazy(() => import('./game/yard/KennelYard'));
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('office');
+  const mainRef = useRef<HTMLElement>(null);
+  const [navigation,setNavigation] = useState(initialNavigation);
+  const currentView = navigation.current;
+  const [yardLaunch,setYardLaunch]=useState<{id:number;action:string}|null>(null);
   const [shopTab, setShopTab] = useState<'breeds' | 'items' | 'pound'>('breeds');
   const [showIntroStory, setShowIntroStory] = useState(true);
   const [showDailyReward, setShowDailyReward] = useState(false);
+  const [dailyRewardDismissed, setDailyRewardDismissed] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
-  const { user, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, updateGameWeather } = useGameStore();
+  const { user, tutorialProgress, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, updateGameWeather } = useGameStore();
+
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); }, [currentView]);
 
   // Check for reset flag FIRST, before anything else
   useEffect(() => {
@@ -76,12 +76,29 @@ function App() {
     }
   }, [authUser, loadFromSupabase, isResetting]);
 
+  // Keep care status current during local and cloud sessions, without repeated penalties.
+  useEffect(() => {
+    if (!authUser || gameLoading) return;
+    const refresh = () => {
+      const state = useGameStore.getState();
+      for (const dog of state.dogs) {
+        const updates = companionConditionUpdates(dog);
+        if (Object.keys(updates).length) state.updateDog(dog.id, updates);
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 60000);
+    const resume = () => { if (!document.hidden) refresh(); };
+    document.addEventListener('visibilitychange', resume);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', resume); };
+  }, [authUser?.id, gameLoading]);
+
   // Check for daily reward after game loads
   useEffect(() => {
-    if (user && !gameLoading && hasAdoptedFirstDog && !showDailyReward && canClaimDailyReward(user)) {
+    if (user && !gameLoading && hasAdoptedFirstDog && dailyRewardUnlocked(tutorialProgress) && !dailyRewardDismissed && !showDailyReward && canClaimDailyReward(user)) {
       setShowDailyReward(true);
     }
-  }, [user, gameLoading, hasAdoptedFirstDog, showDailyReward]);
+  }, [user, gameLoading, hasAdoptedFirstDog, showDailyReward, dailyRewardDismissed, tutorialProgress]);
 
   // Update weather on mount and periodically
   useEffect(() => {
@@ -232,69 +249,46 @@ function App() {
     return <PoundScene onDogSelected={handleDogAdopted} />;
   }
 
-  const handleViewChange = (view: string, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => {
-    setCurrentView(view as View);
+  const handleViewChange = (view: string, options?: { shopTab?: 'breeds' | 'items' | 'pound'; yardActivity?: string }) => {
+    if (!(view in VIEW_NAMES)) return;
+    const target:GameView = lessonViewUnlocked(tutorialProgress,view) ? view as GameView : 'office';
+    setYardLaunch(target==='demo3d'&&options?.yardActivity?{id:Date.now(),action:options.yardActivity}:null);
+    setNavigation(state=>navigateTo(state,target));
     if (view === 'shop' && options?.shopTab) {
       setShopTab(options.shopTab);
     }
   };
 
+  const handleBack = () => { setYardLaunch(null); setNavigation(navigateBack); };
+
   return (
-    <div className="h-screen bg-earth-50">
-      <Sidebar currentView={currentView} onViewChange={handleViewChange} />
+    <div className="club-app">
 
-      <div className="flex flex-col h-screen md:pl-20">
-        <header className="bg-kennel-700 text-white p-3 md:p-4 shadow-lg relative z-50">
-          <div className="flex justify-between items-center">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg md:text-2xl font-bold truncate">{user?.kennel_name || 'My Kennel'}</h1>
-              <p className="text-xs text-kennel-200 truncate">
-                Owner: {user?.username || 'Player'}
-              </p>
-            </div>
-            <div className="flex gap-2 md:gap-6 items-center">
-              <div className="text-right">
-                <p className="text-xs text-kennel-200 hidden md:block">Cash</p>
-                <p className="text-sm md:text-lg font-bold">${user?.cash}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-kennel-200 hidden md:block">Gems</p>
-                <p className="text-sm md:text-lg font-bold">💎 {user?.gems}</p>
-              </div>
-              <div className="text-right hidden sm:block">
-                <p className="text-xs text-kennel-200 hidden md:block">Level</p>
-                <p className="text-sm md:text-lg font-bold">{user?.level}</p>
-              </div>
-              <div className="text-right hidden sm:block">
-                <p className="text-xs text-kennel-200 hidden md:block">Streak</p>
-                <p className="text-sm md:text-lg font-bold">🔥 {user?.login_streak || 0}</p>
-              </div>
-              <div className="ml-2 md:ml-4">
-                <SettingsDropdown onSignOut={signOut} />
-              </div>
-            </div>
-          </div>
-        </header>
+      <div className="club-workspace">
+        <KennelHeader currentView={currentView} onSignOut={signOut} onNavigate={handleViewChange}/>
+        <ReturnNavigation current={currentView} previous={navigation.history[navigation.history.length-1]??'hub'} onBack={handleBack} onNavigate={handleViewChange}/>
 
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+
+        <main ref={mainRef} className="club-main">
           <SceneBackground scene={currentView} kennelLevel={user?.kennel_level || 1}>
-            <div className="p-3 md:p-6">
-              {currentView === 'kennel' && <KennelView onViewDog={() => setCurrentView('dogDetail')} />}
+            <div className="club-content">
+              {currentView!=='office'&&currentView!=='hub'&&<FirstRibbonGuide compact onNavigate={(view,options)=>handleViewChange(view,view==='shop'?{shopTab:'items'}:options)}/>}
+              {currentView === 'hub' && <Suspense fallback={<p>Opening your kennel...</p>}><KennelInterior onNavigate={handleViewChange}/></Suspense>}
+              {currentView === 'expansion' && <KennelUpgradeView/>}
+
+              {currentView === 'kennel' && <KennelView onViewDog={() => handleViewChange('dogDetail')} onUpgrade={()=>handleViewChange('expansion')} />}
 
               {currentView === 'dogDetail' && (
-                <DogDetailView
-                  onBack={() => setCurrentView('kennel')}
-                  onNavigateToShop={() => handleViewChange('shop', { shopTab: 'items' })}
-                />
+                <CompanionView onNavigate={view => view === 'shop' ? handleViewChange('shop', { shopTab: 'items' }) : handleViewChange(view)} />
               )}
 
               {currentView === 'office' && (
-                <OfficeDashboard onNavigate={setCurrentView} />
+                <JourneyHome onNavigate={handleViewChange} />
               )}
 
               {currentView === 'story' && <StoryModeView />}
 
-              {currentView === 'training' && <TrainingView />}
+              {currentView === 'training' && <TrainingView onReturnToDog={() => handleViewChange('dogDetail')} />}
 
               {currentView === 'competition' && <EventBoardView />}
 
@@ -311,23 +305,23 @@ function App() {
 
               {currentView === 'vet' && <VetClinicView />}
 
-              {currentView === 'demo3d' && <Suspense fallback={<p>Preparing practice…</p>}><Demo3DView /></Suspense>}
+              {currentView === 'demo3d' && <Suspense fallback={<p>Preparing practice…</p>}><Demo3DView onInside={()=>handleViewChange('hub')} launch={yardLaunch} onWelcomeComplete={()=>handleViewChange('office')} onShop={() => handleViewChange('shop', {shopTab: 'items'})} /></Suspense>}
             </div>
           </SceneBackground>
         </main>
+        {isLocalMode && <LocalSaveControls />}
 
       </div>
 
       {/* Daily Reward Modal */}
-      {showDailyReward && user && (
-        <DailyRewardModal onClose={() => setShowDailyReward(false)} />
+      {showDailyReward && user && dailyRewardUnlocked(tutorialProgress) && (
+        <DailyRewardModal onClose={() => { setDailyRewardDismissed(true); setShowDailyReward(false); }} />
       )}
 
       {/* Tutorial Manager */}
       <TutorialManager />
 
       {/* Toast Notifications */}
-      {isLocalMode && <LocalSaveControls />}
       <Toaster />
     </div>
   );

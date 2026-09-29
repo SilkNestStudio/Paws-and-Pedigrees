@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { jobTypes } from '../../data/jobTypes';
 import HelpButton from '../tutorial/HelpButton';
@@ -7,6 +7,9 @@ import { showToast } from '../../lib/toast';
 
 export default function JobsBoard() {
   const { user, updateUserCash } = useGameStore();
+  const jobTimer=useRef<ReturnType<typeof setTimeout>>();
+  useEffect(()=>()=>clearTimeout(jobTimer.current),[]);
+  const cancelJob=()=>{clearTimeout(jobTimer.current);jobTimer.current=undefined;setWorkingJob(null);};
   const [workingJob, setWorkingJob] = useState<string | null>(null);
   const [jobsCompleted, setJobsCompleted] = useState<{ [key: string]: number }>({});
 
@@ -30,7 +33,7 @@ export default function JobsBoard() {
 
   const handleStartJob = (jobId: string) => {
     const job = jobTypes.find(j => j.id === jobId);
-    if (!job) return;
+    if (!job || jobTimer.current) return;
 
     const completed = jobsCompleted[jobId] || 0;
     if (completed >= job.dailyLimit) {
@@ -40,7 +43,8 @@ export default function JobsBoard() {
 
     setWorkingJob(jobId);
 
-    setTimeout(() => {
+    jobTimer.current=setTimeout(() => {
+      jobTimer.current=undefined;
       const pay = calculatePay(job);
       updateUserCash(pay);
       setJobsCompleted(prev => ({ ...prev, [jobId]: (prev[jobId] || 0) + 1 }));
@@ -128,12 +132,14 @@ export default function JobsBoard() {
       </div>
 
       {workingJob && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div role="dialog" aria-modal="true" aria-label="Job in progress" className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
           <div className="bg-white rounded-lg p-8 text-center">
-            <p className="text-2xl font-bold text-earth-900 mb-4">Working...</p>
-            <div className="text-6xl animate-bounce">
+            <div aria-hidden="true" className="text-6xl animate-bounce pointer-events-none mb-4">
               {jobTypes.find(j => j.id === workingJob)?.icon}
             </div>
+            <p className="text-2xl font-bold text-earth-900 mb-4">Working...</p>
+            <p className="mb-4 text-sm">Leaving early cancels this job without pay.</p>
+            <button className="club-button" onClick={cancelJob}>Cancel job and return</button>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { calculateFoodConsumption, getSizeCategoryName } from '../../utils/careCalculations';
-import { checkBondLevelUp, calculateBondXpGain } from '../../utils/bondSystem';
+import { bondingRestriction } from '../../utils/companionLoop';
 import { getHealthStatus, VET_COST, EMERGENCY_VET_COST, REVIVAL_GEM_COST } from '../../utils/healthDecay';
 import RealisticPettingActivity from '../minigames/RealisticPettingActivity';
 import RealisticFetchActivity from '../minigames/RealisticFetchActivity';
@@ -20,7 +20,8 @@ interface InteractiveCarePanelProps {
 }
 
 export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCarePanelProps) {
-  const { selectedDog, user, feedDog, waterDog, updateDog, takeToVet, takeToEmergencyVet, reviveDeadDog } = useGameStore();
+  const { selectedDog, user, feedDog, waterDog, takeToVet, takeToEmergencyVet, reviveDeadDog } = useGameStore();
+  const activityDogId = useRef<string | null>(null);
   const [activeGame, setActiveGame] = useState<'pet' | 'fetch' | 'walk' | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -28,13 +29,29 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
   const [isDragging, setIsDragging] = useState(false);
   const [dragItem, setDragItem] = useState<DragItem>(null);
   const [dragPosition, setDragPosition] = useState<Position>({ x: 0, y: 0 });
-  const [bowlFilled, setBowlFilled] = useState(false);
+  const [filledBowl, setFilledBowl] = useState<DragItem>(null);
+  const bowlFilled = filledBowl === dragItem && dragItem !== null;
   const [activeDropZone, setActiveDropZone] = useState<DropZone>(null);
 
   // Refs for drop zones
   const spigotRef = useRef<HTMLDivElement>(null);
   const foodBinRef = useRef<HTMLDivElement>(null);
   const dogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isDragging && selectedDog) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleTouchEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
+      };
+    }
+  }, [isDragging, activeDropZone, bowlFilled, dragItem]);
 
   if (!selectedDog) {
     return (
@@ -52,7 +69,7 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
     e.preventDefault();
     setIsDragging(true);
     setDragItem(item);
-    setBowlFilled(false);
+
     setDragPosition({ x: e.clientX, y: e.clientY });
   };
 
@@ -61,7 +78,7 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
     const touch = e.touches[0];
     setIsDragging(true);
     setDragItem(item);
-    setBowlFilled(false);
+
     setDragPosition({ x: touch.clientX, y: touch.clientY });
   };
 
@@ -116,13 +133,13 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
     // Handle dropping
     if (activeDropZone === 'spigot' && dragItem === 'water-bowl') {
       // Fill water bowl
-      setBowlFilled(true);
+      setFilledBowl(dragItem);
       setMessage({ text: '💧 Bowl filled with fresh water!', type: 'success' });
       setTimeout(() => setMessage(null), 2000);
     } else if (activeDropZone === 'food-bin' && dragItem === 'bowl') {
       // Fill food bowl
       if (hasEnoughFood) {
-        setBowlFilled(true);
+        setFilledBowl(dragItem);
         setMessage({ text: '🍖 Bowl filled with food!', type: 'success' });
         setTimeout(() => setMessage(null), 2000);
       } else {
@@ -130,6 +147,7 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
         setTimeout(() => setMessage(null), 3000);
       }
     } else if (activeDropZone === 'dog' && bowlFilled) {
+      setFilledBowl(null);
       // Give to dog
       if (dragItem === 'water-bowl') {
         const result = waterDog(selectedDog.id);
@@ -139,7 +157,6 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
         setMessage({ text: result.message || 'Unknown error', type: result.success ? 'success' : 'error' });
       }
       setTimeout(() => setMessage(null), 3000);
-      setBowlFilled(false);
     }
 
     setIsDragging(false);
@@ -151,93 +168,21 @@ export default function InteractiveCarePanel({ onNavigateToShop }: InteractiveCa
     handleMouseUp(); // Reuse the same logic
   };
 
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      window.addEventListener('touchmove', handleTouchMove, { passive: false });
-      window.addEventListener('touchend', handleTouchEnd);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('touchend', handleTouchEnd);
-      };
-    }
-  }, [isDragging, activeDropZone, bowlFilled, dragItem]);
+
 
   const playWithDog = (activityType: 'pet' | 'fetch' | 'walk') => {
-    // Check last interaction time for this specific activity (15 min cooldown per activity)
-    const activityTimeMap = {
-      pet: selectedDog.last_pet,
-      fetch: selectedDog.last_fetch,
-      walk: selectedDog.last_walk,
-    };
-    const lastActivityTime = activityTimeMap[activityType] ? new Date(activityTimeMap[activityType]!).getTime() : 0;
-    const now = Date.now();
-    const COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
-
-    if (now - lastActivityTime < COOLDOWN_MS) {
-      const remainingMs = COOLDOWN_MS - (now - lastActivityTime);
-      const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
-      setMessage({
-        text: `${selectedDog.name} needs a break from ${activityType}! Wait ${remainingMinutes} min`,
-        type: 'error',
-      });
-      setTimeout(() => setMessage(null), 3000);
-      return;
-    }
-
-    // Launch the appropriate mini-game
+    const reason = bondingRestriction(selectedDog, activityType);
+    if (reason) { setMessage({ text: reason, type: 'error' }); return; }
+    activityDogId.current = selectedDog.id;
     setActiveGame(activityType);
   };
-
   const handleGameComplete = (activityType: 'pet' | 'fetch' | 'walk') => {
     setActiveGame(null);
-
-    const activities = {
-      pet: { happiness: 15, energy: 0, cost: 0, name: 'Pet & Cuddle' },
-      fetch: { happiness: 30, energy: -20, cost: 0, name: 'Play Fetch' },
-      walk: { happiness: 25, energy: -25, cost: 0, name: 'Go for Walk' },
-    };
-
-    const activity = activities[activityType];
-    const newHappiness = Math.min(100, selectedDog.happiness + activity.happiness);
-    const newEnergy = Math.max(0, selectedDog.energy_stat + activity.energy);
-
-    // Calculate bond XP gain (more XP now that requirements are higher)
-    // Base XP: pet=10, fetch=15, walk=20
-    const baseXpMap = { pet: 10, fetch: 15, walk: 20 };
-    const bondXpGain = calculateBondXpGain(baseXpMap[activityType], selectedDog.is_rescue || false);
-    const newBondXp = selectedDog.bond_xp + bondXpGain;
-
-    // Set the individual activity cooldown
-    const activityTimestampKey = {
-      pet: 'last_pet',
-      fetch: 'last_fetch',
-      walk: 'last_walk',
-    }[activityType];
-
-    const updates: any = {
-      happiness: newHappiness,
-      energy_stat: newEnergy,
-      last_played: new Date().toISOString(),
-      [activityTimestampKey]: new Date().toISOString(),
-      bond_xp: newBondXp,
-    };
-
-    const bondLevelUp = checkBondLevelUp({ ...selectedDog, bond_xp: newBondXp });
-    if (bondLevelUp) {
-      Object.assign(updates, bondLevelUp);
-    }
-
-    updateDog(selectedDog.id, updates);
-
-    setMessage({
-      text: `${activity.name} with ${selectedDog.name}! +${activity.happiness} happiness, +${bondXpGain} bond`,
-      type: 'success',
-    });
-    setTimeout(() => setMessage(null), 3000);
+    const id = activityDogId.current;
+    activityDogId.current = null;
+    if (!id) return;
+    const result = useGameStore.getState().bondWithDog(id, activityType);
+    setMessage({ text: result.message, type: result.success ? 'success' : 'error' });
   };
 
   return (

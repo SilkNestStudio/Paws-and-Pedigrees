@@ -1,3 +1,4 @@
+import { apprenticeshipComplete } from '../../utils/firstRibbon';
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import {
@@ -13,7 +14,7 @@ import {
  * Shows current kennel level, benefits, and allows upgrading to next level
  */
 export default function KennelUpgradeView() {
-  const { user, upgradeKennel } = useGameStore();
+  const { user, upgradeKennel, tutorialProgress } = useGameStore();
   const [upgrading, setUpgrading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -30,7 +31,7 @@ export default function KennelUpgradeView() {
   const nextLevel = currentLevel + 1;
   const nextLevelInfo = getKennelLevelInfo(nextLevel);
   const upgradeCost = getUpgradeCost(currentLevel);
-  const canUpgrade = canUpgradeKennel(currentLevel, user.cash);
+  const canUpgrade = apprenticeshipComplete(tutorialProgress) ? canUpgradeKennel(currentLevel, user.cash) : {canUpgrade:false,reason:'Finish your apprenticeship before expanding your kennel.'};
   const newFeatures = getNewFeaturesAtLevel(nextLevel);
 
   const handleUpgrade = async () => {

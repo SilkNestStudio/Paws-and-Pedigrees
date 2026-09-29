@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import type { CompetitionEvent } from '../../types/competition';
 import { calculateAgeInWeeks } from '../../utils/timeScaling';
@@ -41,6 +41,8 @@ const getTimeUntil = (isoString: string): string => {
 };
 
 export default function EventDetailModal({ event, onClose }: EventDetailModalProps) {
+  const closeTimer=useRef<ReturnType<typeof setTimeout>>();
+  useEffect(()=>()=>clearTimeout(closeTimer.current),[]);
   const {
     selectedDog,
     user,
@@ -129,7 +131,7 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
     });
 
     if (result.success) {
-      setTimeout(() => {
+      closeTimer.current=setTimeout(() => {
         onClose();
       }, 2000);
     }
@@ -170,8 +172,9 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
   // Show competition runner if user clicked compete
   if (showCompetition && selectedDog) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div role="dialog" aria-modal="true" aria-label={showCompetition?'Competition session':'Event details'} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
         <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="nested-return"><button onClick={()=>{setShowCompetition(false);onClose();}}>Return to event board</button></div>
           <CompetitionRunner
             event={event}
             dog={selectedDog}
@@ -186,16 +189,11 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div role="dialog" aria-modal="true" aria-label={showCompetition?'Competition session':'Event details'} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4">
       <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="nested-return"><button onClick={onClose}>Close event details</button></div>
         {/* Header */}
         <div className={`bg-gradient-to-r from-${color}-600 to-${color}-700 p-6 text-white relative`}>
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl font-bold"
-          >
-            ×
-          </button>
           <h2 className="text-2xl font-bold mb-2">{event.name}</h2>
           <div className="flex gap-2 flex-wrap">
             <span className={`px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm font-semibold`}>

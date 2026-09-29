@@ -1,3 +1,4 @@
+import { apprenticeshipComplete } from '../../utils/firstRibbon';
 import { useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
 import { shopBreeds } from '../../data/shopBreeds';
@@ -16,7 +17,8 @@ interface ShopViewProps {
 
 export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
   const { user, selectedDog, purchaseBreed, purchaseItem } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'breeds' | 'items' | 'pound'>(initialTab);
+  const suppliesOnly=!apprenticeshipComplete(useGameStore(s=>s.tutorialProgress));
+  const [activeTab, setActiveTab] = useState<'breeds' | 'items' | 'pound'>(suppliesOnly?'items':initialTab);
   const { confirm, confirmState, handleCancel } = useConfirm();
 
   const handlePurchaseBreed = async (breed: Breed) => {
@@ -84,7 +86,8 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
   };
 
   const handlePurchaseItem = async (item: ShopItem) => {
-    if (!user || !selectedDog) {
+    if (!user) return;
+    if (!selectedDog && Object.keys(item.effect).some(key=>key!=='food_storage')) {
       showToast.warning('Select a dog first!');
       return;
     }
@@ -113,9 +116,9 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
     }
 
     const confirmed = await confirm({
-      title: 'Use Item',
-      message: `Use ${item.name} on ${selectedDog.name} for ${costText}?`,
-      confirmText: 'Use Item',
+      title: item.effect.food_storage !== undefined ? 'Buy dog food' : 'Use Item',
+      message: item.effect.food_storage !== undefined ? `Buy ${item.name} for ${costText}? Adds ${item.effect.food_storage} units to your pantry.` : `Use ${item.name} on ${selectedDog?.name} for ${costText}?`,
+      confirmText: item.effect.food_storage !== undefined ? 'Buy food' : 'Use Item',
       variant: 'info'
     });
 
@@ -123,10 +126,9 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
       return;
     }
 
-    // Purchase the item
-    purchaseItem(selectedDog.id, item.effect, cashCost, gemCost);
-
-    showToast.success(`✅ Used ${item.name} on ${selectedDog.name}!`);
+    const result = purchaseItem(selectedDog?.id ?? null, item.effect, cashCost, gemCost);
+    if (result.success) showToast.success(result.message);
+    else showToast.error(result.message);
   };
 
   // Filter breeds by unlock level
@@ -134,8 +136,8 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
   const lockedBreeds = shopBreeds.filter(b => (user?.level || 1) < b.unlock_level);
 
   // Filter items by unlock level
-  const availableItems = shopItems.filter(i => (user?.level || 1) >= i.unlock_level);
-  const lockedItems = shopItems.filter(i => (user?.level || 1) < i.unlock_level);
+  const availableItems = shopItems.filter(i => suppliesOnly ? i.id === 'dog_food_small_basic' : (user?.level || 1) >= i.unlock_level);
+  const lockedItems = shopItems.filter(i => !suppliesOnly && (user?.level || 1) < i.unlock_level);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -148,7 +150,7 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setActiveTab('breeds')}
+          disabled={suppliesOnly} title={suppliesOnly?'Meet your first dog before adding more companions. Complete your apprenticeship to unlock.':undefined} onClick={() => setActiveTab('breeds')}
           className={`px-6 py-3 rounded-lg font-bold transition-all ${
             activeTab === 'breeds'
               ? 'bg-kennel-600 text-white shadow-lg'
@@ -168,7 +170,7 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
           🛍️ Items
         </button>
         <button
-          onClick={() => setActiveTab('pound')}
+          disabled={suppliesOnly} title={suppliesOnly?'Complete your apprenticeship before adopting another dog.':undefined} onClick={() => setActiveTab('pound')}
           className={`px-6 py-3 rounded-lg font-bold transition-all ${
             activeTab === 'pound'
               ? 'bg-kennel-600 text-white shadow-lg'
@@ -304,14 +306,8 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
 
       {/* Items Tab */}
       {activeTab === 'items' && (
-        <div>
-          {!selectedDog && (
-            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-6">
-              <p className="text-yellow-800 font-semibold">
-                ⚠️ Select a dog from your kennel to use items
-              </p>
-            </div>
-          )}
+        <div>{suppliesOnly&&<div className="ribbon-guide"><h2>Your first pantry purchase</h2><p>Start with one $40 bag of basic food. Buying fills your pantry; return to the yard and choose Put out a meal to prepare their bowl. The rest of the Market opens after graduation.</p></div>}
+          {!selectedDog && !suppliesOnly && <p className="mb-6 text-earth-600">Food goes straight into your kennel pantry. For treats or treatments, open Dog runs in the kennel and choose a companion first.</p>}
 
           {/* Available Items */}
           {availableItems.length > 0 && (
@@ -395,13 +391,13 @@ export default function ShopView({ initialTab = 'breeds' }: ShopViewProps) {
                         onClick={() => handlePurchaseItem(item)}
                         disabled={
                           !user ||
-                          !selectedDog ||
+                          (!selectedDog && Object.keys(item.effect).some(key=>key!=='food_storage')) ||
                           (item.price > 0 && user.cash < item.price) ||
                           (!!item.gem_price && user.gems < item.gem_price)
                         }
                         className="w-full py-2 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
                       >
-                        Use
+                        {item.effect.food_storage !== undefined ? 'Buy food' : 'Use'}
                       </button>
                     </div>
                   </div>

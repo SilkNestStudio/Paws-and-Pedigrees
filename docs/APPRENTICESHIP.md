@@ -1,0 +1,11 @@
+﻿# Playable first day
+
+This replaces the former dashboard-led apprenticeship and its planning quiz. The opening now follows the founding rescue: adoption, real care, fetch, obedience, agility practice, and a free welcome meet. Graduation happens when the player hangs their first ribbon; it does not require answering quiz questions.
+
+The home screen shows the actual selected dog, current needs, earned bond, and one next action. Activity prompts launch the activity directly. The first food purchase happens in the guided flow instead of requiring a visit to a separate shop. Normal Market supplies remain available later. Navigation initially offers Our story, Time together, and My dogs. The home previews competing and breeding as the next chapters without presenting a wall of disabled menu items.
+
+Useful systems retained: IndexedDB storage, dog identity and genetics, actual care costs and effects, bond discovery, validated training rewards, course simulation, competition eligibility, breeding and nursery capacity. Existing saves keep their dogs, balances, and completed actions; obsolete quiz completion IDs are harmless and no longer required. First-day completion still gates independent systems and next-day daily rewards. New profiles retain the $120 starting budget.
+
+Validation: `node scripts/first-day-smoke.mjs` plays actual adoption, yard movement, water, a $40 purchase, feeding, all three fetch retrieves, rest, all three obedience repetitions, direct course launch/cancel, and reload/resume on desktop and mobile. Its final saved-completion fixture tests graduation and future-screen navigation; it does not claim to play a full agility run. Course traversal remains covered by the simulation tests. The old tutorial/apprenticeship smoke entry points delegate to this canonical test.
+
+Remaining demo work: stronger dog animation and environmental art, consistent handler-style course controls (the course currently still uses movement/jump inputs), sound and activity feedback, and complete human playtests through the course and a later breeding cycle. The revised opening is a playable product slice, not a claim that the entire game is investor-ready or scaled for production.

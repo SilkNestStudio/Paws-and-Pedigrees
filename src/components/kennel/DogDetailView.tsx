@@ -33,7 +33,7 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
           onClick={onBack}
           className="mt-4 px-6 py-2 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 transition-all"
         >
-          Back to Kennel
+          Back to your companion
         </button>
       </div>
     );
@@ -125,7 +125,7 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
 
     if (result.success) {
       showToast.success(`💰 Sold ${selectedDog.name} for $${result.price}!`);
-      onBack(); // Go back to kennel view
+      onBack(); // Return to the companion overview
     } else {
       showToast.error(result.message || 'Failed to sell dog');
     }
@@ -139,7 +139,7 @@ export default function DogDetailView({ onBack, onNavigateToShop }: DogDetailVie
           onClick={onBack}
           className="px-4 py-2 bg-white/90 backdrop-blur-sm text-earth-900 rounded-lg hover:bg-white shadow-lg transition-all flex items-center gap-2"
         >
-          ← Back to Kennel
+          ← Back to your companion
         </button>
         <button
           onClick={handleSellDog}

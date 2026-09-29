@@ -1,3 +1,4 @@
+import { isLocalMode } from '../lib/storage/config';
 /**
  * Admin Configuration
  *
@@ -21,7 +22,7 @@ export const ADMIN_USER_IDS = [
  */
 export function isAdmin(userId: string | undefined): boolean {
   if (!userId) return false;
-  return ADMIN_USER_IDS.includes(userId);
+  return (import.meta.env.DEV && isLocalMode) || ADMIN_USER_IDS.includes(userId);
 }
 
 /**

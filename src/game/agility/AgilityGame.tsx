@@ -3,12 +3,12 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { createPortal } from 'react-dom';
 import { Html } from '@react-three/drei';
 import { Group, Vector3 } from 'three';
-import Dog3D from '../../components/training/3d/Dog3D';
+import Dog3D, { type DogAppearance } from '../../components/training/3d/Dog3D';
 import { COURSE, GATES, FINISH_Z, type CourseObstacle } from './course';
 import { createRun, runPerformance, seesawAngle, stepRun, type Controls, type RunState } from './simulation';
 
 type Phase = 'ready' | 'countdown' | 'running' | 'paused' | 'finished';
-interface Props { onComplete: (performance: number) => void; onCancel?: () => void; dogName: string; agility?: number; mode?: 'training' | 'competition' }
+interface Props { dog?: DogAppearance; onComplete: (performance: number) => void; onCancel?: () => void; dogName: string; agility?: number; mode?: 'training' | 'competition' | 'welcome' }
 
 function Obstacle({ obstacle: o, index, active, run }: {
   obstacle: CourseObstacle; index: number; active: boolean; run: MutableRefObject<RunState>;
@@ -39,10 +39,11 @@ function Obstacle({ obstacle: o, index, active, run }: {
   </group>;
 }
 
-function Scene({ run, controls, phase, maxSpeed, onSnapshot }: {
+function Scene({ run, controls, phase, maxSpeed, onSnapshot, appearance, onReady }: {
   run: MutableRefObject<RunState>; controls: MutableRefObject<Controls>;
-  phase: Phase; maxSpeed: number; onSnapshot: (run: RunState) => void;
+  onReady: (ready: boolean) => void; appearance?: DogAppearance; phase: Phase; maxSpeed: number; onSnapshot: (run: RunState) => void;
 }) {
+  useEffect(() => { onReady(true); }, [onReady]);
   const dog = useRef<Group>(null), marker = useRef<Group>(null);
   const cameraTarget = useRef(new Vector3()), lookTarget = useRef(new Vector3());
   const hudTime = useRef(0);
@@ -75,15 +76,23 @@ function Scene({ run, controls, phase, maxSpeed, onSnapshot }: {
     {[16, FINISH_Z].map(z => <mesh key={z} position={[0, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, 0.35]} /><meshStandardMaterial color="#fff7ed" /></mesh>)}
     {COURSE.map((o, index) => <Obstacle key={o.id} obstacle={o} index={index} active={index === activeObstacle} run={run} />)}
     <group ref={marker}><mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.35, 0.6, 24]} /><meshBasicMaterial color="#ffed94" /></mesh></group>
-    <group ref={dog}><group scale={1.5}><Dog3D position={[0, 0, 0]} isRunning={phase === 'running' && Math.hypot(run.current.vx, run.current.vz) > 0.2} speed={1.2} /></group></group>
+    <group ref={dog}><group scale={0.85}><Dog3D dog={appearance} position={[0, 0, 0]} isRunning={phase === 'running' && Math.hypot(run.current.vx, run.current.vz) > 0.2} speed={1.2} /></group></group>
   </>;
 }
 
-export default function AgilityGame({ onComplete, onCancel, dogName, agility = 50, mode = 'training' }: Props) {
+export default function AgilityGame({ onComplete, onCancel, dogName, dog, agility = 50, mode = 'training' }: Props) {
+  const [loaded, setLoaded] = useState(false);
   const [phase, setPhase] = useState<Phase>('ready'), [countdown, setCountdown] = useState(3);
   const run = useRef(createRun()), controls = useRef<Controls>({ x: 0, z: 0, jump: false });
   const keyboard = useRef(new Set<string>()), touch = useRef(new Set<string>());
   const [hud, setHud] = useState(createRun), [quality, setQuality] = useState<'standard' | 'low'>('standard');
+  const nextGate = GATES[hud.gate];
+  const nextObstacle = nextGate ? COURSE[nextGate.obstacle] : undefined;
+  const coaching = !nextObstacle ? 'All obstacles cleared. Cross the finish line ahead.'
+    : nextObstacle.kind === 'jump' ? (hud.z > nextGate.z && hud.z < nextGate.z + 2.3 ? 'Jump now: Space or the Jump button.' : 'Line up with the marker. Jump just before the bar; back up if you touch it.')
+    : nextObstacle.kind === 'tunnel' ? 'Stay on the ground. Follow the marker through both ends of the tunnel.'
+    : nextObstacle.kind === 'weave' ? `Stay on the ground and pass ${nextGate.x > nextObstacle.x ? 'right' : 'left'} of the next pole, toward the marker.`
+    : 'Stay centered on the seesaw. Move across the plank without jumping.';
   const submitted = useRef(false);
   const clearInput = () => { keyboard.current.clear(); touch.current.clear(); controls.current = { x: 0, z: 0, jump: false }; };
   const updateControls = () => {
@@ -120,13 +129,14 @@ export default function AgilityGame({ onComplete, onCancel, dogName, agility = 5
   return createPortal(<div className="agility-game fixed inset-0 z-[100] bg-slate-950 text-white" role="region" aria-label="Agility training course">
     <Canvas shadows={quality === 'standard'} dpr={quality === 'low' ? 1 : [1, 1.5]} camera={{ position: [0, 7, 24], fov: 55 }} gl={{ antialias: true, alpha: false }}
       fallback={<div className="p-8">This device cannot display the 3D course. Please use a browser with WebGL support.</div>}>
-      <Scene run={run} controls={controls} phase={phase} maxSpeed={5.5 + Math.min(100, Math.max(0, agility)) / 100} onSnapshot={snapshot} />
+      <Scene onReady={setLoaded} appearance={dog} run={run} controls={controls} phase={phase} maxSpeed={5.5 + Math.min(100, Math.max(0, agility)) / 100} onSnapshot={snapshot} />
     </Canvas>
     <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-3 pointer-events-none">
       <div className="rounded-2xl bg-slate-950/85 px-4 py-3 shadow-xl max-w-[65%]">
         <p className="text-xs uppercase tracking-widest text-amber-200">Meadow agility · {dogName}</p>
         <div className="flex gap-5 mt-1 font-bold"><span>{hud.time.toFixed(1)}s</span><span>{hud.faults} faults</span><span>{GATES[hud.gate]?.obstacle ?? COURSE.length}/{COURSE.length}</span></div>
         <p className="text-xs text-slate-200 mt-1">{hud.feedback}</p>
+        {phase === 'running' && <p className="text-xs text-amber-200 mt-2 max-w-sm">{coaching}</p>}
       </div>
       <div className="flex gap-2 pointer-events-auto">
         {phase === 'running' && <button className="inline-button rounded-xl bg-slate-950/85 p-3" onClick={() => { clearInput(); setPhase('paused'); }}>Pause</button>}
@@ -138,16 +148,17 @@ export default function AgilityGame({ onComplete, onCancel, dogName, agility = 5
     {(phase === 'ready' || phase === 'paused' || phase === 'finished') && <div className="absolute inset-0 flex items-center justify-center bg-slate-950/50 p-4 overflow-auto">
       <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-white/10">
         <p className="text-xs uppercase tracking-widest text-amber-300 mb-2">Train together. Grow together.</p>
-        <h2 className="text-3xl font-bold">{phase === 'finished' ? 'A run to build on' : phase === 'paused' ? 'Taking a breather' : `${dogName}'s agility ${mode === 'competition' ? 'trial' : 'session'}`}</h2>
+        <h2 className="text-3xl font-bold">{phase === 'finished' ? 'A run to build on' : phase === 'paused' ? 'Taking a breather' : mode === 'welcome' ? `${dogName}'s welcome meet` : `${dogName}'s agility ${mode === 'competition' ? 'trial' : 'session'}`}</h2>
         {phase === 'finished' ? <>
-          <div className="agility-results-grid gap-3 my-6 text-center"><div><p className="text-2xl font-bold">{hud.time.toFixed(1)}s</p><p className="text-sm text-slate-300">Time</p></div><div><p className="text-2xl font-bold">{hud.faults}</p><p className="text-sm text-slate-300">Faults</p></div><div><p className="text-2xl font-bold">{runPerformance(hud).toFixed(2)}×</p><p className="text-sm text-slate-300">{mode === 'competition' ? 'Run quality' : 'Training gain'}</p></div></div>
-          <button className="w-full rounded-xl bg-amber-300 text-slate-950 p-3 font-bold" onClick={() => { if (!submitted.current) { submitted.current = true; onComplete(runPerformance(run.current)); } }}>{mode === 'competition' ? 'View standings' : 'Finish session'}</button>
+          <div className="agility-results-grid gap-3 my-6 text-center"><div><p className="text-2xl font-bold">{hud.time.toFixed(1)}s</p><p className="text-sm text-slate-300">Time</p></div><div><p className="text-2xl font-bold">{hud.faults}</p><p className="text-sm text-slate-300">Faults</p></div><div><p className="text-2xl font-bold">{runPerformance(hud).toFixed(2)}×</p><p className="text-sm text-slate-300">{mode !== 'training' ? 'Run quality' : 'Training gain'}</p></div></div>
+          <button className="w-full rounded-xl bg-amber-300 text-slate-950 p-3 font-bold" onClick={() => { if (!submitted.current) { submitted.current = true; onComplete(runPerformance(run.current)); } }}>{mode === 'competition' ? 'View standings' : mode === 'welcome' ? 'Finish welcome meet' : 'Finish session'}</button>
           {mode === 'training' && <button className="w-full mt-2 p-3 rounded-xl border border-white/20" onClick={start}>Practice again before finishing</button>}
         </> : <>
+          {mode==='welcome'&&<p className="my-4 text-amber-200">Free, unranked welcome meet. Finish every gate to earn your participation ribbon. No entry fee, no training-point cost, and no championship points.</p>}
           <p className="my-4 text-slate-200">Follow six numbered obstacles and the golden marker. Clear the bars, run through the tunnel, alternate sides of the weave poles, and walk across the seesaw.</p>
           <p className="text-sm text-slate-300">WASD / arrows to move · Space to jump · Escape to pause. Touch controls are also available. A missed gate adds one fault; return and complete it.</p>
           <label className="flex items-center justify-between my-5 text-sm">Graphics<select className="bg-slate-800 rounded-lg p-2" value={quality} onChange={e => setQuality(e.target.value as 'standard' | 'low')}><option value="standard">Standard</option><option value="low">Low</option></select></label>
-          <button className="w-full rounded-xl bg-amber-300 text-slate-950 p-3 font-bold" onClick={phase === 'paused' ? () => setPhase('running') : start}>{phase === 'paused' ? 'Continue session' : 'Start session'}</button>
+          <button className="w-full rounded-xl bg-amber-300 text-slate-950 p-3 font-bold" disabled={!loaded} onClick={phase === 'paused' ? () => setPhase('running') : start}>{!loaded ? 'Loading your dog...' : phase === 'paused' ? 'Continue session' : 'Start session'}</button>
           {phase === 'paused' && mode === 'training' && <button className="w-full mt-2 p-2" onClick={start}>Restart course</button>}
         </>}
         {onCancel && <button className="w-full mt-2 p-2 text-slate-300" onClick={onCancel}>Return to kennel</button>}

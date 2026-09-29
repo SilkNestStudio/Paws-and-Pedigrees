@@ -53,8 +53,9 @@ export default function TutorialOverlay({ tutorialId }: TutorialOverlayProps) {
   };
 
   return (
-    <div className={`fixed inset-0 bg-black/60 flex ${getPositionClasses()} z-50 p-4 animate-fadeIn`}>
+    <div role="dialog" aria-modal="true" aria-label="Tutorial" className={`fixed inset-0 bg-black/60 flex ${getPositionClasses()} z-[80] p-4 animate-fadeIn`}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="nested-return"><button onClick={() => useGameStore.setState({ activeTutorial: null })}>Close tutorial</button></div>
         {/* Header */}
         <div className="bg-gradient-to-r from-kennel-600 to-kennel-700 p-6 rounded-t-2xl text-white">
           <h2 className="text-2xl md:text-3xl font-bold mb-1">{tutorial.name}</h2>

@@ -1,370 +1,40 @@
-import { useState } from 'react';
+import KennelBriefing from './KennelBriefing';
 import { useGameStore } from '../../stores/gameStore';
-import { getWeeksRemaining } from '../../utils/breedingCalculations';
 import { rescueBreeds } from '../../data/rescueBreeds';
-import HelpButton from '../tutorial/HelpButton';
+import { shopBreeds } from '../../data/shopBreeds';
+import { getDogImage } from '../../utils/dogImages';
 import { storyChapters } from '../../data/storyChapters';
 import InventoryPanel from './InventoryPanel';
-
+import NavIcon from '../layout/NavIcon';
+import heroDog from '../../assets/images/dogs/GoldenRetrieverSitting.png';
 type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet' | 'demo3d';
-
-interface OfficeDashboardProps {
-  onNavigate: (view: View, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => void;
-}
-
+interface OfficeDashboardProps { onNavigate: (view: View, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => void; }
 export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
-  const { user, dogs, selectDog, storyProgress } = useGameStore();
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
-
-  // Calculate stats
-  const totalDogs = dogs.length;
-  const dogsNeedingAttention = dogs.filter(
-    (d: any) => d.hunger < 50 || d.happiness < 50 || d.health < 50 || d.energy_stat < 50
-  );
-  const pregnantDogs = dogs.filter((d: any) => d.is_pregnant && d.pregnancy_due);
-  const puppies = dogs.filter((d: any) => d.age_weeks < 52);
-  const adults = dogs.filter((d: any) => d.age_weeks >= 52);
-
-  // Today's stats (would need to track these properly in a real app)
-  const totalWins = (user?.competition_wins_local || 0) + (user?.competition_wins_regional || 0) + (user?.competition_wins_national || 0);
-
-  return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 mb-6">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <h2 className="text-3xl font-bold text-earth-900">Office</h2>
-              <HelpButton helpId="office-overview" tooltip="Learn about the Office" />
-            </div>
-            <p className="text-earth-600">Kennel management dashboard</p>
-          </div>
-
-          {/* Training Points Summary */}
-          {dogs.length > 0 && (
-            <div className="flex-shrink-0">
-              <h3 className="text-sm font-bold text-earth-600 mb-3">🎯 Training Points</h3>
-              <div className="flex gap-3 flex-wrap max-w-md">
-                {dogs.map((dog: any) => {
-                  const lastReset = new Date(dog.last_training_reset);
-                  const nextReset = new Date(lastReset);
-                  nextReset.setDate(nextReset.getDate() + 1);
-                  nextReset.setHours(0, 0, 0, 0);
-                  const now = new Date();
-                  const hoursUntilReset = Math.max(0, Math.ceil((nextReset.getTime() - now.getTime()) / (1000 * 60 * 60)));
-
-                  return (
-                    <div key={dog.id} className="bg-blue-50 border border-blue-200 p-3 rounded-lg min-w-[140px]">
-                      <p className="font-semibold text-blue-900 text-sm mb-1 truncate">{dog.name}</p>
-                      <p className="text-xl font-bold text-blue-700">
-                        {dog.training_points}/100
-                      </p>
-                      <p className="text-xs text-blue-600 mt-1">
-                        {hoursUntilReset > 0
-                          ? `Resets in ${hoursUntilReset}h`
-                          : 'Resetting...'}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-earth-600">Total Dogs</p>
-              <p className="text-3xl font-bold text-earth-900">{totalDogs}</p>
-              <p className="text-xs text-earth-500 mt-1">
-                {adults.length} adults, {puppies.length} puppies
-              </p>
-            </div>
-            <span className="text-4xl">🐕</span>
-          </div>
-        </div>
-
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-earth-600">Cash</p>
-              <p className="text-3xl font-bold text-green-600">${user?.cash || 0}</p>
-              <p className="text-xs text-earth-500 mt-1">
-                💎 {user?.gems || 0} gems
-              </p>
-            </div>
-            <span className="text-4xl">💰</span>
-          </div>
-        </div>
-
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-earth-600">Level</p>
-              <p className="text-3xl font-bold text-kennel-600">{user?.level || 1}</p>
-              <p className="text-xs text-earth-500 mt-1">
-                {user?.xp || 0} XP
-              </p>
-            </div>
-            <span className="text-4xl">⭐</span>
-          </div>
-        </div>
-
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-earth-600">Total Wins</p>
-              <p className="text-3xl font-bold text-yellow-600">{totalWins}</p>
-              <div className="text-xs text-earth-500 mt-1 space-y-0.5">
-                <div>🥉 Local: {user?.competition_wins_local || 0}</div>
-                <div>🥈 Regional: {user?.competition_wins_regional || 0}</div>
-                <div>🥇 National: {user?.competition_wins_national || 0}</div>
-              </div>
-            </div>
-            <span className="text-4xl">🏆</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Story Mode - Prominent Section */}
-      <div className="mb-6">
-        <div
-          onClick={() => onNavigate('story')}
-          className="bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500 rounded-lg shadow-xl p-6 cursor-pointer hover:shadow-2xl transform hover:scale-[1.02] transition-all"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-4xl">📖</span>
-                <div>
-                  <h3 className="text-2xl font-bold text-white drop-shadow-lg">Story Mode</h3>
-                  <p className="text-purple-100 text-sm">Path to Championship</p>
-                </div>
-              </div>
-              {storyProgress?.currentChapter ? (
-                <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-white font-semibold">
-                      {storyChapters.find(ch => ch.id === storyProgress.currentChapter)?.icon || '📘'}{' '}
-                      {storyChapters.find(ch => ch.id === storyProgress.currentChapter)?.title || 'New Adventure'}
-                    </p>
-                    <span className="text-white/90 text-sm">
-                      Chapter {storyChapters.find(ch => ch.id === storyProgress.currentChapter)?.chapter_number || 1}
-                    </span>
-                  </div>
-                  <div className="bg-white/30 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-white h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.round((storyProgress.completedChapters?.length || 0) / storyChapters.length * 100)}%`
-                      }}
-                    />
-                  </div>
-                  <p className="text-white/90 text-xs mt-1">
-                    {storyProgress.completedChapters?.length || 0} / {storyChapters.length} chapters completed
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-3">
-                  <p className="text-white text-lg">Begin your journey to become a champion!</p>
-                  <p className="text-purple-100 text-sm mt-1">Click to start the story</p>
-                </div>
-              )}
-            </div>
-            <div className="hidden md:block">
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg p-6 text-center">
-                <span className="text-6xl">🏆</span>
-                <p className="text-white font-semibold mt-2 text-sm">Start Now</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Alerts & Notifications */}
-      {(dogsNeedingAttention.length > 0 || pregnantDogs.length > 0) && (
-        <div className="mb-6">
-          <h3 className="text-xl font-bold text-white drop-shadow-lg mb-4">⚠️ Needs Attention</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Dogs Needing Care */}
-            {dogsNeedingAttention.length > 0 && (
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg shadow-lg p-5">
-                <h4 className="font-bold text-yellow-900 mb-3 flex items-center gap-2">
-                  <span>🔔</span>
-                  {dogsNeedingAttention.length} {dogsNeedingAttention.length === 1 ? 'Dog Needs' : 'Dogs Need'} Care
-                </h4>
-                <div className="space-y-2">
-                  {dogsNeedingAttention.slice(0, 3).map((dog: any) => (
-                    <div key={dog.id} className="text-sm text-yellow-800">
-                      <span className="font-semibold">{dog.name}:</span>{' '}
-                      {dog.hunger < 50 && 'Hungry '}
-                      {dog.happiness < 50 && 'Unhappy '}
-                      {dog.health < 50 && 'Sick '}
-                      {dog.energy_stat < 50 && 'Tired'}
-                    </div>
-                  ))}
-                  {dogsNeedingAttention.length > 3 && (
-                    <p className="text-xs text-yellow-600">
-                      +{dogsNeedingAttention.length - 3} more
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => onNavigate('kennel')}
-                  className="mt-3 w-full py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-semibold text-sm"
-                >
-                  Go to Kennels
-                </button>
-              </div>
-            )}
-
-            {/* Pregnant Dogs */}
-            {pregnantDogs.length > 0 && (
-              <div className="bg-pink-50 border-2 border-pink-300 rounded-lg shadow-lg p-5">
-                <h4 className="font-bold text-pink-900 mb-3 flex items-center gap-2">
-                  <span>🤰</span>
-                  {pregnantDogs.length} Pregnant {pregnantDogs.length === 1 ? 'Dog' : 'Dogs'}
-                </h4>
-                <div className="space-y-2">
-                  {pregnantDogs.map((dog: any) => (
-                    <div key={dog.id} className="text-sm text-pink-800">
-                      <span className="font-semibold">{dog.name}:</span>{' '}
-                      {dog.pregnancy_due && `${getWeeksRemaining(dog.pregnancy_due)} weeks left`}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => onNavigate('breeding')}
-                  className="mt-3 w-full py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all font-semibold text-sm"
-                >
-                  Go to Breeding
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Quick Actions Panel */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold text-earth-900 mb-4">📋 Quick Actions</h3>
-          <div className="space-y-3">
-            {/* View My Dogs - Expandable */}
-            <div className="border border-earth-200 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setExpandedSection(expandedSection === 'dogs' ? null : 'dogs')}
-                className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 transition-all flex justify-between items-center"
-              >
-                <div>
-                  <p className="font-semibold text-earth-900">🐕 View My Dogs</p>
-                  <p className="text-sm text-earth-600">{totalDogs} {totalDogs === 1 ? 'dog' : 'dogs'}</p>
-                </div>
-                <span className="text-earth-600">{expandedSection === 'dogs' ? '▼' : '▶'}</span>
-              </button>
-              {expandedSection === 'dogs' && (
-                <div className="p-3 bg-white border-t border-earth-200 space-y-2">
-                  {dogs.length === 0 ? (
-                    <p className="text-sm text-earth-500 text-center py-2">No dogs yet</p>
-                  ) : (
-                    dogs.map((dog: any) => {
-                      const breedData = rescueBreeds.find(b => b.id === dog.breed_id);
-                      return (
-                        <button
-                          key={dog.id}
-                          onClick={() => {
-                            selectDog(dog);
-                            onNavigate('dogDetail');
-                          }}
-                          className="w-full text-left p-2 bg-earth-50 hover:bg-kennel-100 rounded transition-all flex items-center gap-3"
-                        >
-                          <img
-                            src={breedData?.img_sitting || ''}
-                            alt={dog.name}
-                            className="w-12 h-12 object-contain"
-                          />
-                          <div className="flex-1">
-                            <p className="font-semibold text-earth-900">{dog.name}</p>
-                            <p className="text-xs text-earth-600 capitalize">{breedData?.name}</p>
-                          </div>
-                          <span className="text-earth-400">→</span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Quick Training */}
-            <button
-              onClick={() => onNavigate('training')}
-              className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
-            >
-              <p className="font-semibold text-earth-900">🎯 Train Dogs</p>
-              <p className="text-sm text-earth-600">Improve your dogs' skills</p>
-            </button>
-
-            {/* Quick Competition */}
-            <button
-              onClick={() => onNavigate('competition')}
-              className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
-            >
-              <p className="font-semibold text-earth-900">🏆 Enter Competition</p>
-              <p className="text-sm text-earth-600">Compete for prizes</p>
-            </button>
-
-            {/* Quick Jobs */}
-            <button
-              onClick={() => onNavigate('jobs')}
-              className="w-full text-left p-3 bg-earth-50 hover:bg-earth-100 rounded-lg transition-all"
-            >
-              <p className="font-semibold text-earth-900">💼 Do Jobs</p>
-              <p className="text-sm text-earth-600">Earn extra cash</p>
-            </button>
-
-            {/* 3D Demo - Prominent */}
-            <button
-              onClick={() => onNavigate('demo3d')}
-              className="w-full text-left p-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 rounded-lg transition-all shadow-lg border-2 border-yellow-300"
-            >
-              <p className="font-bold text-white text-lg">🎮 3D Game Demo</p>
-              <p className="text-sm text-white/90">See the future of this game!</p>
-            </button>
-          </div>
-        </div>
-
-        {/* Pound Link */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold text-earth-900 mb-4">🏠 Adopt from Pound</h3>
-          <div
-            onClick={() => onNavigate('shop', { shopTab: 'pound' })}
-            className="cursor-pointer group"
-          >
-            <div className="bg-earth-100 rounded-lg p-8 mb-4 text-center group-hover:bg-earth-200 transition-all">
-              <span className="text-8xl group-hover:scale-110 transition-transform inline-block">🐶</span>
-            </div>
-            <button className="w-full py-3 bg-kennel-600 text-white rounded-lg hover:bg-kennel-700 transition-all font-bold">
-              Visit the Pound
-            </button>
-            <p className="text-sm text-earth-600 mt-2 text-center">
-              Rescue dogs need loving homes! Lower cost, good hearts.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Inventory Section */}
-      <div className="mb-6">
-        <InventoryPanel />
-      </div>
-
-    </div>
-  );
+ const { user, dogs, selectDog, storyProgress } = useGameStore();
+ const living = dogs.filter(d => !d.is_dead);
+ const needsCare = living.filter(d => d.hunger < 50 || d.thirst < 50 || d.happiness < 50 || d.health < 50 || d.energy_stat < 50);
+ const pregnancies = living.filter(d => d.is_pregnant);
+ const wins = (user?.competition_wins_local || 0) + (user?.competition_wins_regional || 0) + (user?.competition_wins_national || 0);
+ const chapter = storyChapters.find(c => c.id === storyProgress.currentChapter);
+ return <div className="club-dashboard">
+   <div className="club-page-heading"><div><p className="club-eyebrow">THE EVERYDAY ADVENTURE</p><h2>A good day starts here.</h2><p>A little care today. A remarkable companion for life.</p></div><span className="club-date">{new Intl.DateTimeFormat('en', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date())}</span></div>
+   <section className="ribbon-guide" aria-label="Your next kennel goal"><p className="ribbon-eyebrow">YOUR NEXT MILESTONE</p><h2>{(user?.kennel_level??1)<2?'Build a stable home before expanding.':'Prepare your next generation.'}</h2><p>{(user?.kennel_level??1)<2?'Keep food and care funded, practice with your rescue, and save $500 for kennel level 2. Choose suitable jobs for income; check competition fees and eligibility before entering.':'Keep developing your dogs. Breeding needs healthy, bonded adults, the fee, and at least three free nursery spaces. Champion parents do not guarantee champion puppies.'}</p><div className="ribbon-guide-actions"><button onClick={()=>onNavigate('demo3d')}>Check my dog first</button><button onClick={()=>onNavigate('jobs')}>Find suitable work</button><button onClick={()=>onNavigate('competition')}>Review upcoming events</button></div></section>
+   <section className="club-hero" aria-label="Welcome to your kennel"><div className="club-hero-copy"><span className="club-pill">BUILT ON BOND, NOT JUST BLOODLINE</span><h2>Small beginnings.<br/><em>Extraordinary dogs.</em></h2><p>Build trust, discover their strengths, and find your own path to the podium. Your next chapter starts together.</p><button className="club-button" onClick={() => onNavigate('demo3d')}>Spend time with your dogs <NavIcon name="arrow" size={19}/></button></div><div className="club-hero-art"><div className="club-hero-orbit"/><img src={heroDog} alt="A golden retriever sitting attentively"/><span className="club-hero-caption">EVERY DOG HAS A STORY.</span></div></section>
+   <div className="club-stats">{[
+    { label:'Dogs in your care', value:dogs.length, note:living.length + ' active companions', icon:'kennel' },
+    { label:'Care check-in', value:needsCare.length, note:needsCare.length ? 'Ready for a little attention' : 'Everyone is feeling settled', icon:'breeding' },
+    { label:'Competition wins', value:wins, note:'Every step forward counts', icon:'competition' },
+    { label:'Kennel level', value:user?.kennel_level || 1, note:'Room to grow your legacy', icon:'office' },
+   ].map(stat => <div className="club-stat" key={stat.label}><div><span>{stat.label}</span><strong>{stat.value}</strong><small>{stat.note}</small></div><span className="club-stat-icon"><NavIcon name={stat.icon}/></span></div>)}</div>
+   <div className="club-overview-grid"><section className="club-panel"><div className="club-section-heading"><div><p className="club-eyebrow">YOUR INNER CIRCLE</p><h3>Familiar faces</h3></div><button className="club-text-button" onClick={() => onNavigate('kennel')}>View kennel <NavIcon name="arrow" size={17}/></button></div>
+     <div className="club-dog-list">{dogs.slice(0,4).map(dog => { const breed = [...rescueBreeds, ...shopBreeds].find(b => b.id === dog.breed_id); return <button className="club-dog-row" key={dog.id} onClick={() => { if (dog.is_dead) { onNavigate('kennel'); return; } selectDog(dog); onNavigate('dogDetail'); }}><img src={getDogImage(breed?.name || 'Mixed Breed','Sitting')} alt=""/><div className="club-dog-summary"><strong>{dog.name}</strong><span>{breed?.name || 'Mixed breed'} &middot; {dog.is_rescue ? 'Rescue companion' : 'Kennel companion'}</span><div className="club-bond-track"><i style={{width:Math.min(100, Math.max(4, dog.bond_level * 20)) + '%'}}/></div><small>Bond level {dog.bond_level} &middot; {dog.training_points} training points</small></div><span className={'club-dog-badge ' + (needsCare.includes(dog) ? 'needs-care' : '')}>{dog.is_dead ? 'In memory' : needsCare.includes(dog) ? 'Care time' : 'Settled'}</span><NavIcon name="arrow" size={18}/></button>; })}</div>
+     <button className="club-adopt-link" onClick={() => onNavigate('shop',{shopTab:'pound'})}><NavIcon name="breeding"/><div><strong>Make room for a new beginning.</strong><span>Visit the rescue and meet your next companion.</span></div><NavIcon name="arrow" size={18}/></button>
+   </section><section className="club-panel club-today"><div className="club-section-heading"><div><p className="club-eyebrow">ONE STEP AT A TIME</p><h3>Make today count</h3></div></div>
+     <KennelBriefing onNavigate={onNavigate}/>
+     {pregnancies.length > 0 && <button className="club-text-button" onClick={() => onNavigate('breeding')}>{pregnancies.length} litters on the way <NavIcon name="arrow" size={17}/></button>}
+   </section></div>
+   <section className="club-story"><span className="club-story-icon"><NavIcon name="story" size={32}/></span><div><p className="club-eyebrow">YOUR PATH TO CHAMPIONSHIP</p><h3>{chapter?.title || 'Every legacy has a first chapter.'}</h3><p>{storyProgress.completedChapters.length} of {storyChapters.length} chapters complete. There is more to your story.</p></div><button className="club-button club-button-light" onClick={() => onNavigate('story')}>Continue your story <NavIcon name="arrow" size={18}/></button></section>
+   <div className="club-section-heading"><div><p className="club-eyebrow">BEHIND THE SCENES</p><h3>Your kennel essentials</h3></div><button className="club-text-button" onClick={() => onNavigate('demo3d')}>Visit your yard <NavIcon name="arrow" size={17}/></button></div>
+   <InventoryPanel/>
+ </div>;
 }

@@ -19,8 +19,8 @@ export default function LocalSaveControls() {
       setMessage('Backup downloaded. Keep it somewhere safe.');
     } catch { setMessage('Backup failed. Your game remains open; please retry.'); }
   }
-  return <div className="bg-earth-100 text-earth-900 p-3 text-sm flex flex-wrap items-center gap-3">
-    <strong>Local play</strong><span role="status">{message}</span>
+  return <div className="club-local-save">
+    <strong>Local play</strong><span role="status" className={message.startsWith('Saved on') ? 'club-save-hint' : ''}>{message}</span>
     <button className="inline-button underline" disabled={busy} onClick={() => void download()}>Export backup</button>
     <button className="inline-button underline" disabled={busy} onClick={() => input.current?.click()}>Restore backup</button>
     <button className="inline-button underline" onClick={async () => {
