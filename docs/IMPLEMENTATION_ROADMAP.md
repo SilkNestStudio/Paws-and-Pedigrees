@@ -1,5 +1,7 @@
 # Rescue to legacy
 
+> **Priority update - September 29, 2026:** [Game Vision](GAME_VISION.md) is the current product reference. The owner now prioritizes varied playable activities, consequential dog development, and clearer onboarding; team events are an endorsed expansion direction. The delivery sequence below is historical and must not be used to postpone that work behind breeding or payments. Specific next disciplines remain undecided.
+
 Approved direction: a rescue-first kennel and breeding game with interactive care,
 multiple championship careers, gradual progression, retirement, and separated
 earned-only and premium/open competition.

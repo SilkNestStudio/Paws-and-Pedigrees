@@ -1,5 +1,7 @@
 ﻿# Product quality review and production standard
 
+> **Priority update - September 29, 2026:** Read [Game Vision](GAME_VISION.md) alongside these quality standards. The owner wants additional distinct playable activities and meaningful development now, with onboarding improved alongside them. The earlier instruction below to polish the first ribbon before adding any breadth is superseded; the quality and playtesting requirements still apply.
+
 The current implementation establishes working gameplay, but it does not yet meet the intended commercial quality bar. Passing technical tests does not establish that the game looks, feels, or plays well.
 
 ## Findings in the existing game

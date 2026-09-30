@@ -1,3 +1,4 @@
+import { ClubInvitation } from '../club/FieldClub';
 ﻿import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -56,10 +57,10 @@ function InteriorWorld({destination,paused,onWalk,onArrive,onPosition,onChoose}:
   <mesh rotation={[-Math.PI/2,0,0]} position={[0,.18,.75]} onClick={e=>{e.stopPropagation();onWalk({x:e.point.x,z:e.point.z});}}><planeGeometry args={[10.2,7.5]}/><meshBasicMaterial transparent opacity={0} depthWrite={false}/></mesh>
   <group ref={handler}><Handler3D moving={moving}/></group>
   {destination&&<mesh rotation={[-Math.PI/2,0,0]} position={[destination.x,.2,destination.z]}><ringGeometry args={[.25,.33,24]}/><meshBasicMaterial color="#dba160"/></mesh>}
-  {HUB_DESTINATIONS.map(d=><Html key={d.id} position={[d.x,d.id==='story'||d.id==='events'?2:1.4,d.z]} center zIndexRange={[2,1]}><button className="interior-marker" data-room={d.id} disabled={paused} onClick={()=>onChoose(d)}>{d.label}{!lessonViewUnlocked(tutorialProgress,d.view)&&d.view!=='desk'&&<small>After first ribbon</small>}</button></Html>)}
+  {HUB_DESTINATIONS.map(d=><Html key={d.id} position={[d.x,d.id==='story'||d.id==='events'?2:1.4,d.z]} center zIndexRange={[2,1]}><button className="interior-marker" data-room={d.id} disabled={paused} onClick={()=>onChoose(d)}>{d.label}{!lessonViewUnlocked(tutorialProgress,d.view)&&d.view!=='desk'&&<small>After club introduction</small>}</button></Html>)}
  </>;
 }
-export default function KennelInterior({onNavigate}:{onNavigate:(view:string,options?:{yardActivity?:string;shopTab?:'items'})=>void}) {
+export default function KennelInterior({onNavigate}:{onNavigate:(view:string,options?:{yardActivity?:string;shopTab?:'items'|'pound'})=>void}) {
  const {user,dogs,tutorialProgress}=useGameStore();const level=user?.kennel_level??1,style=interiorStyle(level),next=nextRibbonStep(tutorialProgress.firstRibbon);
  const [destination,setDestination]=useState<Point|null>(null),[position,setPosition]=useState<Point>({x:0,z:3}),[paused,setPaused]=useState(false),[desk,setDesk]=useState(false),[message,setMessage]=useState('Welcome home. Tap a sign to walk over, or tap the aisle to explore.');const pending=useRef<HubDestination|null>(null);
  useEffect(()=>{const pause=()=>{setPaused(true);setDestination(null);pending.current=null;};window.addEventListener('blur',pause);document.addEventListener('visibilitychange',pause);return()=>{window.removeEventListener('blur',pause);document.removeEventListener('visibilitychange',pause);};},[]);
@@ -70,9 +71,10 @@ export default function KennelInterior({onNavigate}:{onNavigate:(view:string,opt
   else if (!desk && dialog?.open) dialog.close();
  }, [desk]);
  const go=(view:string)=>onNavigate(view,view==='shop'?{shopTab:'items'}:undefined);
- const choose=(d:HubDestination)=>{if(paused)return;if(d.view!=='desk'&&!lessonViewUnlocked(tutorialProgress,d.view)){setMessage(`${d.label} opens after your first ribbon. ${next?'Next: '+next.title+'.':''}`);return;}setDesk(false);pending.current=d;setDestination({x:d.x,z:d.z});setMessage(`Walking to ${d.label.toLowerCase()}. ${d.detail}`);};
+ const choose=(d:HubDestination)=>{if(paused)return;if(d.view!=='desk'&&!lessonViewUnlocked(tutorialProgress,d.view)){setMessage(`${d.label} opens after your introductory trial. ${next?'Next: '+next.title+'.':''}`);return;}setDesk(false);pending.current=d;setDestination({x:d.x,z:d.z});setMessage(`Walking to ${d.label.toLowerCase()}. ${d.detail}`);};
  return <section className="kennel-interior"><header className="interior-heading"><div><span className="journey-eyebrow">YOUR HOME / KENNEL LEVEL {level}</span><h1>Every great kennel starts somewhere.</h1><p>{style.description}</p></div><div className="interior-capacity"><strong>{getKennelLevelInfo(level).name}</strong><span>{dogs.filter(d=>!d.is_dead).length} / {getKennelCapacity(level)} companions</span></div></header>
- {!apprenticeshipComplete(tutorialProgress)&&<FirstRibbonGuide compact onNavigate={onNavigate}/>}
+ <ClubInvitation onNavigate={onNavigate}/>
+ {!tutorialProgress.fieldClub&&!apprenticeshipComplete(tutorialProgress)&&<FirstRibbonGuide compact onNavigate={onNavigate}/>}
  <div className="interior-stage" data-level={level} data-runs={style.runs} data-x={position.x.toFixed(2)} data-z={position.z.toFixed(2)}><ErrorBoundary fallback={<p>Unable to open the 3D interior. Use the room shortcuts below to continue.</p>}><Canvas orthographic shadows dpr={[1,1.5]} camera={{position:[5,16,20],zoom:35,near:.1,far:100}} fallback={<p>3D is unavailable. Your room shortcuts are below.</p>}><Suspense fallback={<Html center>Opening your kennel…</Html>}><InteriorWorld destination={destination} paused={paused} onPosition={setPosition} onChoose={choose} onWalk={p=>{if(paused||!insideAisle(p))return;pending.current=null;setDesk(false);setDestination(p);setMessage('A little room to make your own. Choose a sign when you are ready.');}} onArrive={()=>{const room=pending.current;pending.current=null;setDestination(null);if(room?.view==='desk'){setDesk(true);setMessage('Your keeper desk. Choose what to work on next.');}else if(room)go(room.view);}}/></Suspense></Canvas></ErrorBoundary>
  {paused&&<div className="interior-pause"><h2>Your kennel is paused</h2><button className="journey-primary" onClick={()=>setPaused(false)}>Continue inside</button></div>}
  </div><p className="interior-message" role="status">{message}</p>
@@ -80,9 +82,10 @@ export default function KennelInterior({onNavigate}:{onNavigate:(view:string,opt
   <div className="nested-return"><button autoFocus onClick={()=>setDesk(false)}>Return to kennel interior</button></div>
   <section className="interior-desk" aria-label="Keeper desk">
    <div><span className="journey-eyebrow">AT YOUR DESK</span><h2 id="keeper-desk-title">Keeper desk</h2><p>Manage your kennel, plan training, and build your breeding program. Expansion changes this room as your kennel grows.</p>
-    {!apprenticeshipComplete(tutorialProgress)&&<div className="interior-desk-lesson"><p>Some desk options unlock as you complete Your First Ribbon. Finish the welcome lessons to open every option.</p><button onClick={()=>go('office')}>Continue Your First Ribbon</button></div>}
+
+ {!apprenticeshipComplete(tutorialProgress)&&<div className="interior-desk-lesson"><p>Explore the Field Club and complete a combined trial to open the rest of your kennel.</p><button onClick={()=>go('fieldClub')}>Continue at the Field Club</button></div>}
    </div>
-   <div>{[['expansion','Expand the kennel'],['training','Training plans'],['breeding','Breeding & nursery'],['jobs','Find work'],['story','Story chapters']].map(([view,label])=><button key={view} disabled={!lessonViewUnlocked(tutorialProgress,view)} onClick={()=>go(view)}>{label}{!lessonViewUnlocked(tutorialProgress,view)&&<small>{view==='training'?'After the care and play lessons':'After your first ribbon'}</small>}</button>)}</div>
+   <div>{[['fieldClub','Field Club sports'],['expansion','Expand the kennel'],['training','Training plans'],['breeding','Breeding & nursery'],['jobs','Find work'],['story','Story chapters']].map(([view,label])=><button key={view} disabled={!lessonViewUnlocked(tutorialProgress,view)} onClick={()=>go(view)}>{label}{!lessonViewUnlocked(tutorialProgress,view)&&<small>{view==='training'?'After your introduction':'After your introductory trial'}</small>}</button>)}</div>
   </section>
  </dialog>
  <details className="interior-shortcuts"><summary>Room shortcuts · skip the walk</summary><p>Use these whenever you prefer quick navigation or cannot use the 3D view.</p><div>{HUB_DESTINATIONS.map(d=><button key={d.id} disabled={d.view!=='desk'&&!lessonViewUnlocked(tutorialProgress,d.view)} onClick={()=>{if(d.view==='desk'){pending.current=null;setDestination(null);setDesk(true);}else go(d.view);}}>{d.label}</button>)}</div></details>

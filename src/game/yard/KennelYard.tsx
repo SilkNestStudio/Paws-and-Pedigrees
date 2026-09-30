@@ -19,7 +19,7 @@ export default function KennelYard({onInside,onShop,launch,onWelcomeComplete}:{o
     const { dogs, selectedDog, selectDog, tutorialProgress } = useGameStore();
     const journey = tutorialProgress.firstRibbon;
     const lesson = journey?.status === 'active' ? nextRibbonStep(journey)?.id : undefined;
-    const lessonReached=(id:string)=>apprenticeshipComplete(tutorialProgress) || RIBBON_STEPS.findIndex(s=>s.id===id)<=RIBBON_STEPS.findIndex(s=>s.id===nextRibbonStep(journey)?.id);
+    const lessonReached=(id:string)=>!!tutorialProgress.fieldClub || apprenticeshipComplete(tutorialProgress) || RIBBON_STEPS.findIndex(s=>s.id===id)<=RIBBON_STEPS.findIndex(s=>s.id===nextRibbonStep(journey)?.id);
     const [waiting,setWaiting]=useState(false);
     const [behavior,setBehavior]=useState('Taking in the surroundings');
     const [overview, setOverview] = useState(false);

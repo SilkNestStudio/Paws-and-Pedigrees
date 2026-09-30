@@ -25,12 +25,13 @@ export function recordRibbonStep(progress: TutorialProgress, dogId: string, step
 }
 
 export function apprenticeshipComplete(progress: TutorialProgress): boolean {
+    if (progress.fieldClub?.completedAt) return true;
     const journey = progress.firstRibbon;
     return !!journey && journey.status === 'complete' && !nextRibbonStep(journey);
 }
 export function lessonViewUnlocked(progress: TutorialProgress, view: string): boolean {
     if (apprenticeshipComplete(progress)) return true;
-    if (['hub','office','kennel','dogDetail','demo3d','shop','vet'].includes(view)) return true;
+    if (['fieldClub','hub','office','kennel','dogDetail','demo3d','shop','vet'].includes(view)) return true;
     const completed = progress.firstRibbon?.completed ?? [];
     return view === 'training' && completed.includes('rest');
 }

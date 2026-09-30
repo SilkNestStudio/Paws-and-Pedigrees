@@ -3,7 +3,7 @@
 export const HUB_DESTINATIONS:HubDestination[] = [
  {id:'dogs',label:'Dog runs',detail:'Visit your companions and open their care records.',x:-4.7,z:-.6,view:'kennel'},
  {id:'story',label:'Our story',detail:'Your next lesson, milestones, and the life you are building.',x:-2.7,z:-2.8,view:'office'},
- {id:'events',label:'Competitions',detail:'Choose a discipline and find an event for your companion.',x:2.5,z:-2.8,view:'competition'},
+ {id:'events',label:'Field Club',detail:'Practice four sports, enter a combined trial, and build a team.',x:2.5,z:-2.8,view:'fieldClub'},
  {id:'shop',label:'Supplies',detail:'Visit the shop to replenish your pantry.',x:4.7,z:-.4,view:'shop'},
  {id:'care',label:'Care room',detail:'Veterinary help and recovery.',x:4.7,z:2.1,view:'vet'},
  {id:'desk',label:'Keeper desk',detail:'Expansion plans, training, work and your breeding program.',x:-4.5,z:2.7,view:'desk'},

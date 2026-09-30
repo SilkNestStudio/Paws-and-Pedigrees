@@ -14,7 +14,7 @@ export default function TutorialManager() {
   // Auto-trigger kennel-basics tutorial when first dog is adopted
   useEffect(() => {
     if (
-      hasAdoptedFirstDog &&
+      hasAdoptedFirstDog && !tutorialProgress.fieldClub &&
       (!tutorialProgress.firstRibbon || (tutorialProgress.firstRibbon.status === 'complete' && !!nextRibbonStep(tutorialProgress.firstRibbon))) &&
       !activeTutorial
     ) {

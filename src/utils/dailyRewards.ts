@@ -16,8 +16,9 @@ export const DAILY_REWARDS: DailyReward[] = Array.from({length:30},(_,i)=>({
   ...((i+1)%7===0?{bonus:'A week of care'}:{})
 }));
 export function dailyRewardUnlocked(progress:TutorialProgress, now=new Date()):boolean {
- if(!apprenticeshipComplete(progress)||!progress.firstRibbon?.graduatedAt)return false;
- const graduated=new Date(progress.firstRibbon.graduatedAt);graduated.setHours(0,0,0,0);
+ const completion = progress.fieldClub?.completedAt ?? progress.firstRibbon?.graduatedAt;
+ if(!apprenticeshipComplete(progress)||!completion)return false;
+ const graduated=new Date(completion);graduated.setHours(0,0,0,0);
  const today=new Date(now);today.setHours(0,0,0,0);return graduated<today;
 }
 

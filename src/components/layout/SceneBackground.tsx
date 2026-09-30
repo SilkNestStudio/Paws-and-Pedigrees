@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from 'react';
 interface SceneBackgroundProps {
- scene: 'hub' | 'expansion' | 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet' | 'demo3d';
+ scene: 'fieldClub' | 'hub' | 'expansion' | 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet' | 'demo3d';
  children: ReactNode; kennelLevel?: number;
 }
 function SceneBackground({ scene, children }: SceneBackgroundProps) {

@@ -1,5 +1,7 @@
 # 🐕 Paws & Pedigrees
 
+> **Current product direction:** read [Game Vision](docs/GAME_VISION.md) first. It records the rescue-first keeper experience, meaningful dog abilities, varied activities, individual and team events, later breeding, and potential paid expansions. It separates future plans from current functionality. The feature catalogue below is legacy documentation, not a verified release checklist. Current saves use local IndexedDB by default; see [Local Storage](docs/LOCAL_STORAGE.md).
+
 A comprehensive dog kennel management simulation game built with React, TypeScript, and Supabase.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -283,3 +285,13 @@ If you like this project, please consider:
 Made with ❤️ and lots of ☕ by the Paws & Pedigrees team
 
 **[Play Now](https://paws-and-pedigrees.com)** | **[Documentation](docs/)** | **[Report Bug](https://github.com/your-username/paws-and-pedigrees/issues)** | **[Request Feature](https://github.com/your-username/paws-and-pedigrees/issues)**
+
+
+### Field Club tester build
+
+Start with **Visit the Field Club** in the kennel. Explore agility, scent search,
+herding, and water retrieval, then enter a combined trial and build a two-dog team.
+Existing saves are preserved. See [the tester guide](docs/FIELD_CLUB.md) for controls,
+progression, persistence, current limitations, and the distinction between playable
+content and planned expansion. Run `npm run test:club` with Vite on port 5173 for
+isolated desktop/mobile browser checks.

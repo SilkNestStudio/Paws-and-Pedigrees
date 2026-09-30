@@ -13,7 +13,7 @@ interface PoundDog {
 }
 
 export default function PoundView() {
-  const { user, addDog } = useGameStore();
+  const { user, purchaseBreed } = useGameStore();
   const [availableDogs, setAvailableDogs] = useState(() => getThreeDogs());
 
   function getThreeDogs(): PoundDog[] {
@@ -41,14 +41,14 @@ export default function PoundView() {
       `What would you like to name your ${gender} ${breed.name}?`,
       breed.name
     );
-    if (!dogName) return;
+    if (!dogName?.trim()) return;
 
     // Generate rescue dog with pre-assigned gender
-    const newDog = generateDog(breed, dogName, user.id, true, gender);
+    const newDog = generateDog(breed, dogName.trim().slice(0, 40), user.id, true, gender);
 
     // Add dog and deduct fee
-    addDog(newDog);
-    useGameStore.getState().updateUserCash(-ADOPTION_FEE);
+    const result = purchaseBreed(newDog, ADOPTION_FEE, 0);
+    if (!result.success) { showToast.error(result.message ?? "Adoption could not be completed."); return; }
 
     showToast.success(`🎉 You adopted ${dogName} (${gender === 'male' ? '♂️ Male' : '♀️ Female'})! Welcome to your kennel.`);
 
@@ -69,7 +69,7 @@ export default function PoundView() {
           Give a rescue dog a second chance! Adoption fee: ${ADOPTION_FEE}
         </p>
         <p className="text-sm text-earth-500 mt-2">
-          ℹ️ Rescue dogs have lower stats but good hearts. They deserve love too!
+          ℹ️ Every rescue has potential. Discover their strengths through care and practice.
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export default function PoundView() {
       <div className="bg-blue-100 border-2 border-blue-300 rounded-lg p-4 mb-6">
         <h3 className="font-bold text-blue-900 mb-2">🏠 About Pound Adoptions</h3>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Rescue dogs start with 60% of breed potential (lower stats)</li>
+          <li>• Rescue dogs keep their breed potential; their talents begin undiscovered</li>
           <li>• Each dog has a unique rescue story</li>
           <li>• Bond starts at 0 - build trust through care and training</li>
           <li>• Much cheaper than buying from shop ($100 vs $800+)</li>
@@ -117,29 +117,8 @@ export default function PoundView() {
             </div>
             <p className="text-sm text-earth-600 mb-4">{poundDog.breed.description}</p>
 
-            {/* Stats Preview (60% of breed ranges) */}
-            <div className="bg-earth-50 p-3 rounded-lg mb-4 text-xs space-y-1">
-              <div className="flex justify-between">
-                <span className="text-earth-600">Speed:</span>
-                <span className="font-mono text-earth-900">
-                  {Math.round(poundDog.breed.speed_min * 0.6)}-{Math.round(poundDog.breed.speed_max * 0.6)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-earth-600">Agility:</span>
-                <span className="font-mono text-earth-900">
-                  {Math.round(poundDog.breed.agility_min * 0.6)}-{Math.round(poundDog.breed.agility_max * 0.6)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-earth-600">Intelligence:</span>
-                <span className="font-mono text-earth-900">
-                  {Math.round(poundDog.breed.intelligence_min * 0.6)}-{Math.round(poundDog.breed.intelligence_max * 0.6)}
-                </span>
-              </div>
-              <p className="text-xs text-earth-500 text-center mt-2">
-                (Rescue stats - 60% of breed potential)
-              </p>
+            <div className="bg-earth-50 p-3 rounded-lg mb-4 text-sm text-earth-700">
+              Aptitudes undiscovered. Try the Field Club disciplines together to find this dog's place on your team.
             </div>
 
             {/* Adopt Button */}

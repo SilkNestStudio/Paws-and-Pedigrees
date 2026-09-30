@@ -13,6 +13,9 @@ import { useGameStore } from '../src/stores/gameStore';
 import { calculateHealthDecay, getHealthStatus, visitVet } from '../src/utils/healthDecay';
 import type { Breed, Dog } from '../src/types';
 import type { CompetitionEvent } from '../src/types/competition';
+import { aptitude, fieldAbility, recordFor, trainingGain, DISCIPLINES, newClubProgress, sampledAll, discoveredText } from '../src/game/club/model';
+import { enrollClub, startClubRun, completeClubRound, leaveClubRun } from '../src/game/club/progress';
+import { createField, sendField, stepField, inspectField, behindSheep, recallField, fieldScore, SEARCH_STATIONS, distance } from '../src/game/club/simulation';
 
 const breed = { id: 1, name: 'Test dog', tier: 'rescue', coat_types: ['short'],
   ...Object.fromEntries(['size', 'energy', 'friendliness', 'trainability', 'intelligence', 'speed', 'agility', 'strength', 'endurance', 'prey_drive', 'protectiveness'].flatMap(k => [[k + '_min', 60], [k + '_max', 60]])),
@@ -432,4 +435,148 @@ test('nested returns preserve origin, collapse explicit returns and avoid naviga
  assert.equal(navigateBack(nav).current, 'demo3d');
  assert.deepEqual(navigateTo(nav, 'hub'), initialNavigation);
  assert.deepEqual(navigateBack(initialNavigation), initialNavigation);
+});
+
+
+function advanceField(s: ReturnType<typeof createField>, until: () => boolean, seconds = 180) {
+  for (let i = 0; i < seconds * 60 && !until() && s.phase === 'playing'; i++) stepField(s, 1 / 60);
+  assert.ok(until(), JSON.stringify({ mode: s.mode, time: s.time, dog: s.dog, sheep: s.sheep, found: s.found }));
+}
+test('club aptitude, crossbreeds, learned abilities and keeper coaching affect performance', () => {
+  const d = dog();
+  const collie = { ...d, breed_composition: { portions: [{ breedId: 1, breedName: 'Border Collie', percentage: 100 }] } } as Dog;
+  const lab = { ...d, breed_composition: { portions: [{ breedId: 2, breedName: 'Labrador', percentage: 100 }] } } as Dog;
+  const mix = { ...d, breed_composition: { portions: [{ breedId: 1, breedName: 'Border Collie', percentage: 50 }, { breedId: 2, breedName: 'Labrador', percentage: 50 }] } } as Dog;
+  assert.ok(aptitude(collie, 'herding') > aptitude(lab, 'herding'));
+  assert.ok(aptitude(lab, 'water') > aptitude(collie, 'water'));
+  assert.ok(aptitude(mix, 'water') > aptitude(collie, 'water') && aptitude(mix, 'water') < aptitude(lab, 'water'));
+  const empty = recordFor(undefined, d.id, 'water');
+  assert.match(discoveredText(d, 'water', empty), /Undiscovered/);
+  assert.ok(fieldAbility(d, 'water', { ...empty, xp: 300 }) > fieldAbility(d, 'water', empty));
+  assert.ok(trainingGain(lab, 'water', 75, { level: 4, training_skill: 0 }) > trainingGain(lab, 'water', 75, { level: 1, training_skill: 0 }));
+  assert.ok(trainingGain(lab, 'water', 75, { level: 1, training_skill: 0 }) > trainingGain(collie, 'water', 75, { level: 1, training_skill: 0 }));
+});
+test('search requires proximity and investigation; seeded targets and signal are reproducible', () => {
+  const s = createField('search', 40, 827);
+  assert.deepEqual(s.hidden, createField('search', 40, 827).hidden);
+  inspectField(s); assert.equal(s.inspecting, null); assert.equal(fieldScore(s), 0);
+  for (const target of s.hidden) {
+    sendField(s, SEARCH_STATIONS[target]);
+    advanceField(s, () => distance(s.dog, SEARCH_STATIONS[target]) < .1);
+    assert.ok(s.signal > .95); inspectField(s);
+    advanceField(s, () => s.found.includes(target));
+  }
+  assert.equal(s.phase, 'finished'); assert.ok(fieldScore(s) >= 90);
+  const time = s.time; stepField(s, .02); assert.equal(s.time, time);
+});
+test('all three sheep can be guided into the pen using the exposed positioning control', () => {
+  for (const ability of [10, 50, 90]) {
+    const s = createField('herding', ability, 1);
+    for (let i = 0; i < 180 * 60 && s.phase === 'playing'; i++) {
+      const index = s.sheep.findIndex(v => !v.penned);
+      if (i % 60 === 0) sendField(s, behindSheep(s, index));
+      stepField(s, 1 / 60);
+    }
+    assert.equal(s.sheep.filter(v => v.penned).length, 3, JSON.stringify(s.sheep));
+    assert.ok(fieldScore(s) > 45);
+  }
+});
+test('water retrieval needs collection and a return; aptitude changes swimming time', () => {
+  const times: number[] = [];
+  for (const ability of [10, 90]) {
+    const s = createField('water', ability, 1);
+    for (let i = 0; i < 3; i++) {
+      sendField(s, s.dummies[i]); advanceField(s, () => s.carrying);
+      assert.equal(s.found.length, i); recallField(s); advanceField(s, () => s.found.length === i + 1);
+    }
+    assert.equal(s.phase, 'finished'); assert.ok(fieldScore(s) > 70); times.push(s.time);
+  }
+  assert.ok(times[1] < times[0] * .85);
+});
+test('field timeout, malformed input and frame rates stay bounded', () => {
+  const positions = [30, 60, 120].map(fps => {
+    const s = createField('search', 50, 1);
+    sendField(s, { x: NaN, z: Infinity }); assert.deepEqual(s.target, { x: 0, z: 6 });
+    sendField(s, { x: 1000, z: -1000 });
+    for (let i = 0; i < fps; i++) stepField(s, 1 / fps);
+    return s.dog;
+  });
+  assert.ok(distance(positions[0], positions[2]) < .001);
+  const s = createField('herding', 50, 1);
+  for (let i = 0; i < 10802; i++) stepField(s, 1 / 60);
+  assert.equal(s.phase, 'finished'); assert.equal(fieldScore(s), 0);
+});
+function setupClub() {
+  const d = dog(); setupStore([d]);
+  useGameStore.setState(s => ({ tutorialProgress: { ...s.tutorialProgress, firstRibbon: undefined, fieldClub: undefined }, selectedDog: d }));
+  enrollClub(); return d;
+}
+test('club visits reject invalid rosters and lock later events; leaving and duplicate results never pay', () => {
+  const d = setupClub(), rounds = DISCIPLINES.map(discipline => ({ discipline, dogId: d.id }));
+  assert.equal(startClubRun('combined', rounds).success, false);
+  assert.equal(startClubRun('team', rounds).success, false);
+  assert.equal(startClubRun('practice', [{ discipline: 'search', dogId: 'missing' }]).success, false);
+  assert.equal(startClubRun('practice', [rounds[1]]).success, true);
+  const run = useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  assert.equal(completeClubRound(run.id, 0, NaN).success, false);
+  assert.equal(completeClubRound(run.id, 1, 90).success, false);
+  assert.equal(completeClubRound(run.id, 0, 90).success, true);
+  const after = useGameStore.getState();
+  assert.equal(after.dogs[0].training_points, d.training_points - 4);
+  assert.equal(after.dogs[0].energy_stat, d.energy_stat - 6);
+  assert.equal(completeClubRound(run.id, 0, 90).success, false);
+  assert.equal(useGameStore.getState().user!.xp, after.user!.xp);
+  assert.equal(startClubRun('practice', [rounds[2]]).success, true);
+  const cancelled = useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  leaveClubRun(); assert.equal(completeClubRound(cancelled.id, 0, 100).success, false);
+  assert.equal(recordFor(useGameStore.getState().tutorialProgress.fieldClub, d.id, 'herding').sessions, 0);
+});
+test('four practices unlock the combined trial; rounds persist independently, grants pay once, teams need two dogs', () => {
+  const d = setupClub(), rounds = DISCIPLINES.map(discipline => ({ discipline, dogId: d.id }));
+  const finish = (index: number) => { const active = useGameStore.getState().tutorialProgress.fieldClub!.active!; assert.equal(completeClubRound(active.id, index, 70 + index).success, true); };
+  for (const round of rounds) { assert.equal(startClubRun('practice', [round]).success, true); finish(0); }
+  assert.ok(sampledAll(useGameStore.getState().tutorialProgress.fieldClub!, d.id));
+  assert.equal(startClubRun('combined', rounds).success, true);
+  finish(0); assert.equal(useGameStore.getState().tutorialProgress.fieldClub!.active!.results.length, 1);
+  for (const i of [1, 2, 3]) finish(i);
+  const progress = useGameStore.getState().tutorialProgress.fieldClub!;
+  assert.ok(progress.completedAt); assert.equal(progress.matches[0].cash, 150);
+  assert.equal(progress.matches[0].results.length, 4);
+  assert.equal(startClubRun('team', rounds).success, false);
+  // A new visit restores neither energy nor TP. Prepare before replaying.
+  useGameStore.getState().updateDog(d.id, { energy_stat: 100, training_points: 100 });
+  assert.equal(startClubRun('combined', rounds).success, true);
+  for (let i = 0; i < 4; i++) finish(i);
+  assert.equal(useGameStore.getState().tutorialProgress.fieldClub!.matches[0].cash, 0);
+  const second = dog('Oak');
+  assert.equal(useGameStore.getState().purchaseBreed(second, 100, 0).success, true);
+  assert.equal(startClubRun('team', rounds.map((r, i) => ({ ...r, dogId: i % 2 ? second.id : d.id }))).success, true);
+  for (let i = 0; i < 4; i++) finish(i);
+  assert.equal(useGameStore.getState().tutorialProgress.fieldClub!.matches[0].cash, 120);
+});
+test('club readiness respects care, energy, TP, cloud boundary and local round snapshots', () => {
+  const d = setupClub(), round = [{ discipline: 'water' as const, dogId: d.id }];
+  for (const changes of [{ energy_stat: 25 }, { training_points: 3 }, { health: 0 }, { is_dead: true }]) {
+    useGameStore.setState({ dogs: [{ ...d, ...changes }] }); assert.equal(startClubRun('practice', round).success, false);
+  }
+  useGameStore.setState({ dogs: [d], syncEnabled: true }); assert.equal(startClubRun('practice', round).success, false);
+  useGameStore.setState({ syncEnabled: false }); assert.equal(startClubRun('practice', round).success, true);
+  const snapshot = JSON.parse(JSON.stringify(useGameStore.getState().tutorialProgress));
+  useGameStore.setState({ tutorialProgress: snapshot });
+  assert.equal(completeClubRound(snapshot.fieldClub.active.id, 0, 80).success, true);
+});
+
+
+test('club introduction gates daily rewards until a later day and adoption is atomic at capacity', () => {
+  const d = setupClub();
+  let progress = useGameStore.getState().tutorialProgress;
+  assert.equal(dailyRewardUnlocked(progress, new Date('2026-09-30T12:00:00')), false);
+  progress = { ...progress, fieldClub: { ...newClubProgress(), completedAt: '2026-09-29T12:00:00' } };
+  assert.equal(dailyRewardUnlocked(progress, new Date('2026-09-29T18:00:00')), false);
+  assert.equal(dailyRewardUnlocked(progress, new Date('2026-09-30T12:00:00')), true);
+  useGameStore.setState(s => ({ tutorialProgress: progress, user: { ...s.user!, kennel_level: 1 }, dogs: [d, dog('Oak')] }));
+  const cash = useGameStore.getState().user!.cash;
+  assert.equal(useGameStore.getState().purchaseBreed(dog('Maple'), 100, 0).success, false);
+  assert.equal(useGameStore.getState().user!.cash, cash);
+  assert.equal(useGameStore.getState().dogs.length, 2);
 });

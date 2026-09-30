@@ -7,10 +7,11 @@ import { bondingRestriction } from '../../utils/companionLoop';
 import { flushLocalSave } from '../../lib/storage/localDatabase';
 import { isLocalMode } from '../../lib/storage/config';
 import './firstRibbon.css';
-export interface JourneyNavigation { onNavigate:(view:string,options?:{yardActivity?:string})=>void; compact?:boolean; }
+export interface JourneyNavigation { onNavigate:(view:string,options?:{yardActivity?:string;shopTab?:'items'|'pound'})=>void; compact?:boolean; }
 export default function FirstRibbonGuide({onNavigate,compact=false}:JourneyNavigation) {
  const {tutorialProgress,dogs,user,selectDog,startTutorial,acknowledgeRibbonCare}=useGameStore();const journey=tutorialProgress.firstRibbon;const dog=dogs.find(d=>d.id===journey?.dogId&&!d.is_dead);const step=nextRibbonStep(journey);const [message,setMessage]=useState('');const [saving,setSaving]=useState(false);
  useEffect(()=>{if(journey?.status==='active'&&dog&&((user?.food_storage??0)>=calculateFoodConsumption(dog.size)||journey.completed.includes('feed')))useGameStore.getState().recordRibbon(dog.id,'supplies');},[journey,dog,user?.food_storage]);
+ if(tutorialProgress.fieldClub)return null;
  if(!journey||journey.status==='complete')return null;
  if(!dog)return <section className="mission-brief"><h2>Your companion needs a new chapter.</h2><button className="journey-primary" onClick={()=>startTutorial('kennel-basics')}>Continue with a living companion</button></section>;
  const go=(view:string,activity?:string)=>{selectDog(dog);onNavigate(view,activity?{yardActivity:activity}:undefined);};

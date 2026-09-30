@@ -1,3 +1,4 @@
+import type { ClubProgress } from '../game/club/model';
 import { BreedComposition } from '../data/breedComposition';
 import { DogGenetics } from './genetics';
 import { ColorGenes, ShopItemEffect } from './effects';
@@ -235,6 +236,7 @@ export interface ShopItem {
 
 // Tutorial System Types
 export interface TutorialProgress {
+  fieldClub?: ClubProgress;
   firstRibbon?: { dogId: string; status: 'active' | 'paused' | 'complete'; completed: string[]; ribbonEarned?: boolean; graduatedAt?: string };
   completedTutorials: string[];
   skippedTutorials: string[];

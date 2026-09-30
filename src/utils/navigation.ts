@@ -1,5 +1,5 @@
 export const VIEW_NAMES = {
- hub:'the kennel', kennel:'dog runs', dogDetail:'your companion', office:'our story', story:'story chapters',
+ fieldClub:'the Field Club', hub:'the kennel', kennel:'dog runs', dogDetail:'your companion', office:'our story', story:'story chapters',
  expansion:'kennel expansion', training:'training', competition:'competitions', breeding:'breeding', jobs:'work',
  shop:'supplies', vet:'the care room', demo3d:'the yard',
 } as const;

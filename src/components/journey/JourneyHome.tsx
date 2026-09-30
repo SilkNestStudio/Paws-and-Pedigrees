@@ -1,4 +1,5 @@
-﻿import { useGameStore } from '../../stores/gameStore';
+import FieldClub from '../../game/club/FieldClub';
+import { useGameStore } from '../../stores/gameStore';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { shopBreeds } from '../../data/shopBreeds';
 import { getDogImage } from '../../utils/dogImages';
@@ -10,6 +11,7 @@ import { getKennelCapacity } from '../../utils/kennelCapacity';
 import './journey.css';
 export default function JourneyHome({onNavigate}:JourneyNavigation) {
  const {dogs,selectedDog,selectDog,tutorialProgress,user,eventRegistrations}=useGameStore();const journey=tutorialProgress.firstRibbon;const graduated=apprenticeshipComplete(tutorialProgress);const dog=dogs.find(d=>d.id===(graduated?selectedDog?.id:journey?.dogId)&&!d.is_dead)??dogs.find(d=>!d.is_dead);
+ if(tutorialProgress.fieldClub)return <FieldClub onNavigate={onNavigate}/>;
  if(!dog)return <section className="mission-brief"><h1>A new chapter awaits.</h1><p>Visit your kennel to remember your dogs and choose your next companion.</p><button className="journey-primary" onClick={()=>onNavigate('kennel')}>Open my kennel</button></section>;
  const breed=[...rescueBreeds,...shopBreeds].find(b=>b.id===dog.breed_id);const bondTarget=getXPForNextBondLevel(dog.bond_level);const completed=journey?.completed??[];const finishReady=journey?.status==='active'&&!nextRibbonStep(journey);
  const go=(view:string,activity?:string)=>{selectDog(dog);onNavigate(view,activity?{yardActivity:activity}:undefined);};

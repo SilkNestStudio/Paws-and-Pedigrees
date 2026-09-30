@@ -1,3 +1,5 @@
+import FieldClub from './game/club/FieldClub';
+import { newClubProgress } from './game/club/model';
 import { initialNavigation, navigateTo, navigateBack, VIEW_NAMES, type GameView } from './utils/navigation';
 import ReturnNavigation from './components/layout/ReturnNavigation';
 import { lessonViewUnlocked } from './utils/firstRibbon';
@@ -122,6 +124,8 @@ function App() {
     const newDog = generateDog(breed, name, userId, true, gender);
     addDog(newDog);
     setHasAdoptedFirstDog(true);
+    const current = useGameStore.getState();
+    useGameStore.setState({ activeTutorial: null, tutorialProgress: { ...current.tutorialProgress, fieldClub: newClubProgress() } });
   };
 
   useEffect(() => {
@@ -272,8 +276,9 @@ function App() {
         <main ref={mainRef} className="club-main">
           <SceneBackground scene={currentView} kennelLevel={user?.kennel_level || 1}>
             <div className="club-content">
-              {currentView!=='office'&&currentView!=='hub'&&<FirstRibbonGuide compact onNavigate={(view,options)=>handleViewChange(view,view==='shop'?{shopTab:'items'}:options)}/>}
+              {!tutorialProgress.fieldClub&&currentView!=='fieldClub'&&currentView!=='office'&&currentView!=='hub'&&<FirstRibbonGuide compact onNavigate={(view,options)=>handleViewChange(view,view==='shop'?{shopTab:'items'}:options)}/>}
               {currentView === 'hub' && <Suspense fallback={<p>Opening your kennel...</p>}><KennelInterior onNavigate={handleViewChange}/></Suspense>}
+              {currentView === 'fieldClub' && <FieldClub onNavigate={handleViewChange}/>}
               {currentView === 'expansion' && <KennelUpgradeView/>}
 
               {currentView === 'kennel' && <KennelView onViewDog={() => handleViewChange('dogDetail')} onUpgrade={()=>handleViewChange('expansion')} />}

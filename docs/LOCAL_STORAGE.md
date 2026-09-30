@@ -72,3 +72,13 @@ backup round trips, invalid backup rejection, reset, legacy copying, and tab loc
 Browser storage behavior references:
 https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB
 https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria
+
+
+## Field Club preview
+
+The versioned `tutorialProgress.fieldClub` domain contains per-dog discipline
+records, the active multi-round visit and completed receipts, grant keys and recent
+results. Missing progress enrolls lazily, preserving existing dogs and old ribbon
+records. The three new simulations are storage-independent. Club entries currently
+require local mode; cloud rollout needs these records included in authenticated
+persistence and authoritative command validation. See [FIELD_CLUB.md](FIELD_CLUB.md).
