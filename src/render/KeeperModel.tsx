@@ -30,7 +30,10 @@ export const KEEPER_PALETTE: Palette = { jacket: '#55704c', trousers: '#4a4440',
 export const HELPER_PALETTE: Palette = { jacket: '#f1ede4', trousers: '#5d6670', cap: '#d9622b' };
 
 function part(geometry: THREE.BufferGeometry, colour: string, roughness = 0.85) {
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: colour, roughness }));
+  const mesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshStandardMaterial({ color: colour, roughness }),
+  );
   mesh.castShadow = true;
   return mesh;
 }
@@ -127,7 +130,13 @@ function buildKeeper(palette: Palette) {
   };
 }
 
-export function KeeperModel({ view, palette = KEEPER_PALETTE }: { view: () => KeeperView; palette?: Palette }) {
+export function KeeperModel({
+  view,
+  palette = KEEPER_PALETTE,
+}: {
+  view: () => KeeperView;
+  palette?: Palette;
+}) {
   const rig = useMemo(() => buildKeeper(palette), [palette]);
   const state = useRef({ phase: 0, heading: 0, run: 0 });
 
@@ -200,7 +209,8 @@ export function KeeperModel({ view, palette = KEEPER_PALETTE }: { view: () => Ke
     rig.arms.left.lower.rotation.x = la.elbow;
     rig.arms.right.upper.rotation.set(ra.x, 0, ra.z);
     rig.arms.right.lower.rotation.x = ra.elbow;
-    rig.head.rotation.y = v.action === 'castLeft' || v.action === 'castRight' ? relative * 0.3 * w : 0;
+    rig.head.rotation.y =
+      v.action === 'castLeft' || v.action === 'castRight' ? relative * 0.3 * w : 0;
   });
 
   return <primitive object={rig.root} />;

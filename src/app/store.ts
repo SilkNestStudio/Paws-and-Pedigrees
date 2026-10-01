@@ -2,7 +2,12 @@ import { create } from 'zustand';
 import { createRng, int } from '../core/rng';
 import { generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
 import { createRetrieveSession, type RetrieveSession } from '../sim/retrieve';
-import { createTrainingSession, lessonSummary, type Lesson, type TrainingSession } from '../sim/training';
+import {
+  createTrainingSession,
+  lessonSummary,
+  type Lesson,
+  type TrainingSession,
+} from '../sim/training';
 import { setupById } from '../sim/exercises';
 import { buildReport, type RetrieveReport } from '../sim/report';
 
@@ -134,14 +139,22 @@ export const useGame = create<GameState>((set, get) => ({
   startField: (setupId) => {
     const runId = get().runId + 1;
     live.lesson = null;
-    live.field = createRetrieveSession(get().activeDog(), setupById(setupId), sessionSeed({ seed: get().seed, runId }));
+    live.field = createRetrieveSession(
+      get().activeDog(),
+      setupById(setupId),
+      sessionSeed({ seed: get().seed, runId }),
+    );
     set({ screen: { kind: 'field', setupId }, runId, panel: 'none', report: null });
   },
 
   startLesson: (lesson) => {
     const runId = get().runId + 1;
     live.field = null;
-    live.lesson = createTrainingSession(get().activeDog(), lesson, sessionSeed({ seed: get().seed, runId }));
+    live.lesson = createTrainingSession(
+      get().activeDog(),
+      lesson,
+      sessionSeed({ seed: get().seed, runId }),
+    );
     set({ screen: { kind: 'lesson', lesson }, runId, panel: 'none', lessonResult: null });
   },
 
@@ -167,7 +180,12 @@ export const useGame = create<GameState>((set, get) => ({
     const report = buildReport(s);
     const history = [
       ...get().history,
-      { setupId: screen.setupId, dogId: get().activeDogId, score: report.score, grade: report.grade },
+      {
+        setupId: screen.setupId,
+        dogId: get().activeDogId,
+        score: report.score,
+        grade: report.grade,
+      },
     ].slice(-200);
     set({ report, history, panel: 'result' });
     persist(get());
@@ -211,4 +229,13 @@ export const useGame = create<GameState>((set, get) => ({
 }));
 
 /** Start the first session immediately so the field is never empty. */
-live.field = createRetrieveSession(useGame.getState().activeDog(), setupById('free'), sessionSeed({ seed: initial.seed, runId: 0 }));
+live.field = createRetrieveSession(
+  useGame.getState().activeDog(),
+  setupById('free'),
+  sessionSeed({ seed: initial.seed, runId: 0 }),
+);
+
+// Development builds expose the live state so browser test scripts can watch it.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as { __game: unknown }).__game = { live, useGame };
+}

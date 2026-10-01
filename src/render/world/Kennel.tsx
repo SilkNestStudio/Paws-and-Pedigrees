@@ -7,7 +7,17 @@ import { heightAt } from './terrain';
  * block with its empty runs, and the gate into the training field. Kept
  * simple and readable; it frames the field and reminds you whose place this is.
  */
-function Roof({ width, depth, height, colour }: { width: number; depth: number; height: number; colour: string }) {
+function Roof({
+  width,
+  depth,
+  height,
+  colour,
+}: {
+  width: number;
+  depth: number;
+  height: number;
+  colour: string;
+}) {
   const geometry = useMemo(() => {
     const shape = new THREE.Shape();
     shape.moveTo(-width / 2 - 0.4, 0);
@@ -25,7 +35,13 @@ function Roof({ width, depth, height, colour }: { width: number; depth: number; 
   );
 }
 
-function Window({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
+function Window({
+  position,
+  rotation = 0,
+}: {
+  position: [number, number, number];
+  rotation?: number;
+}) {
   return (
     <group position={position} rotation={[0, rotation, 0]}>
       <mesh>
@@ -41,8 +57,8 @@ function Window({ position, rotation = 0 }: { position: [number, number, number]
 }
 
 function Farmhouse() {
-  const x = -15;
-  const z = 44;
+  const x = -16;
+  const z = 62;
   return (
     <group position={[x, heightAt(x, z), z]} rotation={[0, 0.08, 0]}>
       <mesh position={[0, 2.6, 0]} castShadow receiveShadow>
@@ -69,8 +85,8 @@ function Farmhouse() {
 }
 
 function KennelBlock() {
-  const x = 13;
-  const z = 42;
+  const x = 14;
+  const z = 60;
   const runs = 6;
   return (
     <group position={[x, heightAt(x, z), z]} rotation={[0, -0.05, 0]}>
@@ -107,7 +123,7 @@ function KennelBlock() {
 }
 
 function Gate() {
-  const z = 26;
+  const z = 44;
   return (
     <group position={[0, heightAt(0, z), z]}>
       {[-2.6, 2.6].map((x) => (

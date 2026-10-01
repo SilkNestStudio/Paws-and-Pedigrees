@@ -33,7 +33,7 @@ export function createTrainingField(): Field {
     minX: -62,
     maxX: 62,
     minZ: -95,
-    maxZ: 30,
+    maxZ: 40,
     line: { x: 0, z: 18 },
     cover: [
       { center: { x: -16, z: -18 }, radius: 7, density: 0.7 },

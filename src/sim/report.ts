@@ -28,7 +28,7 @@ export function buildReport(s: RetrieveSession): RetrieveReport {
   if (seconds > par) score -= Math.min(25, (seconds - par) * 0.5);
 
   if (st.broke) {
-    score -= 30;
+    score -= 45;
     notes.push({ text: `Broke before being sent. Steadiness lessons will help.`, tone: 'warn' });
   }
   if (st.wrongItem) {

@@ -38,5 +38,8 @@ export function movementVector(): { move: Vec2; running: boolean } {
   const fz = Math.cos(h);
   const move = { x: fx * forward - fz * right, z: fz * forward + fx * right };
   const stickPush = Math.hypot(input.stick.x, input.stick.y);
-  return { move, running: k.has('ShiftLeft') || k.has('ShiftRight') || input.runHeld || stickPush > 0.92 };
+  return {
+    move,
+    running: k.has('ShiftLeft') || k.has('ShiftRight') || input.runHeld || stickPush > 0.92,
+  };
 }

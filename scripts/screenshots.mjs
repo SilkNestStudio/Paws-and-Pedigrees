@@ -14,12 +14,21 @@ try {
   for (const phone of [false, true]) {
     const context = await browser.newContext(
       phone
-        ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
+        ? {
+            viewport: { width: 390, height: 844 },
+            isMobile: true,
+            hasTouch: true,
+            deviceScaleFactor: 2,
+          }
         : { viewport: { width: 1440, height: 900 } },
     );
     const page = await context.newPage();
     page.on('pageerror', (e) => errors.push(`${phone ? 'phone' : 'desktop'}: ${e.message}`));
-    page.on('console', (m) => m.type() === 'error' && errors.push(`${phone ? 'phone' : 'desktop'} console: ${m.text()}`));
+    page.on(
+      'console',
+      (m) =>
+        m.type() === 'error' && errors.push(`${phone ? 'phone' : 'desktop'} console: ${m.text()}`),
+    );
     await page.goto(url);
     await page.waitForTimeout(2500);
     const tag = `${label}-${phone ? 'phone' : 'desktop'}`;

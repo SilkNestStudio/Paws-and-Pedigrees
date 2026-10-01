@@ -42,7 +42,7 @@ export function Ground({ field }: { field: FieldData }) {
       const cover = coverAt(field, { x, z });
       // Mown stripes in the field, rougher meadow outside it, a gravel yard by the kennel.
       const stripe = inField ? (Math.floor((x + 200) / 6) % 2 === 0 ? 0.03 : -0.02) : 0;
-      if (z > 24 && Math.abs(x) < 26) base.set('#b7a98c');
+      if (z > 46 && Math.abs(x) < 30) base.set('#b7a98c');
       else if (!inField) base.set('#6f8f45');
       else base.set('#7fa64e');
       base.offsetHSL(n * 0.02 - 0.01, 0, stripe + (n - 0.5) * 0.05);
@@ -96,11 +96,18 @@ function tuftGeometry(height: number): THREE.BufferGeometry {
 }
 
 function swayMaterial(tint: string): THREE.MeshLambertMaterial {
-  const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, color: tint });
+  const material = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    color: tint,
+  });
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, windUniforms);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform vec2 uWindDir;\nuniform float uWindStrength;')
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform float uTime;\nuniform vec2 uWindDir;\nuniform float uWindStrength;',
+      )
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
@@ -122,7 +129,11 @@ export function Grass({ field }: { field: FieldData }) {
     const s = new THREE.Vector3();
     const p = new THREE.Vector3();
 
-    const shortMesh = new THREE.InstancedMesh(tuftGeometry(0.2), swayMaterial('#ffffff'), shortCount);
+    const shortMesh = new THREE.InstancedMesh(
+      tuftGeometry(0.2),
+      swayMaterial('#ffffff'),
+      shortCount,
+    );
     for (let i = 0; i < shortCount; i++) {
       const x = field.minX - 20 + scatter(i, 1) * (field.maxX - field.minX + 40);
       const z = field.minZ - 20 + scatter(i, 2) * (field.maxZ - field.minZ + 28);
@@ -151,7 +162,11 @@ export function Grass({ field }: { field: FieldData }) {
         tallPositions.push(new THREE.Matrix4().compose(p, q, s));
       }
     }
-    const tallMesh = new THREE.InstancedMesh(tuftGeometry(0.5), swayMaterial('#e6d9a0'), tallPositions.length);
+    const tallMesh = new THREE.InstancedMesh(
+      tuftGeometry(0.5),
+      swayMaterial('#e6d9a0'),
+      tallPositions.length,
+    );
     tallPositions.forEach((m, i) => tallMesh.setMatrixAt(i, m));
     tallMesh.instanceMatrix.needsUpdate = true;
     return { short: shortMesh, tall: tallMesh };
@@ -204,9 +219,24 @@ export function Trees({ field }: { field: FieldData }) {
     for (let i = 0; i < 46; i++) {
       const t = i / 46;
       const along = scatter(i, 91);
-      if (t < 0.36) out.push({ x: field.minX - 6 - along * 10, z: field.maxZ - 10 - (t / 0.36) * 125, s: 0.9 + along * 0.6 });
-      else if (t < 0.72) out.push({ x: field.maxX + 6 + along * 10, z: field.maxZ - 10 - ((t - 0.36) / 0.36) * 125, s: 0.9 + along * 0.6 });
-      else out.push({ x: field.minX + ((t - 0.72) / 0.28) * (field.maxX - field.minX), z: field.minZ - 6 - along * 12, s: 1 + along * 0.7 });
+      if (t < 0.36)
+        out.push({
+          x: field.minX - 6 - along * 10,
+          z: field.maxZ - 10 - (t / 0.36) * 125,
+          s: 0.9 + along * 0.6,
+        });
+      else if (t < 0.72)
+        out.push({
+          x: field.maxX + 6 + along * 10,
+          z: field.maxZ - 10 - ((t - 0.36) / 0.36) * 125,
+          s: 0.9 + along * 0.6,
+        });
+      else
+        out.push({
+          x: field.minX + ((t - 0.72) / 0.28) * (field.maxX - field.minX),
+          z: field.minZ - 6 - along * 12,
+          s: 1 + along * 0.7,
+        });
     }
     return out;
   }, [field]);
@@ -224,14 +254,27 @@ export function Trees({ field }: { field: FieldData }) {
 }
 
 /** Wind flag on a pole; the cloth streams downwind and ripples. */
-export function WindFlag({ x, z, heading, strength }: { x: number; z: number; heading: number; strength: number }) {
+export function WindFlag({
+  x,
+  z,
+  heading,
+  strength,
+}: {
+  x: number;
+  z: number;
+  heading: number;
+  strength: number;
+}) {
   const cloth = useRef<THREE.Mesh>(null);
   const geometry = useMemo(() => {
     const g = new THREE.PlaneGeometry(1.4, 0.8, 12, 4);
     g.translate(0.7, 0, 0);
     return g;
   }, []);
-  const base = useMemo(() => Float32Array.from(geometry.getAttribute('position').array), [geometry]);
+  const base = useMemo(
+    () => Float32Array.from(geometry.getAttribute('position').array),
+    [geometry],
+  );
   useFrame(() => {
     const mesh = cloth.current;
     if (!mesh) return;
@@ -276,7 +319,12 @@ export function Hedges({ field }: { field: FieldData }) {
   return (
     <>
       {pieces.map((p, i) => (
-        <mesh key={i} position={[p.x, heightAt(p.x, p.z) + p.h / 2 - 0.1, p.z]} castShadow receiveShadow>
+        <mesh
+          key={i}
+          position={[p.x, heightAt(p.x, p.z) + p.h / 2 - 0.1, p.z]}
+          castShadow
+          receiveShadow
+        >
           <boxGeometry args={[p.w, p.h, p.d]} />
           <meshStandardMaterial color={i % 3 === 0 ? '#4c6f34' : '#557a39'} roughness={0.95} />
         </mesh>

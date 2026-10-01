@@ -48,7 +48,19 @@ export interface DogDims {
   earErect: number;
 }
 
-type Part = 'torso' | 'chest' | 'hip' | 'neck' | 'skull' | 'muzzle' | 'ear' | 'leg' | 'paw' | 'tail' | 'tailTip' | 'ruff';
+type Part =
+  | 'torso'
+  | 'chest'
+  | 'hip'
+  | 'neck'
+  | 'skull'
+  | 'muzzle'
+  | 'ear'
+  | 'leg'
+  | 'paw'
+  | 'tail'
+  | 'tailTip'
+  | 'ruff';
 
 interface Painted {
   mesh: THREE.Mesh;
@@ -90,7 +102,12 @@ export function buildDog(body: BodyShape, coat: CoatAppearance): DogRig {
     return mesh;
   };
 
-  const plain = (geometry: THREE.BufferGeometry, colour: string, parent: THREE.Object3D, roughness = 0.5) => {
+  const plain = (
+    geometry: THREE.BufferGeometry,
+    colour: string,
+    parent: THREE.Object3D,
+    roughness = 0.5,
+  ) => {
     const m = new THREE.MeshStandardMaterial({ color: colour, roughness });
     disposables.push(geometry, m);
     const mesh = new THREE.Mesh(geometry, m);
@@ -135,7 +152,11 @@ export function buildDog(body: BodyShape, coat: CoatAppearance): DogRig {
   neck.rotation.x = NECK_LEAN;
   torso.add(neck);
   const neckLen = H * 0.24;
-  const neckMesh = fur(new THREE.CapsuleGeometry(chestR * 0.62 * fluff, neckLen, 6, 16), 'neck', neck);
+  const neckMesh = fur(
+    new THREE.CapsuleGeometry(chestR * 0.62 * fluff, neckLen, 6, 16),
+    'neck',
+    neck,
+  );
   neckMesh.position.set(0, neckLen * 0.5, 0);
 
   const head = new THREE.Group();
@@ -149,7 +170,11 @@ export function buildDog(body: BodyShape, coat: CoatAppearance): DogRig {
 
   const muzzleLen = sk * 1.05 * body.muzzle;
   const muzzleR = sk * (0.36 + (1.25 - body.muzzle) * 0.18);
-  const muzzle = fur(new THREE.CapsuleGeometry(muzzleR, Math.max(0.01, muzzleLen - muzzleR), 6, 16), 'muzzle', head);
+  const muzzle = fur(
+    new THREE.CapsuleGeometry(muzzleR, Math.max(0.01, muzzleLen - muzzleR), 6, 16),
+    'muzzle',
+    head,
+  );
   muzzle.rotation.x = Math.PI / 2 - 0.12;
   muzzle.position.set(0, -sk * 0.05, sk * 0.55 + muzzleLen * 0.42);
   muzzle.scale.set(hw * 0.95, 1, 0.82);
@@ -222,7 +247,11 @@ export function buildDog(body: BodyShape, coat: CoatAppearance): DogRig {
     parent.add(seg);
     const plume = long ? 1 + Math.sin(((i + 0.5) / segments) * Math.PI) * 0.9 : 1;
     const r = H * 0.052 * (1 - i * 0.13) * plume;
-    const piece = fur(new THREE.CapsuleGeometry(r, segLen * 0.75, 4, 10), i === segments - 1 ? 'tailTip' : 'tail', seg);
+    const piece = fur(
+      new THREE.CapsuleGeometry(r, segLen * 0.75, 4, 10),
+      i === segments - 1 ? 'tailTip' : 'tail',
+      seg,
+    );
     piece.rotation.x = Math.PI / 2;
     piece.position.set(0, 0, -segLen * 0.5);
     tail.push(seg);
@@ -237,7 +266,11 @@ export function buildDog(body: BodyShape, coat: CoatAppearance): DogRig {
       const upperLen = jointY * (front ? 0.5 : 0.52);
       const lowerLen = jointY * (front ? 0.52 : 0.56);
       const upper = new THREE.Group();
-      upper.position.set(side * (front ? chestR * 0.52 : hipR * 0.6), front ? jointY : jointY + hipR * 0.1, front ? chestZ - chestR * 0.15 : hipZ);
+      upper.position.set(
+        side * (front ? chestR * 0.52 : hipR * 0.6),
+        front ? jointY : jointY + hipR * 0.1,
+        front ? chestZ - chestR * 0.15 : hipZ,
+      );
       torso.add(upper);
       const thighR = front ? legR : legR * 1.45;
       const u = fur(new THREE.CapsuleGeometry(thighR * fluff, upperLen, 4, 12), 'leg', upper);
@@ -356,7 +389,12 @@ function paintMasks(painted: Painted[], root: THREE.Group, d: DogDims): void {
         case 'hip':
         case 'ruff':
           dorsal = torsoDorsal;
-          tan = Math.max(belly * 0.85, chestFront * smooth(d.torsoY, d.torsoY - d.chestR * 0.5, v.y) * smooth(d.chestR * 0.12, d.chestR * 0.3, ax));
+          tan = Math.max(
+            belly * 0.85,
+            chestFront *
+              smooth(d.torsoY, d.torsoY - d.chestR * 0.5, v.y) *
+              smooth(d.chestR * 0.12, d.chestR * 0.3, ax),
+          );
           white = Math.max(
             0.32,
             chestFront * (1 - ax / (d.chestR * 0.75)) * 1.05,

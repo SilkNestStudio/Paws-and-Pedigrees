@@ -323,7 +323,7 @@ body,
 /* Lesson panel */
 .lesson-panel {
   position: absolute;
-  top: 66px;
+  top: 82px;
   left: 12px;
   width: min(330px, calc(100vw - 24px));
   padding: 14px 16px;
@@ -628,20 +628,35 @@ body,
   .minimap {
     width: 110px;
   }
+  .top-centre {
+    top: 78px;
+    left: 12px;
+    transform: none;
+    align-items: flex-start;
+  }
+  .events {
+    align-items: flex-start;
+  }
   .lesson-panel {
-    top: auto;
-    bottom: calc(160px + var(--safe-bottom));
-    width: calc(100vw - 150px);
+    top: 78px;
+    width: calc(100vw - 24px);
     padding: 10px 12px;
   }
+  .lesson-panel h3,
   .lesson-panel p {
     display: none;
   }
   .coach {
-    top: 76px;
+    top: 190px;
     font-size: 15px;
   }
   .panel {
     padding: 18px;
+  }
+}
+
+@media (pointer: coarse) {
+  .action small {
+    display: none;
   }
 }

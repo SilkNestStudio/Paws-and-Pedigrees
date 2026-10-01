@@ -20,7 +20,7 @@ import { heightAt } from './world/terrain';
 
 const FIELD = createTrainingField();
 const FLAG_SPOTS: Vec2[] = [
-  { x: -7, z: 22 },
+  { x: -24, z: 8 },
   { x: 30, z: -40 },
   { x: -34, z: -76 },
 ];
@@ -74,14 +74,26 @@ function CameraRig() {
   const { camera, gl, size } = useThree();
   const look = useRef(new THREE.Vector3(0, 1, 10));
   const pos = useRef(new THREE.Vector3(0, 6, 20));
-  const pointer = useRef<{ id: number; x: number; y: number; moved: boolean; button: number } | null>(null);
+  const pointer = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    moved: boolean;
+    button: number;
+  } | null>(null);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
   useEffect(() => {
     const el = gl.domElement;
     const down = (e: PointerEvent) => {
       if (pointer.current) return;
-      pointer.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, button: e.button };
+      pointer.current = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        moved: false,
+        button: e.button,
+      };
     };
     const move = (e: PointerEvent) => {
       const p = pointer.current;
@@ -102,7 +114,10 @@ function CameraRig() {
       pointer.current = null;
       if (p.moved || p.button !== 0) return;
       const rect = el.getBoundingClientRect();
-      const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+      const ndc = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      );
       raycaster.setFromCamera(ndc, camera);
       const ray = raycaster.ray;
       // Intersect the ground, refining once for terrain height.
@@ -117,7 +132,10 @@ function CameraRig() {
       }
     };
     const wheel = (e: WheelEvent) => {
-      cameraState.zoom = Math.min(2.4, Math.max(0.55, cameraState.zoom * (1 + Math.sign(e.deltaY) * 0.1)));
+      cameraState.zoom = Math.min(
+        2.4,
+        Math.max(0.55, cameraState.zoom * (1 + Math.sign(e.deltaY) * 0.1)),
+      );
     };
     el.addEventListener('pointerdown', down);
     window.addEventListener('pointermove', move);
@@ -151,7 +169,9 @@ function CameraRig() {
       const away = distance(k, d);
       const working = away > 10 && !(field.dog.mode === 'sit' || field.dog.mode === 'heel');
       const spread = working ? Math.min(1, (away - 10) / 25) : 0;
-      target = cameraState.watchDog ? d : { x: k.x + (d.x - k.x) * 0.38 * spread, z: k.z + (d.z - k.z) * 0.38 * spread };
+      target = cameraState.watchDog
+        ? d
+        : { x: k.x + (d.x - k.x) * 0.38 * spread, z: k.z + (d.z - k.z) * 0.38 * spread };
       dist = 8.5 + (working ? Math.min(24, away * 0.5) : 0);
       pitch = cameraState.pitch + spread * 0.25;
       if (working) autoYaw = Math.atan2(d.x - k.x, d.z - k.z);
@@ -187,6 +207,43 @@ function CameraRig() {
     camera.lookAt(look.current);
   });
   return null;
+}
+
+/**
+ * A small floating marker over the dog once it is far from the keeper, so
+ * you can always pick out your dog at the far end of the field.
+ */
+function DogBeacon() {
+  const ref = useRef<THREE.Group>(null);
+  const { camera } = useThree();
+  useFrame((state) => {
+    const g = ref.current;
+    const s = live.field;
+    if (!g) return;
+    if (!s) {
+      g.visible = false;
+      return;
+    }
+    const d = s.dog.pos;
+    const away = distance(d, s.keeper.pos);
+    const y = heightAt(d.x, d.z);
+    const toCamera = camera.position.distanceTo(new THREE.Vector3(d.x, y, d.z));
+    g.visible = away > 12;
+    g.position.set(
+      d.x,
+      y + 1.3 + Math.sin(state.clock.elapsedTime * 3) * 0.08 + toCamera * 0.02,
+      d.z,
+    );
+    g.scale.setScalar(Math.min(3.2, Math.max(0.6, toCamera / 22)));
+  });
+  return (
+    <group ref={ref} visible={false}>
+      <mesh rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.22, 0.42, 4]} />
+        <meshBasicMaterial color="#e2622d" />
+      </mesh>
+    </group>
+  );
 }
 
 function itemView(i: { pos: Vec2; y: number }) {
@@ -282,7 +339,10 @@ function Throwers({ session }: { session: RetrieveSession }) {
           palette={HELPER_PALETTE}
           view={() => ({
             pos: t.pos,
-            heading: Math.atan2(session.items[i]!.landing.x - t.pos.x, session.items[i]!.landing.z - t.pos.z),
+            heading: Math.atan2(
+              session.items[i]!.landing.x - t.pos.x,
+              session.items[i]!.landing.z - t.pos.z,
+            ),
             speed: 0,
             action: t.throwTime < 1 ? 'throw' : 'none',
             actionTime: t.throwTime,
@@ -299,7 +359,15 @@ function LessonProps({ lesson }: { lesson: TrainingSession }) {
   return (
     <>
       {lesson.scene.mound && (
-        <mesh position={[lesson.scene.mound.x, heightAt(lesson.scene.mound.x, lesson.scene.mound.z) + 0.02, lesson.scene.mound.z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <mesh
+          position={[
+            lesson.scene.mound.x,
+            heightAt(lesson.scene.mound.x, lesson.scene.mound.z) + 0.02,
+            lesson.scene.mound.z,
+          ]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          receiveShadow
+        >
           <circleGeometry args={[1.2, 24]} />
           <meshStandardMaterial color="#c9b98f" />
         </mesh>
@@ -307,7 +375,12 @@ function LessonProps({ lesson }: { lesson: TrainingSession }) {
       {lesson.scene.piles.map((p) => (
         <group key={p.id} position={[p.pos.x, heightAt(p.pos.x, p.pos.z), p.pos.z]}>
           {[0, 1, 2].map((k) => (
-            <mesh key={k} position={[(k - 1) * 0.22, 0.1 + (k === 1 ? 0.12 : 0), 0]} rotation={[0, k * 0.6, Math.PI / 2]} castShadow>
+            <mesh
+              key={k}
+              position={[(k - 1) * 0.22, 0.1 + (k === 1 ? 0.12 : 0), 0]}
+              rotation={[0, k * 0.6, Math.PI / 2]}
+              castShadow
+            >
               <capsuleGeometry args={[0.08, 0.32, 4, 8]} />
               <meshStandardMaterial color="#ece4cf" />
             </mesh>
@@ -352,7 +425,16 @@ function keeperView(): KeeperView {
   const t = live.lesson;
   const k = s?.keeper ?? t?.keeper;
   const dog = s?.dog ?? t?.dog;
-  if (!k) return { pos: FIELD.line, heading: Math.PI, speed: 0, action: 'none', actionTime: 9, signalHeading: 0, watch: null };
+  if (!k)
+    return {
+      pos: FIELD.line,
+      heading: Math.PI,
+      speed: 0,
+      action: 'none',
+      actionTime: 9,
+      signalHeading: 0,
+      watch: null,
+    };
   return {
     pos: k.pos,
     heading: k.heading,
@@ -384,9 +466,16 @@ export function Scene() {
       <Trees field={FIELD} />
       <Kennel />
       {FLAG_SPOTS.map((f, i) => (
-        <WindFlag key={i} x={f.x} z={f.z} heading={wind.heading} strength={session?.wind.strength ?? 0.3} />
+        <WindFlag
+          key={i}
+          x={f.x}
+          z={f.z}
+          heading={wind.heading}
+          strength={session?.wind.strength ?? 0.3}
+        />
       ))}
       <Items />
+      <DogBeacon />
       <KeeperModel view={keeperView} />
       {session && (
         <group key={`f${runId}`}>

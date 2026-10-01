@@ -68,7 +68,12 @@ export function DogModel({ dog, view }: { dog: Dog; view: () => DogView }) {
     body.rotation.z = Math.PI / 2;
     body.castShadow = true;
     const band = new THREE.Mesh(
-      new THREE.CylinderGeometry(rig.dims.skull * 0.34, rig.dims.skull * 0.34, rig.dims.skull * 0.25, 12),
+      new THREE.CylinderGeometry(
+        rig.dims.skull * 0.34,
+        rig.dims.skull * 0.34,
+        rig.dims.skull * 0.25,
+        12,
+      ),
       new THREE.MeshStandardMaterial({ color: '#d5612f', roughness: 0.7 }),
     );
     band.rotation.z = Math.PI / 2;
@@ -168,9 +173,17 @@ export function DogModel({ dog, view }: { dog: Dog; view: () => DogView }) {
 
     // Body: bob with the gait, pitch for poses and galloping, lean into turns.
     const bob =
-      moving * (a.gallop > 0.5 ? Math.sin(TAU * a.phase) * 0.06 : Math.abs(Math.sin(TAU * a.phase * 2)) * 0.025) * dims.height;
-    body.position.y = dims.jointY - dims.jointY * (a.sit * 0.62 + a.down * 0.66 + a.crouch * 0.18) + bob;
-    body.rotation.x = -a.sit * 0.62 + a.crouch * 0.16 + (a.gallop > 0.5 ? Math.cos(TAU * a.phase) * 0.1 * moving : 0);
+      moving *
+      (a.gallop > 0.5
+        ? Math.sin(TAU * a.phase) * 0.06
+        : Math.abs(Math.sin(TAU * a.phase * 2)) * 0.025) *
+      dims.height;
+    body.position.y =
+      dims.jointY - dims.jointY * (a.sit * 0.62 + a.down * 0.66 + a.crouch * 0.18) + bob;
+    body.rotation.x =
+      -a.sit * 0.62 +
+      a.crouch * 0.16 +
+      (a.gallop > 0.5 ? Math.cos(TAU * a.phase) * 0.1 * moving : 0);
     body.rotation.z = a.lean;
 
     // Head: look at targets, nose down when scenting.
@@ -186,7 +199,8 @@ export function DogModel({ dog, view }: { dog: Dog; view: () => DogView }) {
     if (v.pose === 'sit' && !v.tell.noseDown) pitch -= 0.15;
     a.headYaw += (yaw - a.headYaw) * damp(6, dt);
     a.headPitch += (pitch - a.headPitch) * damp(5, dt);
-    neck.rotation.x = NECK_LEAN + a.headPitch * 0.7 + a.sit * 0.45 + a.down * 0.2 + a.gallop * 0.35 * moving;
+    neck.rotation.x =
+      NECK_LEAN + a.headPitch * 0.7 + a.sit * 0.45 + a.down * 0.2 + a.gallop * 0.35 * moving;
     neck.rotation.y = a.headYaw * 0.55;
     head.rotation.x = -NECK_LEAN + a.headPitch * 0.4 - a.sit * 0.2 - a.gallop * 0.2 * moving;
     head.rotation.y = a.headYaw * 0.45;
@@ -204,7 +218,8 @@ export function DogModel({ dog, view }: { dog: Dog; view: () => DogView }) {
       const hanging = dims.earErect <= 0.6;
       const flop = hanging ? Math.sin(TAU * a.phase * 2) * 0.15 * moving : 0;
       const lift = hanging ? a.earLift * 0.35 : a.earLift * 0.12;
-      ear.rotation.z = -(rest - side * lift) + side * flop + Math.sin(a.flick * 40) * a.flick * 0.25 * side;
+      ear.rotation.z =
+        -(rest - side * lift) + side * flop + Math.sin(a.flick * 40) * a.flick * 0.25 * side;
       ear.rotation.x = (hanging ? 0.2 : -0.15) - a.earBack * (hanging ? 0.5 : 0.9);
     }
 
@@ -214,7 +229,9 @@ export function DogModel({ dog, view }: { dog: Dog; view: () => DogView }) {
     const amp = { high: 0.25, wag: 0.55, low: 0.15, neutral: 0.25 }[v.tell.tail];
     const rate = { high: 11, wag: 7.5, low: 2.5, neutral: 4 }[v.tell.tail];
     const running = Math.min(1, a.trot + a.gallop);
-    a.tailBase += (carriage * (1 - running * 0.5) + (curl - 0.4) * 1.1 - (1 - curl) * 0.4 - a.tailBase) * damp(5, dt);
+    a.tailBase +=
+      (carriage * (1 - running * 0.5) + (curl - 0.4) * 1.1 - (1 - curl) * 0.4 - a.tailBase) *
+      damp(5, dt);
     a.tailAmp += (amp * (1 - running * 0.6) - a.tailAmp) * damp(5, dt);
     a.tailRate += (rate - a.tailRate) * damp(3, dt);
     a.tailWag += dt * a.tailRate;

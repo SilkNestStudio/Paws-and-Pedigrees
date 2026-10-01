@@ -126,7 +126,10 @@ export interface CoatMaterial extends THREE.MeshStandardMaterial {
 const linear = (hex: string) => new THREE.Color(hex);
 
 export function createCoatMaterial(coat: CoatAppearance, scale: number): CoatMaterial {
-  const material = new THREE.MeshStandardMaterial({ roughness: 0.88, metalness: 0 }) as CoatMaterial;
+  const material = new THREE.MeshStandardMaterial({
+    roughness: 0.88,
+    metalness: 0,
+  }) as CoatMaterial;
   const merleDilute =
     coat.eumelanin === '#1f1b1a' ? '#9aa3ad' : coat.eumelanin === '#5b3423' ? '#c9a38a' : '#c3c0bd';
   const uniforms: Record<string, THREE.IUniform> = {
@@ -156,10 +159,16 @@ export function createCoatMaterial(coat: CoatAppearance, scale: number): CoatMat
         '#include <common>',
         '#include <common>\nattribute vec3 aRest;\nattribute vec4 aMask;\nvarying vec3 vRest;\nvarying vec4 vMask;',
       )
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = aRest;\nvMask = aMask;');
+      .replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\nvRest = aRest;\nvMask = aMask;',
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${NOISE_GLSL}\n${COAT_GLSL}`)
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = coatColour();');
+      .replace(
+        '#include <color_fragment>',
+        '#include <color_fragment>\ndiffuseColor.rgb = coatColour();',
+      );
   };
   material.customProgramCacheKey = () => 'dog-coat-v1';
   return material;

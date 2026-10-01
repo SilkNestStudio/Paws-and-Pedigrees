@@ -47,8 +47,10 @@ function fieldHint(s: RetrieveSession): string {
   const name = s.dogName;
   const d = s.dog;
   if (s.setup.free) {
-    if (d.mode === 'sit' || d.mode === 'heel') return `Tap the ground to throw the ball for ${name}.`;
-    if (d.mode === 'stopped' || d.mode === 'popped') return `${name} is waiting. Tap a direction to send, or call "Here!".`;
+    if (d.mode === 'sit' || d.mode === 'heel')
+      return `Tap the ground to throw the ball for ${name}.`;
+    if (d.mode === 'stopped' || d.mode === 'popped')
+      return `${name} is waiting. Tap a direction to send, or call "Here!".`;
     return `Keep moving if you like. ${name} will bring it back to you.`;
   }
   if (s.phase === 'ready') {
@@ -56,7 +58,10 @@ function fieldHint(s: RetrieveSession): string {
       ? 'Press "Throw!" when you are ready. Watch where it lands.'
       : `Line ${name} up: tap the ground toward the orange stake to send.`;
   }
-  if (s.phase === 'throwing') return d.breakPressure > 0.55 ? `${name} is itching to go. Say "Sit" to steady!` : 'Watch the fall…';
+  if (s.phase === 'throwing')
+    return d.breakPressure > 0.55
+      ? `${name} is itching to go. Say "Sit" to steady!`
+      : 'Watch the fall…';
   if (s.phase === 'complete') return 'Done!';
   switch (d.mode) {
     case 'sit':
@@ -90,11 +95,13 @@ function lessonHint(t: TrainingSession): string {
   if (t.phase === 'done') return 'Session over.';
   if (t.phase === 'idle') {
     if (t.lesson === 'cast') return 'Tap a pile (or press 1, 2, 3) to send your dog to it.';
-    if (t.lesson === 'stop') return 'Press "Throw" to send the ball out, then whistle while your dog runs.';
+    if (t.lesson === 'stop')
+      return 'Press "Throw" to send the ball out, then whistle while your dog runs.';
     if (t.lesson === 'stay') return 'Choose a gentle toss or a big throw.';
     return `Press "${info.cueLabel}" to ask.`;
   }
-  if (t.lesson === 'stop' && t.phase === 'waiting' && !t.current && !t.pendingResponse) return 'Whistle now!';
+  if (t.lesson === 'stop' && t.phase === 'waiting' && !t.current && !t.pendingResponse)
+    return 'Whistle now!';
   if (t.phase === 'resetting') return 'Reward given. Setting up the next one…';
   return 'Watch closely… press Yes! at exactly the right moment.';
 }

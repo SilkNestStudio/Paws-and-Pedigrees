@@ -92,7 +92,11 @@ export default function App() {
         shadows={{ type: THREE.PCFShadowMap }}
         dpr={[1, 1.75]}
         camera={{ fov: 50, near: 0.1, far: 900, position: [0, 6, 28] }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.05,
+        }}
       >
         <Scene />
       </Canvas>

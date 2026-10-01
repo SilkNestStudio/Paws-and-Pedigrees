@@ -10,7 +10,9 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 700 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 for (const pose of poses) {
-  await page.goto(`http://127.0.0.1:5180/?view=dogs&seed=${seed}&pose=${pose}${process.env.KEEPER ? '&keeper=1' : ''}${process.env.CAM ? `&cam=${process.env.CAM}` : ''}`);
+  await page.goto(
+    `http://127.0.0.1:5180/?view=dogs&seed=${seed}&pose=${pose}${process.env.KEEPER ? '&keeper=1' : ''}${process.env.CAM ? `&cam=${process.env.CAM}` : ''}`,
+  );
   await page.waitForTimeout(1800);
   await page.screenshot({ path: `.browser.local/${label}-s${seed}-p${pose}.png` });
 }

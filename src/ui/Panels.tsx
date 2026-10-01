@@ -1,4 +1,11 @@
-import { aptitudeProfile, breedDescription, coatOf, CUE_LABELS, CUES, type Dog } from '../core/dog/dog';
+import {
+  aptitudeProfile,
+  breedDescription,
+  coatOf,
+  CUE_LABELS,
+  CUES,
+  type Dog,
+} from '../core/dog/dog';
 import { formatGenotype } from '../core/genetics/loci';
 import { APTITUDE_LABELS, APTITUDES } from '../core/genetics/traits';
 import { FREE_PLAY, RETRIEVE_SETUPS } from '../sim/exercises';
@@ -9,7 +16,12 @@ export function Panels() {
   const panel = useGame((s) => s.panel);
   if (panel === 'none') return null;
   return (
-    <div className="overlay" onPointerDown={(e) => e.target === e.currentTarget && panel === 'book' && useGame.getState().setPanel('none')}>
+    <div
+      className="overlay"
+      onPointerDown={(e) =>
+        e.target === e.currentTarget && panel === 'book' && useGame.getState().setPanel('none')
+      }
+    >
       {panel === 'welcome' && <Welcome />}
       {panel === 'book' && <Book />}
       {panel === 'result' && <Result />}
@@ -24,12 +36,14 @@ function Welcome() {
     <div className="panel card">
       <h2>Field test: working with your dog</h2>
       <p className="lead">
-        This is an early test of how it feels to work with a dog in Grandpa's old training field. The story, the kennel and
-        breeding come later. Right now the question is simple: is this fun, and does your skill matter?
+        This is an early test of how it feels to work with a dog in Grandpa's old training field.
+        The story, the kennel and breeding come later. Right now the question is simple: is this
+        fun, and does your skill matter?
       </p>
       <p>
-        You're working with <b>{dog.name}</b>, one of three rescues. Each has different natural strengths you'll notice as
-        you play. Start with some free play, then try the set-ups and lessons in the <b>Field book</b>.
+        You're working with <b>{dog.name}</b>, one of three rescues. Each has different natural
+        strengths you'll notice as you play. Start with some free play, then try the set-ups and
+        lessons in the <b>Field book</b>.
       </p>
       <h3>Controls</h3>
       <div className="controls-grid">
@@ -47,8 +61,8 @@ function Welcome() {
         <span>Look around</span>
       </div>
       <p>
-        Watch your dog's body language at the top left. Dogs show what they're about to do before they do it. Wind matters:
-        scent drifts the way the wind arrow points.
+        Watch your dog's body language at the top left. Dogs show what they're about to do before
+        they do it. Wind matters: scent drifts the way the wind arrow points.
       </p>
       <div className="button-row">
         <button className="button" onClick={dismiss}>
@@ -107,7 +121,13 @@ function WorkTab() {
               <div className="title">{setup.title}</div>
               <div className="sub">{setup.summary}</div>
             </div>
-            {best && <span className={`badge ${best.grade === 'Excellent' || best.grade === 'Very good' ? 'good' : ''}`}>{best.grade}</span>}
+            {best && (
+              <span
+                className={`badge ${best.grade === 'Excellent' || best.grade === 'Very good' ? 'good' : ''}`}
+              >
+                {best.grade}
+              </span>
+            )}
             <button className="button" onClick={() => start(setup.id)}>
               {current ? 'Restart' : 'Go'}
             </button>
@@ -124,8 +144,8 @@ function LessonsTab() {
   return (
     <>
       <p className="lead">
-        Lessons are marker training: you decide what to reward and press "Yes!" at exactly the right moment. What{' '}
-        {dog.name} learns here shows up in the field.
+        Lessons are marker training: you decide what to reward and press "Yes!" at exactly the right
+        moment. What {dog.name} learns here shows up in the field.
       </p>
       <div className="list">
         {(Object.keys(LESSONS) as Lesson[]).map((lesson) => (
@@ -176,15 +196,25 @@ function DogsTab() {
   const newRescues = useGame((s) => s.newRescues);
   return (
     <>
-      <p className="lead">Three rescues from the shelter. Each looks and works differently. Try the same set-up with each.</p>
+      <p className="lead">
+        Three rescues from the shelter. Each looks and works differently. Try the same set-up with
+        each.
+      </p>
       <div className="list">
         {dogs.map((dog) => {
           const coat = coatOf(dog);
           return (
-            <div key={dog.id} className={`row ${dog.id === activeId ? 'active' : ''}`} style={{ alignItems: 'flex-start' }}>
+            <div
+              key={dog.id}
+              className={`row ${dog.id === activeId ? 'active' : ''}`}
+              style={{ alignItems: 'flex-start' }}
+            >
               <div className="grow">
                 <div className="title">
-                  {dog.name} <span className="sub">· {dog.sex}, {Math.round(dog.ageMonths / 12)} yrs</span>
+                  {dog.name}{' '}
+                  <span className="sub">
+                    · {dog.sex}, {Math.round(dog.ageMonths / 12)} yrs
+                  </span>
                 </div>
                 <div className="sub">
                   {coat.name} · {breedDescription(dog)}
@@ -220,10 +250,16 @@ function DevAptitudes({ dog }: { dog: Dog }) {
   const profile = aptitudeProfile(dog);
   return (
     <details style={{ marginTop: 8 }}>
-      <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>Hidden aptitudes (tester view)</summary>
+      <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+        Hidden aptitudes (tester view)
+      </summary>
       <div className="skills">
         {APTITUDES.map((a) => (
-          <FragmentRow key={a} label={`${APTITUDE_LABELS[a].name} ${profile[a]}`} value={profile[a] / 100} />
+          <FragmentRow
+            key={a}
+            label={`${APTITUDE_LABELS[a].name} ${profile[a]}`}
+            value={profile[a] / 100}
+          />
         ))}
       </div>
       <div className="sub" style={{ marginTop: 6, fontFamily: 'monospace', fontSize: 11 }}>
@@ -242,10 +278,16 @@ function DevSkillButtons() {
   const setSkill = useGame((s) => s.devSetSkill);
   return (
     <>
-      <button className="button secondary" onClick={() => (['stop', 'cast', 'stay'] as const).forEach((c) => setSkill(c, 0.85))}>
+      <button
+        className="button secondary"
+        onClick={() => (['stop', 'cast', 'stay'] as const).forEach((c) => setSkill(c, 0.85))}
+      >
         Skip ahead: trained dog
       </button>
-      <button className="button secondary" onClick={() => (['stop', 'cast', 'stay'] as const).forEach((c) => setSkill(c, 0))}>
+      <button
+        className="button secondary"
+        onClick={() => (['stop', 'cast', 'stay'] as const).forEach((c) => setSkill(c, 0))}
+      >
         Reset training
       </button>
     </>
@@ -279,11 +321,15 @@ function Result() {
         </div>
         <ul className="notes">
           {(c.perfect ?? 0) > 0 && <li className="good">{c.perfect} perfectly timed rewards.</li>}
-          {(c.shaping ?? 0) > 0 && <li className="good">{c.shaping} rewards for steps in the right direction.</li>}
+          {(c.shaping ?? 0) > 0 && (
+            <li className="good">{c.shaping} rewards for steps in the right direction.</li>
+          )}
           {((c.early ?? 0) > 0 || (c.late ?? 0) > 0) && (
             <li>
               {c.early ?? 0} early and {c.late ?? 0} late marks
-              {lessonResult.averageOffset !== null && ` (on average ${lessonResult.averageOffset >= 0 ? '+' : ''}${lessonResult.averageOffset.toFixed(2)} s)`}.
+              {lessonResult.averageOffset !== null &&
+                ` (on average ${lessonResult.averageOffset >= 0 ? '+' : ''}${lessonResult.averageOffset.toFixed(2)} s)`}
+              .
             </li>
           )}
           {((c.wrong ?? 0) > 0 || (c.sloppy ?? 0) > 0) && (
@@ -291,7 +337,9 @@ function Result() {
               {(c.wrong ?? 0) + (c.sloppy ?? 0)} rewards for the wrong thing. Those cost progress.
             </li>
           )}
-          {(c.nothing ?? 0) > 0 && <li className="warn">{c.nothing} marks when nothing was happening.</li>}
+          {(c.nothing ?? 0) > 0 && (
+            <li className="warn">{c.nothing} marks when nothing was happening.</li>
+          )}
           <li>
             {lessonResult.dogName}'s {LESSONS[lessonResult.lesson].title.toLowerCase()} skill is now{' '}
             {Math.round(lessonResult.after * 100)}%. It carries over to field work.
@@ -301,7 +349,10 @@ function Result() {
           <button className="button" onClick={restart}>
             Another session
           </button>
-          <button className="button secondary" onClick={() => startField(lessonResult.lesson === 'sit' ? 'free' : 'first-blind')}>
+          <button
+            className="button secondary"
+            onClick={() => startField(lessonResult.lesson === 'sit' ? 'free' : 'first-blind')}
+          >
             Try it in the field
           </button>
           <button className="button secondary" onClick={() => setPanel('book')}>
@@ -334,11 +385,21 @@ function Result() {
       <p style={{ marginTop: 12, fontWeight: 700 }}>{report.suggestion.text}</p>
       <div className="button-row">
         {report.suggestion.kind === 'lesson' && (
-          <button className="button" onClick={() => startLesson(report.suggestion.kind === 'lesson' ? report.suggestion.lesson as Lesson : 'sit')}>
+          <button
+            className="button"
+            onClick={() =>
+              startLesson(
+                report.suggestion.kind === 'lesson' ? (report.suggestion.lesson as Lesson) : 'sit',
+              )
+            }
+          >
             Go to the lesson
           </button>
         )}
-        <button className={`button ${report.suggestion.kind === 'lesson' ? 'secondary' : ''}`} onClick={restart}>
+        <button
+          className={`button ${report.suggestion.kind === 'lesson' ? 'secondary' : ''}`}
+          onClick={restart}
+        >
           Try again
         </button>
         {next && (

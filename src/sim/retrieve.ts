@@ -241,6 +241,7 @@ export function sendDog(s: RetrieveSession, aim: Vec2): void {
   const { dog, keeper } = s;
   if (!isAtSide(dog) || s.phase === 'complete') return;
   if (s.stats.startedAt === null) s.stats.startedAt = s.time;
+  if (s.phase === 'ready') s.phase = 'working';
   const aimHeading = headingOf(sub(aim, keeper.pos));
   keeperAct(keeper, 'send', aimHeading);
 

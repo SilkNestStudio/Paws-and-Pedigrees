@@ -63,7 +63,11 @@ export function Lighting({ focus }: { focus: () => Vec2 }) {
     if (!light) return;
     const f = focus();
     target.position.set(f.x, 0, f.z);
-    light.position.set(f.x + SUN_DIRECTION.x * 60, SUN_DIRECTION.y * 60, f.z + SUN_DIRECTION.z * 60);
+    light.position.set(
+      f.x + SUN_DIRECTION.x * 60,
+      SUN_DIRECTION.y * 60,
+      f.z + SUN_DIRECTION.z * 60,
+    );
     light.target = target;
   });
 

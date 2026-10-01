@@ -20,7 +20,14 @@ export function setMuted(value: boolean): void {
   muted = value;
 }
 
-function tone(freq: number, duration: number, type: OscillatorType, volume: number, slide = 0, vibrato = 0) {
+function tone(
+  freq: number,
+  duration: number,
+  type: OscillatorType,
+  volume: number,
+  slide = 0,
+  vibrato = 0,
+) {
   const ac = ctx();
   if (!ac) return;
   const now = ac.currentTime;

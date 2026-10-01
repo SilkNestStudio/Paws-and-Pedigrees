@@ -51,7 +51,13 @@ function DogChip({ snap }: { snap: HudSnapshot }) {
 }
 
 function windWords(strength: number): string {
-  return strength < 0.3 ? 'Light air' : strength < 0.5 ? 'Gentle breeze' : strength < 0.7 ? 'Fresh breeze' : 'Strong wind';
+  return strength < 0.3
+    ? 'Light air'
+    : strength < 0.5
+      ? 'Gentle breeze'
+      : strength < 0.7
+        ? 'Fresh breeze'
+        : 'Strong wind';
 }
 
 function TopCentre({ snap }: { snap: HudSnapshot }) {
@@ -59,9 +65,18 @@ function TopCentre({ snap }: { snap: HudSnapshot }) {
   return (
     <div className="top-centre">
       {snap.wind && (
-        <div className="wind card" title="The arrow shows where the wind is blowing, relative to your view. Scent drifts the same way.">
+        <div
+          className="wind card"
+          title="The arrow shows where the wind is blowing, relative to your view. Scent drifts the same way."
+        >
           <div className="dial">
-            <svg className="arrow" width="24" height="24" viewBox="-12 -12 24 24" style={{ transform: `rotate(${-rel}rad)` }}>
+            <svg
+              className="arrow"
+              width="24"
+              height="24"
+              viewBox="-12 -12 24 24"
+              style={{ transform: `rotate(${-rel}rad)` }}
+            >
               <path d="M0 -10 L6 4 L0 1 L-6 4 Z" fill="#d9622b" />
               <rect x="-1.2" y="1" width="2.4" height="9" fill="#d9622b" />
             </svg>
@@ -71,7 +86,9 @@ function TopCentre({ snap }: { snap: HudSnapshot }) {
       )}
       <div className="events">
         {snap.field &&
-          snap.events.slice(-2).map((e) => <FadingEvent key={`${e.time}-${e.text}`} text={e.text} tone={e.tone} />)}
+          snap.events
+            .slice(-2)
+            .map((e) => <FadingEvent key={`${e.time}-${e.text}`} text={e.text} tone={e.tone} />)}
       </div>
     </div>
   );
@@ -113,13 +130,26 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
       <svg viewBox={`${FIELD.minX} ${FIELD.minZ} ${w} ${h}`}>
         <rect x={FIELD.minX} y={FIELD.minZ} width={w} height={h} fill="#8fb35f" />
         {FIELD.cover.map((c, i) => (
-          <circle key={i} cx={c.center.x} cy={c.center.z} r={c.radius} fill="#b6ad5c" opacity={0.85} />
+          <circle
+            key={i}
+            cx={c.center.x}
+            cy={c.center.z}
+            r={c.radius}
+            fill="#b6ad5c"
+            opacity={0.85}
+          />
         ))}
         {FIELD.trees.map((t, i) => (
           <circle key={i} cx={t.pos.x} cy={t.pos.z} r={3} fill="#3f6a33" />
         ))}
         {f.trace.length > 1 && (
-          <polyline points={f.trace.map((p) => `${p.x},${p.z}`).join(' ')} fill="none" stroke="#fff" strokeWidth={1.2} strokeOpacity={0.8} />
+          <polyline
+            points={f.trace.map((p) => `${p.x},${p.z}`).join(' ')}
+            fill="none"
+            stroke="#fff"
+            strokeWidth={1.2}
+            strokeOpacity={0.8}
+          />
         )}
         {f.items.map((it, i) =>
           it.state === 'lying' || it.state === 'flying' ? (
@@ -127,15 +157,34 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
               <rect key={i} x={it.pos.x - 2} y={it.pos.z - 2} width={4} height={4} fill="#e2622d" />
             ) : (
               <g key={i} stroke="#fff" strokeWidth={1.4}>
-                <line x1={it.pos.x - 2.2} y1={it.pos.z - 2.2} x2={it.pos.x + 2.2} y2={it.pos.z + 2.2} />
-                <line x1={it.pos.x - 2.2} y1={it.pos.z + 2.2} x2={it.pos.x + 2.2} y2={it.pos.z - 2.2} />
+                <line
+                  x1={it.pos.x - 2.2}
+                  y1={it.pos.z - 2.2}
+                  x2={it.pos.x + 2.2}
+                  y2={it.pos.z + 2.2}
+                />
+                <line
+                  x1={it.pos.x - 2.2}
+                  y1={it.pos.z + 2.2}
+                  x2={it.pos.x + 2.2}
+                  y2={it.pos.z - 2.2}
+                />
               </g>
             )
           ) : null,
         )}
-        <circle cx={f.keeper.x} cy={f.keeper.z} r={2.6} fill="#22352a" stroke="#fff" strokeWidth={0.8} />
+        <circle
+          cx={f.keeper.x}
+          cy={f.keeper.z}
+          r={2.6}
+          fill="#22352a"
+          stroke="#fff"
+          strokeWidth={0.8}
+        />
         <circle cx={f.dog.x} cy={f.dog.z} r={2.6} fill="#d9622b" stroke="#fff" strokeWidth={0.8} />
-        <g transform={`translate(${FIELD.maxX - 10} ${FIELD.minZ + 10}) rotate(${(-rel * 180) / Math.PI + 180})`}>
+        <g
+          transform={`translate(${FIELD.maxX - 10} ${FIELD.minZ + 10}) rotate(${(-rel * 180) / Math.PI + 180})`}
+        >
           <path d="M0 -7 L4 3 L0 1 L-4 3 Z" fill="#fff" />
         </g>
       </svg>
@@ -245,9 +294,15 @@ function Actions({ snap }: { snap: HudSnapshot }) {
 
 function Keys({ snap }: { snap: HudSnapshot }) {
   if (snap.lesson) {
+    const cue =
+      snap.lesson.lesson === 'stop'
+        ? 'throw, then whistle'
+        : snap.lesson.lesson === 'cast'
+          ? 'or 1 2 3: send'
+          : 'cue';
     return (
       <div className="keys card">
-        <kbd>Space</kbd> Yes! (mark) · <kbd>F</kbd> cue · drag to look around
+        <kbd>Space</kbd> Yes! (mark) · <kbd>F</kbd> {cue} · drag to look around
       </div>
     );
   }

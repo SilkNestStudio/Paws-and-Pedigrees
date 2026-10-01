@@ -1,5 +1,13 @@
 import { distance, type Vec2 } from '../core/math';
-import { blowWhistle, callForThrows, castDog, recallDog, sendDog, steadyDog, throwBall } from '../sim/retrieve';
+import {
+  blowWhistle,
+  callForThrows,
+  castDog,
+  recallDog,
+  sendDog,
+  steadyDog,
+  throwBall,
+} from '../sim/retrieve';
 import { giveCue, mark, type CueChoice } from '../sim/training';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
 import { live, useGame } from './store';
@@ -85,9 +93,16 @@ export function tapGround(point: Vec2): void {
   }
   const t = live.lesson;
   if (t?.lesson === 'cast') {
-    const pile = t.scene.piles.reduce((best, p) => (distance(p.pos, point) < distance(best.pos, point) ? p : best));
+    const pile = t.scene.piles.reduce((best, p) =>
+      distance(p.pos, point) < distance(best.pos, point) ? p : best,
+    );
     if (distance(pile.pos, point) < 7) lessonCue(pile.id);
   }
+}
+
+// Development builds let test scripts tap the ground at a world point.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as { __tap: typeof tapGround }).__tap = (p) => tapGround(p);
 }
 
 export function openBook(): void {
