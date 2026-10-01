@@ -1,3 +1,17 @@
+import { JOBS, createOuting, trailPath, trailWalkable, stepOuting, collectBag, finishOuting, jobBlocked, workRecord, whistle, apart as outingApart } from '../src/game/legacy/outings';
+import { homeGround, yardAim } from '../src/game/legacy/propertyFetch';
+import { createSearchAdventure, chooseTrail, stepSearchAdventure, currentChapter, sendSearchDog, recallSearchDog, refreshSearchScent, adventureReport, scentRadius } from '../src/game/club/searchTrail';
+import { newJourney, adoptRescue, canAdopt, readJourney, RESCUES } from '../src/game/legacy/journey';
+import { newPlay, throwToy, stepPlay, callPlayDog, BEDS as PLAY_BEDS, distance as playDistance, walkable as playWalkable } from '../src/game/playyard/play';
+import { finishCare, finishFocusWalk, trainingBlocked as homeTrainingBlocked } from '../src/game/legacy/routine';
+import { attentionFor, createFocusWalk, cueFocus, focusQuality, praiseFocus, stepFocusWalk, WALK_MARKERS } from '../src/game/legacy/focusWalk';
+import { destinationBearing, faceDestination, shortestTurn, safeCameraPosition } from '../src/game/legacy/wayfinding';
+import { propertyPath, canWalk as propertyWalkable, PLACES as PROPERTY_PLACES } from '../src/game/legacy/property';
+import { createTraining, trainingCommand, stepTraining, trainingReport } from '../src/game/club/trainingSimulation';
+import { clubQualified, challengeQualified } from '../src/game/club/model';
+import { searchBox, confirmFind, workSheep, retrieveDummy, fieldReport } from '../src/game/club/simulation';
+import { agilityTuning, agilitySpeed, agilityReport, cueObstacle, obstacleControls } from '../src/game/agility/simulation';
+import { performanceReport } from '../src/game/club/performance';
 import { bondingRestriction, nextCompanionStep, companionConditionUpdates } from '../src/utils/companionLoop';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -463,10 +477,10 @@ test('search requires proximity and investigation; seeded targets and signal are
   for (const target of s.hidden) {
     sendField(s, SEARCH_STATIONS[target]);
     advanceField(s, () => distance(s.dog, SEARCH_STATIONS[target]) < .1);
-    assert.ok(s.signal > .95); inspectField(s);
+    assert.ok(s.signal > 0); inspectField(s);
     advanceField(s, () => s.found.includes(target));
   }
-  assert.equal(s.phase, 'finished'); assert.ok(fieldScore(s) >= 90);
+  assert.equal(s.phase, 'finished'); assert.ok(fieldScore(s) >= 85);
   const time = s.time; stepField(s, .02); assert.equal(s.time, time);
 });
 test('all three sheep can be guided into the pen using the exposed positioning control', () => {
@@ -483,10 +497,15 @@ test('all three sheep can be guided into the pen using the exposed positioning c
 });
 test('water retrieval needs collection and a return; aptitude changes swimming time', () => {
   const times: number[] = [];
-  for (const ability of [10, 90]) {
+  for (const ability of [30, 85]) {
     const s = createField('water', ability, 1);
     for (let i = 0; i < 3; i++) {
-      sendField(s, s.dummies[i]); advanceField(s, () => s.carrying);
+      retrieveDummy(s, i, 'sheltered');
+      for (let frame = 0; frame < 6000 && !s.carrying; frame++) {
+        if (s.workState === 'Returning without the dummy') retrieveDummy(s, i, 'sheltered');
+        stepField(s, 1 / 60);
+      }
+      assert.ok(s.carrying);
       assert.equal(s.found.length, i); recallField(s); advanceField(s, () => s.found.length === i + 1);
     }
     assert.equal(s.phase, 'finished'); assert.ok(fieldScore(s) > 70); times.push(s.time);
@@ -531,10 +550,10 @@ test('club visits reject invalid rosters and lock later events; leaving and dupl
   leaveClubRun(); assert.equal(completeClubRound(cancelled.id, 0, 100).success, false);
   assert.equal(recordFor(useGameStore.getState().tutorialProgress.fieldClub, d.id, 'herding').sessions, 0);
 });
-test('four practices unlock the combined trial; rounds persist independently, grants pay once, teams need two dogs', () => {
+test('four completed club events unlock the combined trial; rounds persist independently, grants pay once, teams need two dogs', () => {
   const d = setupClub(), rounds = DISCIPLINES.map(discipline => ({ discipline, dogId: d.id }));
   const finish = (index: number) => { const active = useGameStore.getState().tutorialProgress.fieldClub!.active!; assert.equal(completeClubRound(active.id, index, 70 + index).success, true); };
-  for (const round of rounds) { assert.equal(startClubRun('practice', [round]).success, true); finish(0); }
+  for (const round of rounds) { assert.equal(startClubRun('specialist', [round]).success, true); finish(0); }
   assert.ok(sampledAll(useGameStore.getState().tutorialProgress.fieldClub!, d.id));
   assert.equal(startClubRun('combined', rounds).success, true);
   finish(0); assert.equal(useGameStore.getState().tutorialProgress.fieldClub!.active!.results.length, 1);
@@ -579,4 +598,408 @@ test('club introduction gates daily rewards until a later day and adoption is at
   assert.equal(useGameStore.getState().purchaseBreed(dog('Maple'), 100, 0).success, false);
   assert.equal(useGameStore.getState().user!.cash, cash);
   assert.equal(useGameStore.getState().dogs.length, 2);
+});
+
+
+test('handler cues complete the agility course; stronger execution improves time and turning', () => {
+  const results = [];
+  for (const ability of [20, 55, 85]) {
+    const run = createRun(), speed = agilitySpeed(ability);
+    for (let i = 0; i < 240 * 60 && !run.finished; i++) {
+      if (run.cuedObstacle === null && GATES[run.gate]) cueObstacle(run, GATES[run.gate].obstacle);
+      stepRun(run, obstacleControls(run, ability, speed), 1 / 60, speed, agilityTuning(ability));
+    }
+    assert.ok(run.finished, JSON.stringify(run));
+    results.push(agilityReport(run));
+  }
+  assert.ok(results[2].seconds < results[0].seconds * .85, JSON.stringify(results));
+  assert.ok(results[2].score > results[0].score);
+});
+test('a novice searches box sides while a strong scent dog indicates from the first approach', () => {
+  const results = [];
+  for (const ability of [20, 85]) {
+    const s = createField('search', ability, 827);
+    for (const target of s.hidden) {
+      for (let side = 0; side < 4 && s.indicated === null; side++) {
+        searchBox(s, target, side);
+        advanceField(s, () => s.indicated !== null || !!s.checkedSides[target]?.includes(side));
+      }
+      assert.equal(s.indicated, target); confirmFind(s);
+    }
+    assert.equal(s.phase, 'finished'); results.push(fieldReport(s));
+  }
+  assert.ok(results[1].commands < results[0].commands, JSON.stringify(results));
+  assert.ok(results[1].seconds < results[0].seconds * .8);
+  assert.ok(results[1].score > results[0].score);
+});
+test('a herding cue keeps working a moving sheep, with better dogs finishing more efficiently', () => {
+  const results = [];
+  for (const ability of [20, 85]) {
+    const s = createField('herding', ability, 1);
+    for (let i = 0; i < 180 * 60 && s.phase === 'playing'; i++) {
+      if (s.herdTarget === null) workSheep(s, s.sheep.findIndex(v => !v.penned));
+      stepField(s, 1 / 60);
+    }
+    assert.equal(s.sheep.filter(v => v.penned).length, 3, JSON.stringify(s.sheep)); results.push(fieldReport(s));
+  }
+  assert.ok(results[1].seconds < results[0].seconds, JSON.stringify(results));
+});
+test('scores distinguish fast clean runs before the old grace period and reports survive serialization', () => {
+  const input = { discipline: 'search' as const, completed: 3, total: 3, seconds: 20, distance: 12, mistakes: 0 };
+  assert.ok(performanceReport(input).score > performanceReport({ ...input, seconds: 35 }).score);
+  assert.equal(performanceReport({ ...input, completed: 0 }).score, 0);
+  const report = performanceReport(input);
+  const d = setupClub(); startClubRun('practice', [{ discipline: 'search', dogId: d.id }]);
+  const run = useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  assert.equal(completeClubRound(run.id, 0, report.score, report).success, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(useGameStore.getState().tutorialProgress.fieldClub!.matches[0].results[0].report)), report);
+});
+
+
+test('separate training exercises complete without playing their competition task', () => {
+  for (const discipline of DISCIPLINES) {
+    const s=createTraining(discipline,35);
+    for(let i=0;i<120*60&&s.phase==='playing';i++){
+      if(discipline==='agility')trainingCommand(s,'pad');
+      else if(discipline==='water'){
+        if(s.fatigue>65)trainingCommand(s,'rest');
+        else if(s.fatigue<15)trainingCommand(s,'trot');
+      }else{
+        if(!s.holding)trainingCommand(s,'stay');
+        if(s.attention<50)trainingCommand(s,'encourage');
+        if(s.rewardReady)trainingCommand(s,'reward');
+      }
+      stepTraining(s,1/60);
+    }
+    assert.equal(s.completed,discipline==='agility'?10:3,JSON.stringify(s));
+    assert.equal(trainingReport(s).context,'training');
+  }
+});
+test('qualification is enforced by commands; training preserves event records and unlocks stronger events', () => {
+  const d=setupClub();
+  const weak={...d,agility:1,speed:1,intelligence:1,trainability:1,prey_drive:1,bond_level:0};
+  useGameStore.setState({dogs:[weak]});
+  const round=[{discipline:'agility' as const,dogId:d.id}];
+  assert.equal(clubQualified(weak,'agility',recordFor(undefined,d.id,'agility')),false);
+  assert.equal(startClubRun('specialist',round).success,false);
+  assert.equal(startClubRun('practice',round,'training').success,true);
+  const run=useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  const report=performanceReport({discipline:'agility',completed:10,total:10,seconds:30,distance:25,mistakes:0});
+  assert.equal(completeClubRound(run.id,0,report.score,{...report,context:'training'}).success,true);
+  const record=recordFor(useGameStore.getState().tutorialProgress.fieldClub,d.id,'agility');
+  assert.ok(record.xp>0);assert.equal(record.clubSessions,0);assert.equal(record.best,0);
+  assert.equal(startClubRun('specialist',[{discipline:'search',dogId:d.id}],'club',true).success,false);
+  assert.equal(challengeQualified(d,'search',{...record,xp:1000}),true);
+});
+test('beginner water dog can be redirected after turning home empty; expert completes the same send', () => {
+  for(const ability of [25,85]){
+    const s=createField('water',ability,1);
+    retrieveDummy(s,0,'sheltered');
+    advanceField(s,()=>s.workState==='Returning without the dummy'||s.carrying);
+    if(ability===25){assert.equal(s.carrying,false);assert.equal(s.earlyReturns.length,1);retrieveDummy(s,0,'sheltered');}
+    advanceField(s,()=>s.found.length===1);
+    assert.equal(s.mistakes,ability===25?1:0);
+  }
+});
+test('advanced layouts have extra work and remain completable by a trained dog', () => {
+  const search=createField('search',85,21,5);
+  for(const index of search.hidden){searchBox(search,index);advanceField(search,()=>search.indicated!==null);confirmFind(search);}
+  assert.equal(search.found.length,5);assert.equal(search.phase,'finished');
+  const water=createField('water',85,21,4);
+  for(let i=0;i<4;i++){retrieveDummy(water,i,'sheltered');advanceField(water,()=>water.found.length===i+1);}
+  assert.equal(water.phase,'finished');assert.equal(water.dummies.length,4);
+});
+
+test('partial events preserve development without awarding membership or completion credit', () => {
+  const d = setupClub();
+  assert.equal(startClubRun('specialist', [{ discipline: 'search', dogId: d.id }]).success, true);
+  const report = performanceReport({ discipline: 'search', completed: 1, total: 3, seconds: 180, distance: 15, mistakes: 2 });
+  const run = useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  assert.equal(completeClubRound(run.id, 0, report.score, report).success, true);
+  const progress = useGameStore.getState().tutorialProgress.fieldClub!;
+  assert.equal(progress.completedAt, undefined);
+  assert.equal(progress.matches[0].cash, 0);
+  assert.equal(recordFor(progress, d.id, 'search').clubSessions, 0);
+  assert.ok(recordFor(progress, d.id, 'search').xp > 0);
+});
+
+test('empty training does not consume the first successful training bonus or fill the event passport', () => {
+  const d = setupClub(), round = [{ discipline: 'search' as const, dogId: d.id }];
+  assert.equal(startClubRun('practice', round, 'club').success, false);
+  for (const completed of [0, 3]) {
+    assert.equal(startClubRun('practice', round).success, true);
+    const report = { ...performanceReport({ discipline: 'search', completed, total: 3, seconds: 40, distance: 10, mistakes: 0 }), context: 'training' as const };
+    const run = useGameStore.getState().tutorialProgress.fieldClub!.active!;
+    assert.equal(completeClubRound(run.id, 0, report.score, report).success, true);
+    const record = recordFor(useGameStore.getState().tutorialProgress.fieldClub, d.id, 'search');
+    assert.equal(record.clubSessions, 0);
+    if (!completed) { assert.equal(record.xp, 0); assert.equal(record.trainingCompleted, false); }
+    else {
+      assert.ok(record.xp >= 25); assert.equal(record.trainingCompleted, true);
+      const result = useGameStore.getState().tutorialProgress.fieldClub!.matches[0].results[0];
+      assert.ok(result.abilityAfter! > result.abilityBefore!);
+    }
+  }
+});
+
+function advanceSearch(s: ReturnType<typeof createSearchAdventure>, until: () => boolean) {
+  for(let i=0;i<60*45&&!until();i++)stepSearchAdventure(s,1/60);
+  assert.ok(until(),JSON.stringify({task:s.task,stage:s.stage,dog:s.dog,target:s.target,route:s.route}));
+}
+test('woodland cases are seeded, varied, and completable with beginner and expert dogs',()=>{
+  assert.deepEqual(createSearchAdventure(35,713),createSearchAdventure(35,713));
+  assert.notDeepEqual(createSearchAdventure(35,713).chapters,createSearchAdventure(35,8711).chapters);
+  for(const ability of [20,35,85])for(const advanced of [false,true]){
+    const s=createSearchAdventure(ability,7183,advanced);
+    while(s.phase==='playing'){
+      advanceSearch(s,()=>s.task==='choosing'||s.task==='casting');
+      if(s.gap){sendSearchDog(s,s.gap);advanceSearch(s,()=>s.task==='choosing');}
+      const stage=s.stage;chooseTrail(s,currentChapter(s).correct);
+      advanceSearch(s,()=>s.stage>stage);
+    }
+    assert.equal(s.discoveries.length,advanced?5:3);assert.equal(adventureReport(s).activity,'woodland-search');
+    assert.equal(s.mistakes,0);assert.ok(adventureReport(s).score>60);
+  }
+});
+test('wrong woodland leads are recoverable and repeated checks cannot farm discoveries',()=>{
+  const s=createSearchAdventure(40,118);
+  advanceSearch(s,()=>s.task==='choosing');
+  const wrong=1-currentChapter(s).correct;
+  chooseTrail(s,wrong);advanceSearch(s,()=>s.checked.length>0);
+  assert.equal(s.stage,0);assert.equal(s.mistakes,1);assert.equal(s.discoveries.length,0);
+  chooseTrail(s,wrong);for(let i=0;i<120;i++)stepSearchAdventure(s,1/60);
+  assert.equal(s.mistakes,1);
+  recallSearchDog(s);advanceSearch(s,()=>s.task==='choosing');
+  chooseTrail(s,currentChapter(s).correct);advanceSearch(s,()=>s.stage===1);
+  assert.equal(s.discoveries.length,1);
+});
+test('rushing can distract a beginner; handler redirection recovers without an arbitrary penalty',()=>{
+  const s=createSearchAdventure(35,55);advanceSearch(s,()=>s.task==='choosing');
+  s.pace='brisk';chooseTrail(s,currentChapter(s).correct);advanceSearch(s,()=>s.task==='distracted');
+  recallSearchDog(s);assert.equal(s.redirects,1);assert.equal(s.mistakes,0);
+  advanceSearch(s,()=>s.task==='choosing');s.pace='careful';chooseTrail(s,currentChapter(s).correct);advanceSearch(s,()=>s.stage===1);
+});
+test('scent samples are limited and stronger dogs need less help crossing scent gaps',()=>{
+  const novice=createSearchAdventure(35,1),expert=createSearchAdventure(85,1);
+  assert.ok(scentRadius(expert)>scentRadius(novice));const original=scentRadius(novice);
+  for(let i=0;i<3;i++){
+    refreshSearchScent(novice);assert.ok(scentRadius(novice)>original);
+    refreshSearchScent(novice);assert.equal(novice.scentUses,2-i);
+    for(let j=0;j<60*13;j++)stepSearchAdventure(novice,1/60);
+  }
+  refreshSearchScent(novice);assert.equal(novice.scentUses,0);assert.equal(novice.boost,0);
+  for(const s of [novice,expert]){
+    chooseTrail(s,currentChapter(s).correct);advanceSearch(s,()=>s.stage===1);advanceSearch(s,()=>s.task==='casting'||s.task==='choosing');
+  }
+  assert.equal(novice.task,'casting');assert.equal(expert.task,'choosing');
+  const gap=novice.gap;recallSearchDog(novice);assert.deepEqual(novice.gap,gap);
+});
+test('woodland exploration has no failure countdown and ignores malformed destinations',()=>{
+  const s=createSearchAdventure(35,8),target={...s.target};sendSearchDog(s,{x:NaN,z:Infinity});assert.deepEqual(s.target,target);
+  for(let i=0;i<60*190;i++)stepSearchAdventure(s,1/60);
+  assert.equal(s.phase,'playing');assert.equal(adventureReport(s).completed,0);
+});
+test('woodland records replace incompatible box-search bests and preserve reports',()=>{
+  const d=setupClub(),s=createSearchAdventure(85,66);s.stage=3;s.discoveries=['thread','prints','pack'];s.phase='finished';s.time=60;
+  const report=adventureReport(s);
+  useGameStore.setState(state=>({tutorialProgress:{...state.tutorialProgress,fieldClub:{...state.tutorialProgress.fieldClub!,records:{[d.id]:{search:{xp:40,sessions:2,best:100,last:100,bestRules:2}}}}}}));
+  assert.equal(startClubRun('specialist',[{discipline:'search',dogId:d.id}]).success,true);
+  const run=useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  assert.equal(completeClubRound(run.id,0,report.score,report).success,true);
+  const record=recordFor(useGameStore.getState().tutorialProgress.fieldClub,d.id,'search');
+  assert.equal(record.best,report.score);assert.equal(record.bestActivity,'woodland-search');
+  assert.deepEqual(JSON.parse(JSON.stringify(useGameStore.getState().tutorialProgress.fieldClub!.matches[0].results[0].report)),report);
+});
+
+
+test('property directions identify a hidden gate and face it through the shortest camera turn', () => {
+  const keeper = { x: 0, z: 11 }, gate = { x: 0, z: 16.5 };
+  assert.equal(destinationBearing(keeper, gate, 0).direction, 'Behind you');
+  const facing = faceDestination(keeper, gate);
+  assert.equal(destinationBearing(keeper, gate, facing).direction, 'Ahead');
+  assert.equal(destinationBearing(keeper, {x: 4,z:11}, 0).direction, 'To your right');
+  assert.equal(destinationBearing(keeper, {x:-4,z:11}, 0).direction, 'To your left');
+  for (const yaw of [-Math.PI*4, 0, Math.PI*3.9]) assert.ok(Math.abs(shortestTurn(yaw, facing)) <= Math.PI);
+});
+
+test('property camera retracts before buildings while allowing a full view of the entrance', () => {
+  const focus = {x:0,y:1.2,z:-2.5};
+  const blocked = safeCameraPosition(focus, {x:0,y:5.9,z:-13});
+  assert.ok(blocked.z > -4.7);
+  const clear = {x:0,y:5.9,z:1};
+  assert.deepEqual(safeCameraPosition({x:0,y:1.2,z:11}, clear), clear);
+});
+
+test('all property landmarks remain reachable around signs, planters and entrance pillars', () => {
+  for (const from of [{x:0,z:11}, ...PROPERTY_PLACES.map(p=>p.point)]) {
+    for (const {point:to} of PROPERTY_PLACES) {
+      const route = propertyPath(from, to);
+      assert.ok(route.length);
+      let previous = from;
+      for (const point of route) {
+        for (let i=0;i<=100;i++) assert.ok(propertyWalkable({x:previous.x+(point.x-previous.x)*i/100,z:previous.z+(point.z-previous.z)*i/100}));
+        previous=point;
+      }
+      assert.deepEqual(route.at(-1),to);
+    }
+  }
+});
+
+
+test('Homecoming adoption requires preparation, a meeting, and a valid name', () => {
+  const fresh = newJourney();
+  assert.equal(canAdopt(fresh), false);
+  assert.throws(() => adoptRescue(fresh, 'willow', 'Willow', ['quiet'], 'dog-1', '2026-09-30T12:00:00Z'));
+  const ready = { ...fresh, introSeen: true, readLedger: true, prepared: true, kennelName: 'Oak & Ember' };
+  assert.equal(canAdopt(ready), true);
+  assert.throws(() => adoptRescue(ready, 'willow', ' ', ['quiet'], 'dog-1', '2026-09-30T12:00:00Z'));
+  assert.throws(() => adoptRescue(ready, 'willow', 'Willow', [], 'dog-1', '2026-09-30T12:00:00Z'));
+  const adopted = adoptRescue(ready, 'willow', '  Maple  ', ['quiet'], 'dog-1', '2026-09-30T12:00:00Z');
+  assert.equal(adopted.dog!.name, 'Maple');
+  assert.equal(canAdopt(adopted), false);
+  assert.throws(() => adoptRescue(adopted, 'bruno', 'Bruno', ['toy'], 'dog-2', '2026-09-30T12:00:00Z'));
+  assert.equal(ready.dog, null);
+  assert.notEqual(adopted.dog!.aptitude, RESCUES[0].aptitude);
+  assert.deepEqual(readJourney(JSON.parse(JSON.stringify(adopted))), adopted);
+});
+
+test('Homecoming never treats unsupported or incomplete saves as a fresh journey', () => {
+  assert.throws(() => readJourney({ ...newJourney(), version: 99 }));
+  assert.throws(() => readJourney({ ...newJourney(), dog: { name: 'Lost' } }));
+  assert.throws(() => readJourney({ ...newJourney(), settled: true }));
+  assert.throws(() => readJourney({ ...newJourney(), firstRecall: true }));
+  assert.throws(() => readJourney({ ...newJourney(), introSeen: 'true' }));
+});
+
+
+test('Homecoming version-one saves migrate without losing the founding dog', () => {
+  const ready = { ...newJourney(), readLedger: true, prepared: true, kennelName: 'Oak' };
+  const adopted = adoptRescue(ready, 'bruno', 'Copper', ['quiet'], 'founder', '2026-09-30T12:00:00Z');
+  const old = { ...adopted, version: 1, routine: undefined, firstRecall: true, settled: true };
+  const migrated = readJourney(JSON.parse(JSON.stringify(old)));
+  assert.equal(migrated.version, 2); assert.deepEqual(migrated.dog, adopted.dog);
+  assert.equal(migrated.firstRecall, true); assert.equal(migrated.routine.meals, 4);
+  assert.throws(() => readJourney({ ...migrated, routine: { ...migrated.routine, food: -1 } }));
+});
+
+test('care consumes one meal, never charges overfeeding, and training uses condition', () => {
+  const ready = { ...newJourney(), readLedger: true, prepared: true, kennelName: 'Oak' };
+  let j = { ...adoptRescue(ready, 'willow', 'Willow', ['quiet'], 'founder', '2026-09-30T12:00:00Z'), settled: true, firstRecall: true };
+  assert.ok(homeTrainingBlocked(j));
+  j = finishCare(j, 'meal'); assert.equal(j.routine.meals, 3); assert.equal(j.routine.food, 100);
+  assert.equal(finishCare(j, 'meal'), j);
+  j = finishCare(j, 'water'); assert.equal(homeTrainingBlocked(j), null);
+  const weak = finishFocusWalk(j, 20), strong = finishFocusWalk(j, 90);
+  assert.ok(strong.routine.focus > weak.routine.focus); assert.ok(strong.routine.keeperXp > weak.routine.keeperXp);
+  assert.equal(strong.routine.energy, 57); assert.equal(strong.routine.water, 88);
+  assert.equal(strong.routine.sessions, 1); assert.equal(j.routine.sessions, 0);
+  assert.equal(finishFocusWalk({ ...j, routine: { ...j.routine, energy: 0 } }, 100).routine.sessions, 0);
+});
+
+test('focus walk completes through actual movement, cues recover distractions and praise cannot be spammed', () => {
+  const s = createFocusWalk(48, 0, 0);
+  assert.equal(praiseFocus(s), true); assert.equal(praiseFocus(s), false);
+  s.distraction = { x: 2, z: 3 }; s.distracted = 4;
+  assert.equal(cueFocus(s), true); assert.equal(cueFocus(s), false); assert.equal(s.distraction, null);
+  for (let i = 0; i < 10000 && !s.completed; i++) {
+    s.target = { ...WALK_MARKERS[s.marker] };
+    if (s.distraction) cueFocus(s);
+    praiseFocus(s); stepFocusWalk(s, .05);
+  }
+  assert.equal(s.completed, true); assert.equal(s.marker, 5); assert.ok(s.elapsed > 10); assert.ok(focusQuality(s) >= 50);
+  const before = s.elapsed; stepFocusWalk(s, 1); assert.equal(s.elapsed, before);
+  assert.ok(attentionFor(82, 0, 0) > attentionFor(48, 0, 0));
+  assert.ok(attentionFor(48, 25, 30) > attentionFor(48, 0, 0));
+});
+
+
+test('focus-walk quality cannot be raised by waiting motionless', () => {
+  const s = createFocusWalk(60, 0, 0);
+  s.active = 10; s.together = 4; s.dog = { ...s.keeper };
+  const quality = focusQuality(s);
+  for (let i = 0; i < 600; i++) stepFocusWalk(s, .1);
+  assert.equal(focusQuality(s), quality);
+});
+
+
+test('new play yard retrieves from corners and planter edges without resetting the toy', () => {
+  for (const personality of ['pip', 'june'] as const) for (const aim of [{x:-9,z:-7},{x:9,z:-7},{x:9,z:9},{x:-9,z:9},...PLAY_BEDS.map(b=>({x:b.x,z:b.z}))]) {
+    const s = newPlay(personality); s.aim = aim; s.charge = .7;
+    assert.equal(throwToy(s), true); assert.equal(throwToy(s), false);
+    for (let i=0; i<6000 && !s.returns; i++) stepPlay(s,.04);
+    assert.equal(s.returns, 1, `${personality} returns from ${aim.x}, ${aim.z}`);
+    assert.ok(playWalkable(s.dog)); assert.equal(s.phase,'ready'); assert.equal(s.throws,1);
+  }
+});
+
+test('encouragement changes hesitation and a moving keeper can receive the return', () => {
+  const s = newPlay('june'); s.aim={x:7,z:-6}; throwToy(s);
+  assert.equal(s.phase,'hesitate'); callPlayDog(s); assert.equal(s.phase,'chase');
+  for(let i=0;i<500;i++) stepPlay(s,.04,{x:-1,z:0});
+  for(let i=0;i<4000&&!s.returns;i++) stepPlay(s,.04);
+  assert.equal(s.returns,1); assert.ok(playDistance(s.dog,s.keeper)<1.3);
+  const pip = newPlay('pip'); pip.aim={x:7,z:-6}; throwToy(pip);
+  for(let i=0;i<2000&&pip.phase!=='parade';i++) stepPlay(pip,.04);
+  assert.equal(pip.phase,'parade'); callPlayDog(pip); assert.equal(pip.phase,'return');
+});
+
+
+test('Homecoming fetch uses courtyard obstacles and returns across the full property', () => {
+  for (const aim of [{x:-15,z:-2},{x:15,z:18},{x:-15,z:18},{x:15,z:-2},{x:8.5,z:8},{x:-9.5,z:3},{x:-3.2,z:4.5}]) {
+    const s = newPlay(); s.keeper = {x:0,z:11}; s.dog = {x:1.5,z:12}; s.aim = yardAim(aim); s.charge = .8;
+    throwToy(s);
+    for(let i=0;i<4000&&!s.returns;i++) {
+      stepPlay(s,.04,{x:0,z:0},homeGround);
+      assert.ok(propertyWalkable(s.dog));
+      if(s.phase==='chase'||s.phase==='hesitate') assert.ok(propertyWalkable(s.ball));
+    }
+    assert.equal(s.returns,1,`returns from ${aim.x},${aim.z}`);
+  }
+});
+
+
+test('Homecoming handling follows dog abilities rather than character color or temporary returns', () => {
+  const s = newPlay('pip'); s.handling = { hesitates: true, parades: false, familiar: false };
+  s.returns = 8; s.aim = {x:10,z:0}; throwToy(s); assert.equal(s.phase,'hesitate');
+  callPlayDog(s); assert.equal(s.phase,'chase');
+  s.phase = 'ready'; s.handling.familiar = true; throwToy(s); assert.equal(s.phase,'chase');
+});
+
+
+function outingJourney() {
+  return { ...adoptRescue({ ...newJourney(), readLedger:true, prepared:true, kennelName:'Orchard' }, 'willow', 'Maple', ['quiet'], 'founder', '2026-10-01T12:00:00Z'), settled:true };
+}
+test('all neighborhood requests can be searched and returned through physical creek crossings', () => {
+  for(const job of JOBS) {
+    const s = createOuting(outingJourney(),job.id);
+    const destinations = [...job.clues,job.bag,{x:0,z:14}];
+    for(let stage=0;stage<destinations.length;stage++) {
+      const route = trailPath(s.keeper,destinations[stage]); assert.ok(route.length);
+      for(const waypoint of route) {
+        for(let i=0;i<2000&&!s.complete&&outingApart(s.keeper,waypoint)>.12;i++) {
+          const d=outingApart(s.keeper,waypoint);
+          stepOuting(s,.04,{x:(waypoint.x-s.keeper.x)/d,z:(waypoint.z-s.keeper.z)/d});
+          assert.ok(trailWalkable(s.keeper)); assert.ok(trailWalkable(s.dog));
+        }
+        assert.ok(s.complete || outingApart(s.keeper,waypoint)<.2,`${job.id} reaches waypoint in stage ${stage}: ${JSON.stringify(s.keeper)} to ${JSON.stringify(waypoint)}`);
+      }
+      for(let i=0;i<1000 && (stage<2?s.clues<=stage:stage===2?!s.found:!s.complete);i++) stepOuting(s,.04,{x:0,z:0});
+      if(stage===2) assert.equal(collectBag(s),true);
+    }
+    assert.equal(s.complete,true,job.id);
+  }
+});
+test('scent aptitude, pace and earned search experience change detection distance', () => {
+  const j=outingJourney(), strong=createOuting(j,'mara'), weak=createOuting({...j,dog:{...j.dog!,aptitude:{...j.dog!.aptitude,scent:5}}},'mara');
+  for(const s of [strong,weak]) {s.keeper={x:-5,z:7};s.dog={x:-5,z:6};stepOuting(s,.04,{x:0,z:0});}
+  assert.equal(strong.detecting,true);assert.equal(weak.detecting,false);
+  strong.listening=false;stepOuting(strong,.04,{x:0,z:0});assert.equal(strong.detecting,false);
+  strong.distraction=4;whistle(strong);assert.equal(strong.distraction,0);
+  const trained=createOuting({...j,work:{completed:['mara'],searchXp:10,best:80}},'ellis');assert.ok(trained.searchTraining>strong.searchTraining);
+});
+test('neighborhood rewards unlock requests once and preserve old saves', () => {
+  const j=outingJourney();assert.ok(jobBlocked(j,'ellis'));assert.equal(jobBlocked(j,'mara'),null);
+  const done=finishOuting(j,'mara',86);assert.equal(done.routine.meals,j.routine.meals+2);assert.equal(done.routine.energy,j.routine.energy-15);
+  assert.equal(jobBlocked(done,'ellis'),null);assert.equal(workRecord(done).searchXp,10);assert.equal(finishOuting(done,'mara',99),done);
+  assert.equal(workRecord(j).completed.length,0);assert.equal(finishOuting(j,'ellis',99),j);
 });

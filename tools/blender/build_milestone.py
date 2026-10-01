@@ -314,7 +314,8 @@ def create_yard():
     bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE / 'kennel_yard.blend'))
     bpy.ops.export_scene.gltf(filepath=str(OUT / 'kennel_yard.glb'), export_format='GLB', export_animations=False, export_apply=True)
 
-for body_style in ['athletic','stocky']:
-    create_dog(body_style)
-create_yard()
-print('Milestone assets written to', OUT)
+if __name__ == '__main__':
+    for body_style in ['athletic','stocky']:
+        create_dog(body_style)
+    create_yard()
+    print('Milestone assets written to', OUT)

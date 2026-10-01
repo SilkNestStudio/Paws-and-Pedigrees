@@ -1,3 +1,5 @@
+import { agilityTuning, agilitySpeed, agilityReport, cueObstacle, obstacleControls, type RunTuning } from './simulation';
+import { reportMetrics, type ActivityReport } from '../club/performance';
 import Handler3D from '../yard/Handler3D';
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -9,17 +11,17 @@ import { COURSE, GATES, FINISH_Z, type CourseObstacle } from './course';
 import { createRun, runPerformance, seesawAngle, stepRun, type Controls, type RunState } from './simulation';
 
 type Phase = 'ready' | 'countdown' | 'running' | 'paused' | 'finished';
-interface Props { handlerView?: boolean; dog?: DogAppearance; onComplete: (performance: number) => void; onCancel?: () => void; dogName: string; agility?: number; mode?: 'training' | 'competition' | 'welcome' }
+interface Props { handlerView?: boolean; dog?: DogAppearance; onComplete: (performance: number, report?: ActivityReport) => void; onCancel?: () => void; dogName: string; agility?: number; mode?: 'training' | 'competition' | 'welcome' }
 
-function Obstacle({ obstacle: o, index, active, run }: {
-  obstacle: CourseObstacle; index: number; active: boolean; run: MutableRefObject<RunState>;
+function Obstacle({ obstacle: o, index, active, run, onCue }: {
+  onCue?: (index: number) => void; obstacle: CourseObstacle; index: number; active: boolean; run: MutableRefObject<RunState>;
 }) {
   const plank = useRef<Group>(null);
   useFrame(() => { if (plank.current) plank.current.rotation.x = seesawAngle(run.current.z, run.current.x); });
   const color = active ? '#fbbf24' : '#e2e8f0';
-  return <group position={[o.x, 0, o.z]}>
-    <Html position={[-2, 2, 0]} center distanceFactor={18} style={{ pointerEvents: 'none' }}>
-      <div className={`rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-lg ${active ? 'bg-amber-300 text-slate-950' : 'bg-white text-slate-700'}`}>{index + 1}</div>
+  return <group position={[o.x, 0, o.z]} onPointerDown={onCue ? e => { e.stopPropagation(); onCue(index); } : undefined}>
+    <Html position={[-2, 2, 0]} center distanceFactor={18} style={{ pointerEvents: onCue ? 'auto' : 'none' }}>
+      <button tabIndex={onCue ? 0 : -1} aria-label={`Cue ${o.label}`} onClick={() => onCue?.(index)} className={`rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-lg ${active ? 'bg-amber-300 text-slate-950' : 'bg-white text-slate-700'}`}>{index + 1}</button>
     </Html>
     {o.kind === 'jump' && <>
       {[-1.8, 1.8].map(x => <mesh key={x} position={[x, 0.8, 0]} castShadow><boxGeometry args={[0.2, 1.6, 0.35]} /><meshStandardMaterial color={color} /></mesh>)}
@@ -40,8 +42,8 @@ function Obstacle({ obstacle: o, index, active, run }: {
   </group>;
 }
 
-function Scene({ run, controls, phase, maxSpeed, onSnapshot, appearance, onReady, handlerView = false }: {
-  handlerView?: boolean; run: MutableRefObject<RunState>; controls: MutableRefObject<Controls>;
+function Scene({ run, controls, phase, maxSpeed, onSnapshot, appearance, onReady, handlerView = false, tuning, ability = 50 }: {
+  ability?: number; tuning?: RunTuning; handlerView?: boolean; run: MutableRefObject<RunState>; controls: MutableRefObject<Controls>;
   onReady: (ready: boolean) => void; appearance?: DogAppearance; phase: Phase; maxSpeed: number; onSnapshot: (run: RunState) => void;
 }) {
   useEffect(() => { onReady(true); }, [onReady]);
@@ -54,12 +56,13 @@ function Scene({ run, controls, phase, maxSpeed, onSnapshot, appearance, onReady
   useFrame(({ camera }, delta) => {
     if (phase === 'running') {
       let input = controls.current;
-      if (input.x || input.z) destination.current = null;
+      if (input.x || input.z) { destination.current = null; run.current.cuedObstacle = null; }
+      if (handlerView && run.current.cuedObstacle !== null) { destination.current = null; input = obstacleControls(run.current, ability, maxSpeed); }
       if (destination.current) {
         const dx=destination.current.x-run.current.x,dz=destination.current.z-run.current.z,d=Math.hypot(dx,dz);
         if(d<.25)destination.current=null;else input={x:dx/d,z:dz/d,jump:input.jump};
       }
-      stepRun(run.current, input, delta, maxSpeed);
+      stepRun(run.current, input, delta, maxSpeed, tuning);
     }
     const r = run.current;
     if(handler.current){handler.current.position.set(r.x+2.3,0,r.z+2);handler.current.rotation.y=r.heading;}
@@ -86,9 +89,9 @@ function Scene({ run, controls, phase, maxSpeed, onSnapshot, appearance, onReady
       {Array.from({ length: 20 }, (_, i) => <mesh key={i} position={[x, 0.7, 20 - i * 4.8]} castShadow><boxGeometry args={[0.18, 1.4, 0.18]} /><meshStandardMaterial color="#f4eee0" /></mesh>)}
     </group>)}
     {[16, FINISH_Z].map(z => <mesh key={z} position={[0, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, 0.35]} /><meshStandardMaterial color="#fff7ed" /></mesh>)}
-    {COURSE.map((o, index) => <Obstacle key={o.id} obstacle={o} index={index} active={index === activeObstacle} run={run} />)}
+    {COURSE.map((o, index) => <Obstacle key={o.id} onCue={handlerView ? index => { if (phase === 'running') { destination.current = null; cueObstacle(run.current, index); } } : undefined} obstacle={o} index={index} active={index === activeObstacle} run={run} />)}
     <group ref={marker}><mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.35, 0.6, 24]} /><meshBasicMaterial color="#ffed94" /></mesh></group>
-    {handlerView&&<><mesh position={[0,.035,-26]} rotation={[-Math.PI/2,0,0]} onPointerDown={e=>{e.stopPropagation();if(phase==='running')destination.current={x:e.point.x,z:e.point.z};}}><planeGeometry args={[26,92]}/><meshBasicMaterial transparent opacity={0} depthWrite={false}/></mesh><group ref={handler}><Handler3D moving={phase==='running' && Math.hypot(run.current.vx,run.current.vz)>.2}/></group></>}
+    {handlerView&&<><mesh position={[0,.035,-26]} rotation={[-Math.PI/2,0,0]} onPointerDown={e=>{e.stopPropagation();if(phase==='running'){run.current.cuedObstacle=null;destination.current={x:e.point.x,z:e.point.z};}}}><planeGeometry args={[26,92]}/><meshBasicMaterial transparent opacity={0} depthWrite={false}/></mesh><group ref={handler}><Handler3D moving={phase==='running' && Math.hypot(run.current.vx,run.current.vz)>.2}/></group></>}
     <group ref={dog}><group scale={0.85}><Dog3D dog={appearance} position={[0, 0, 0]} isRunning={phase === 'running' && Math.hypot(run.current.vx, run.current.vz) > 0.2} speed={1.2} /></group></group>
   </>;
 }
@@ -142,35 +145,37 @@ export default function AgilityGame({ onComplete, onCancel, dogName, dog, agilit
   return createPortal(<div className="agility-game fixed inset-0 z-[100] bg-slate-950 text-white" role="region" aria-label="Agility training course">
     <Canvas shadows={quality === 'standard'} dpr={quality === 'low' ? 1 : [1, 1.5]} camera={{ position: [0, 7, 24], fov: 55 }} gl={{ antialias: true, alpha: false }}
       fallback={<div className="p-8">This device cannot display the 3D course. Please use a browser with WebGL support.</div>}>
-      <Scene handlerView={handlerView} onReady={setLoaded} appearance={dog} run={run} controls={controls} phase={phase} maxSpeed={5.5 + Math.min(100, Math.max(0, agility)) / 100} onSnapshot={snapshot} />
+      <Scene ability={agility} handlerView={handlerView} onReady={setLoaded} appearance={dog} run={run} controls={controls} phase={phase} tuning={handlerView ? agilityTuning(agility) : undefined} maxSpeed={handlerView ? agilitySpeed(agility) : 5.5 + Math.min(100, Math.max(0, agility)) / 100} onSnapshot={snapshot} />
     </Canvas>
     <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-3 pointer-events-none">
       <div className="rounded-2xl bg-slate-950/85 px-4 py-3 shadow-xl max-w-[65%]">
         <p className="text-xs uppercase tracking-widest text-amber-200">Meadow agility · {dogName}</p>
         <div className="flex gap-5 mt-1 font-bold"><span>{hud.time.toFixed(1)}s</span><span>{hud.faults} faults</span><span>{GATES[hud.gate]?.obstacle ?? COURSE.length}/{COURSE.length}</span></div>
         <p className="text-xs text-slate-200 mt-1">{hud.feedback}</p>
-        {phase === 'running' && <p className="text-xs text-amber-200 mt-2 max-w-sm">{coaching}</p>}
+        {phase === 'running' && <p className="text-xs text-amber-200 mt-2 max-w-sm">{handlerView ? (hud.cuedObstacle !== null ? 'Your dog is working. Watch its approach, turns and clearance.' : 'Choose the next obstacle to send your dog.') : coaching}</p>}
       </div>
       <div className="flex gap-2 pointer-events-auto">
         {phase === 'running' && <button className="inline-button rounded-xl bg-slate-950/85 p-3" onClick={() => { clearInput(); setPhase('paused'); }}>Pause</button>}
         {onCancel && <button className="inline-button rounded-xl bg-slate-950/85 p-3" onClick={onCancel}>Exit</button>}
       </div>
     </div>
-    {phase === 'running' && <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between"><div className="agility-dpad"><span />{pad('↑', 'KeyW')}<span />{pad('←', 'KeyA')}{pad('↓', 'KeyS')}{pad('→', 'KeyD')}</div>{pad('Jump', 'Space')}</div>}
+    {phase === 'running' && handlerView && <div className="agility-handler-controls"><p>Choose the next obstacle. Your dog approaches, jumps and negotiates it using its own abilities.</p><button onClick={() => { if(nextGate) cueObstacle(run.current, nextGate.obstacle); }} disabled={!nextGate || hud.cuedObstacle !== null}>{hud.cuedObstacle !== null ? 'Dog working...' : nextObstacle ? `Send to ${nextObstacle.label}` : 'Crossing the finish'}</button></div>}
+    {phase === 'running' && !handlerView && <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between"><div className="agility-dpad"><span />{pad('↑', 'KeyW')}<span />{pad('←', 'KeyA')}{pad('↓', 'KeyS')}{pad('→', 'KeyD')}</div>{pad('Jump', 'Space')}</div>}
     {phase === 'countdown' && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-8xl font-black drop-shadow-lg" aria-live="polite">{countdown}</div>}
     {(phase === 'ready' || phase === 'paused' || phase === 'finished') && <div className="absolute inset-0 flex items-center justify-center bg-slate-950/50 p-4 overflow-auto">
       <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-white/10">
         <p className="text-xs uppercase tracking-widest text-amber-300 mb-2">Train together. Grow together.</p>
         <h2 className="text-3xl font-bold">{phase === 'finished' ? 'A run to build on' : phase === 'paused' ? 'Taking a breather' : mode === 'welcome' ? `${dogName}'s welcome meet` : `${dogName}'s agility ${mode === 'competition' ? 'trial' : 'session'}`}</h2>
         {phase === 'finished' ? <>
+          {handlerView && <div className="activity-evidence"><strong>{agilityReport(hud).score}/100 - time matters from the start</strong><dl>{reportMetrics(agilityReport(hud)).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><p>Practice improves acceleration, changes of direction and jump clearance. Your dog chooses its approach and jump timing. Practice improves the movement it uses for these tasks.</p></div>}
           <div className="agility-results-grid gap-3 my-6 text-center"><div><p className="text-2xl font-bold">{hud.time.toFixed(1)}s</p><p className="text-sm text-slate-300">Time</p></div><div><p className="text-2xl font-bold">{hud.faults}</p><p className="text-sm text-slate-300">Faults</p></div><div><p className="text-2xl font-bold">{runPerformance(hud).toFixed(2)}×</p><p className="text-sm text-slate-300">{mode !== 'training' || handlerView ? 'Run quality' : 'Training gain'}</p></div></div>
-          <button className="w-full rounded-xl bg-amber-300 text-slate-950 p-3 font-bold" onClick={() => { if (!submitted.current) { submitted.current = true; onComplete(runPerformance(run.current)); } }}>{handlerView ? 'Save round & continue' : mode === 'competition' ? 'View standings' : mode === 'welcome' ? 'Finish welcome meet' : 'Finish session'}</button>
+          <button className="w-full rounded-xl bg-amber-300 text-slate-950 p-3 font-bold" onClick={() => { if (!submitted.current) { submitted.current = true; onComplete(runPerformance(run.current), handlerView ? agilityReport(run.current) : undefined); } }}>{handlerView ? 'Save round & continue' : mode === 'competition' ? 'View standings' : mode === 'welcome' ? 'Finish welcome meet' : 'Finish session'}</button>
           {mode === 'training' && <button className="w-full mt-2 p-3 rounded-xl border border-white/20" onClick={start}>Practice again before finishing</button>}
         </> : <>
           {mode==='welcome'&&<p className="my-4 text-amber-200">Free, unranked welcome meet. Finish every gate to earn your participation ribbon. No entry fee, no training-point cost, and no championship points.</p>}
-          <p className="my-4 text-slate-200">Follow six numbered obstacles and the golden marker. Clear the bars, run through the tunnel, alternate sides of the weave poles, and walk across the seesaw.</p>
-          <p className="text-sm text-slate-300">{handlerView ? 'Tap the course to direct your dog, or use WASD / arrows' : 'WASD / arrows to move'} · Space to jump · Escape to pause. Touch controls are also available. A missed gate adds one fault; return and complete it.</p>
-          <label className="flex items-center justify-between my-5 text-sm">Graphics<select className="bg-slate-800 rounded-lg p-2" value={quality} onChange={e => setQuality(e.target.value as 'standard' | 'low')}><option value="standard">Standard</option><option value="low">Low</option></select></label>
+          <p className="my-4 text-slate-200">{handlerView ? 'Select each numbered obstacle in order. Your dog will approach, jump, weave and cross the seesaw. Training improves how it executes the task.' : 'Follow the numbered course. Jump the bars, stay on the ground through the tunnel, weave poles and seesaw.'}</p>
+          <p className="text-sm text-slate-300">{handlerView ? 'Click a numbered obstacle or use Send to obstacle. Your dog handles the jumps and gates. Tap the ground to reposition if needed. Escape pauses the run.' : <>WASD / arrows to move · Space to jump · Escape to pause. Touch controls are also available. A missed gate adds one fault; return and complete it.</>}</p>
+          <p className="text-sm text-amber-200">{handlerView ? `Today: ${agilitySpeed(agility).toFixed(1)} m/s running pace. Training improves cornering and jump technique as well as speed.` : ""}</p><label className="flex items-center justify-between my-5 text-sm">Graphics<select className="bg-slate-800 rounded-lg p-2" value={quality} onChange={e => setQuality(e.target.value as 'standard' | 'low')}><option value="standard">Standard</option><option value="low">Low</option></select></label>
           <button className="w-full rounded-xl bg-amber-300 text-slate-950 p-3 font-bold" disabled={!loaded} onClick={phase === 'paused' ? () => setPhase('running') : start}>{!loaded ? 'Loading your dog...' : phase === 'paused' ? 'Continue session' : 'Start session'}</button>
           {phase === 'paused' && mode === 'training' && <button className="w-full mt-2 p-2" onClick={start}>Restart course</button>}
         </>}

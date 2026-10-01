@@ -1,6 +1,6 @@
 # Paws & Pedigrees: product vision and direction
 
-Last updated: September 29, 2026.
+Last updated: September 30, 2026.
 
 ## Read this first
 
@@ -18,6 +18,8 @@ Decision labels used below:
 ## 1. What the app should become
 
 **Agreed direction:** an accessible 3D dog companionship, training, competition, working-dog, and breeding game in which the player builds a respected kennel from one founding rescue.
+
+**Core identity clarified by the owner:** the project originated as a breeding game. Breeding and building generations must be a major pillar of the redesigned game, planned into its foundation even if players unlock breeding later. Active companionship, training, and competition should support this identity, not displace it.
 
 The player is the human keeper/handler. Dogs are individual companions with discoverable strengths, learned abilities, personalities, and lives that develop over time. They are also the foundation of a kennel that can earn recognition through individual performance, useful work, and team achievements.
 
@@ -42,6 +44,10 @@ Do not respond to this feedback only by polishing labels, moving buttons, adding
 The owner gave agility, search, swimming, show events, Shepherds, and Collies as examples. They did not approve those examples as an exclusive discipline list or a fixed three-discipline milestone. A proposed 'first season' was unclear; a calendar-based season is not a requirement.
 
 ## 3. The connected play loop
+
+**Latest owner-supplied story proposal:** inherit a former champion kennel, introduce its history before adopting the founding rescue, discover promise despite an early overall competition loss, earn through odd jobs, develop both keeper and dogs, restore useful facilities, expand the roster, breed and raise distinct litters, retain or sell puppies according to capacity, and pursue the predecessor's championship legacy with a new kennel name and team. The owner explicitly presents this as an editable idea, not a fixed script. Detailed and plausible coat inheritance is a major design requirement. See [Kennel legacy story proposal](LEGACY_STORY_PROPOSAL.md) for the full sequence, recommendations, research references, and unresolved choices. The owner subsequently authorized starting the new playable experience; unsettled story and balance details remain open.
+
+**Confirmed follow-up:** the former keeper is Grandpa, who leaves the player the kennel when he passes away. Preserve intended player progression: do not introduce breeding or other later gameplay prematurely for testing. The owner wants admin controls to change levels, stats, and related state so later stages can be tested before release. Test access is separate from normal gameplay unlocks; specific controls and scenarios are still to be designed.
 
 **Proposed design supporting the agreed direction:**
 
@@ -156,7 +162,7 @@ Care should support attachment and preparation. Design the session budget so mai
 
 ## 9. Breeding, puppy development, aging, and legacy
 
-**Agreed direction:** breeding is an integral later layer, including crossbreeds, inherited differences, and litters of distinct puppies. A dog need not become a national champion to breed. Extensive development and high-level participation provide a fuller understanding of its potential before a player chooses a pairing.
+**Agreed direction:** breeding is a central long-term system introduced later in the player's journey, including crossbreeds, inherited differences, and litters of distinct puppies. Its later introduction does not make it a secondary design priority. A dog need not become a national champion to breed. Extensive development and high-level participation provide a fuller understanding of its potential before a player chooses a pairing.
 
 Pairings should serve goals: complementary team roles, stronger abilities, steadier temperaments, or a desired combination of characteristics. Earlier breeding means making decisions with less evidence; it should not mean arbitrarily worthless puppies.
 
@@ -194,11 +200,11 @@ Maintain readable controls, pause/resume, visible exits, sensible cancellation, 
 
 ## 12. Current implementation versus intended destination
 
-Snapshot updated for the September 29 Field Club implementation. The preceding deployed foundation was `620ba7f`.
+Snapshot updated for the September 30 handler-command and separate-training implementation.
 
 - Preserved foundations: IndexedDB saves, rescue adoption, dog records and genetics, care/bonding, a 3D kennel and handler yard, fetch/obedience activities, agility, shop, breeding/nursery rules, older competition activities, and return navigation.
 - New playable slice: four Field Club disciplines (agility, scent search, herding, water retrieval), per-dog experience and discovery, aptitude/composition effects on performance and learning, keeper coaching, specialist events, four-round individual trials, and four-round team trials with at least two owned dogs. Opponents are explicitly simulated local club rivals.
-- New-player direction: adoption leads to a visible club invitation, first suggested scent-search practice, a four-discipline passport, a beginner combined trial, then specialist/team options and a second rescue. Care is available in the club before events. New players receive daily rewards only on a later day after finishing their introduction. Old saves and the older first-ribbon record remain compatible.
+- New-player direction: adoption leads to a visible club invitation and a choice of qualified events. Separate training exercises develop ability toward locked events. The first finished club event opens membership and wider kennel options; completing events in all four disciplines opens the combined trial. Care is available in the club before events. New players receive daily rewards only on a later day after finishing their introduction. Old saves and the older first-ribbon record remain compatible.
 - Partial: breed sport profiles are prototype balancing values, not biological rankings; visual environments and animations are early assets. The agility course is reused. Team events allocate dogs to sequential rounds rather than simultaneous multiplayer or relays.
 - Future work: higher-tier combined championships, meaningful working assignments, more activity families, advanced training exercises, facility-specific activity unlocks, coherent lifetime/economy balancing, discipline inheritance beyond existing breed composition/base stats, authoritative online competition, payments, and activity-pack entitlements.
 
@@ -206,13 +212,64 @@ Do not present the full expansion backlog as delivered. See [Field Club implemen
 
 ## 13. Current milestone and unresolved choices
 
-The owner clarified the previously unfinished request and authorized creating the initial 3?4 disciplines as a functional tester game demonstrating the larger concept. The selected first slice is **agility, scent search, herding, and water retrieval**, chosen for different decisions. This selection does not exclude other activities from section 5.
+The owner clarified the previously unfinished request and authorized creating the initial 3-4 disciplines as a functional tester game demonstrating the larger concept. The selected first slice is **agility, scent search, herding, and water retrieval**, chosen for different decisions. This selection does not exclude other activities from section 5.
 
-The first outcome is completing a beginner combined trial with the founding rescue. Every sport contributes equally; later a team trial demonstrates why complementary dogs matter. Starter event grants are paid once per event category; replaying develops skills and records. This is a local testing economy, not a completed long-term financial model.
+The first outcome is finishing an eligible club event with the founding rescue. Training is separate from competition, not a mandatory rehearsal of the same course. Completing club events in all four disciplines leads to the combined trial. Every sport contributes equally; a team trial demonstrates why complementary dogs matter. Starter event grants are paid once per event category; replaying develops skills and records. This is a local testing economy, not a completed long-term financial model.
 
 Later work must settle championship composition and qualification, richer team roles, activity/facility progression, life pacing, breed/inheritance balancing, and paid-content boundaries. Observe unfamiliar testers before expanding the discipline list: they should understand what to do, what the dog learned, and why another dog could help.
 
+## September 30: confirmed controls and training direction
+
+- **Agreed:** the player gives handler commands; dogs execute using their abilities. Water sends should show swimming speed and retrieval competence, including a correctable empty return. Agility cues select an obstacle and the dog performs it.
+- **Agreed:** search needs a closer view. Strong scent dogs detect across a box; inexperienced dogs need directions to additional sides. Extra guidance should allow completion of an eligible activity.
+- **Agreed:** training requirements should actually block harder events. Players choose events their dog qualifies for and develop toward others.
+- **Agreed:** training must not be the same task repeated as an event. Shorter copies of competitive courses do not satisfy this request. Training should teach underlying skills through separate exercises.
+- **Implemented preview:** handler cues for all four events; search side investigations and a close camera; autonomous agility approaches, herding pressure and water pickups/returns; observable speed, detection, turning, stamina and handling differences; reports of actual execution and continuous time scoring.
+- **Implemented preview:** separate ground-pad footwork, dry-land conditioning, and focus/steadiness exercises around a distraction. Search and herding currently share the stay exercise with discipline-specific progression. This is not a complete training curriculum.
+- **Implemented preview:** standard event working-ability requirement 35; advanced five-object search and four-dummy cross-current retrieval require 120 discipline XP and ability 55. Those are two harder events in existing sports, not two new disciplines. Requirements and learning rates are initial balancing choices, not owner-approved final numbers.
+- Older scores remain readable as earlier records. New event records use revised scoring; training does not overwrite competitive bests. Existing saves are preserved.
+
+## Latest September 30 direction: prove that an activity is fun
+
+The owner found the initial handler-command activities rudimentary: selecting a target, waiting and repeating remained the main interaction. Dog-dependent speed alone did not solve that problem.
+
+**Approved immediate scope:** redesign search as a small woodland investigation, then test whether players want another attempt. The owner accepted the search-first recommendation. Richer flock herding, drifting water recoveries and continuous agility runs were brainstormed; they are not part of this search implementation.
+
+**Implemented search revision:** a missing ranger/photographer/surveyor bag, three seeded case identities, route forks with matching clothing/bootprint evidence versus animal traces, local scent ribbons, careful/brisk pacing, limited scent refreshes, recoverable rabbit distractions, and ground exploration across broken scent trails. The handler follows the dog through the woodland. Three discoveries finish a normal case; the advanced expedition has five. No failure countdown: elapsed time still affects efficiency scoring. Dog ability changes detection reach, inspection time, susceptibility to rushing distractions and support needed at scent gaps. Training stays separate.
+
+New search records distinguish woodland cases from older box-search bests. Saved club visits/results, qualification, combined/team rounds and IndexedDB remain integrated. This is an authored branching investigation with seeded variations, not an open-world procedural mystery system. It needs human playtesting; automated completion is not proof of enjoyment. See [woodland search](WOODLAND_SEARCH.md).
+
+## Yard access to training
+
+The owner requested replacing the yard's Agility entry with **Training**, opening a menu instead of immediately starting an agility session. The physical marker and matching yard action now open a four-discipline training menu. It uses the same exercises, qualification development and saved records as the Field Club, with access to other existing training plans. Exercises return to the training menu, which has an explicit return to the yard. An unfinished club event is preserved and offers a route back to the club instead of being overwritten.
+
+## Latest owner direction: rethink the whole experience
+
+The owner says the current game still feels like an old-school computer game they would not want to play. The existing prototype is a reference for the idea, not a requirement for the new game's appearance, behavior, controls, or progression. Further incremental improvements to menus and individual minigames do not by themselves address this feedback.
+
+**Confirmed direction:** reconsider the overall playable experience before expanding the current implementation. Preserve the rescue-first human keeper premise and long-term dog development/kennel vision; reassess how players actually experience them. Earlier Field Club and search milestones document delivered experiments, not an approved final product structure.
+
+**Proposal, not yet approved:** define a cohesive companion-and-kennel experience and prove it in a separate, small playable prototype, with deliberate movement/camera design, expressive dog behavior, active training distinct from an event, and one useful visible kennel improvement. Camera, control scheme, art direction, exact activity, and prototype scope still need agreement. No wholesale rewrite, engine migration, or save reset has been approved by this discussion.
+
+**Follow-up clarification:** the owner prefers retaining this repository and its existing access/deployment setup, including if the eventual implementation is a complete rebuild. A separate prototype does not require a separate repository. The owner explicitly wants to discuss more points before implementation starts; remain in design discussion until that instruction changes. Breeding is fundamental to that discussion and must shape the proposed progression and dog systems from the outset.
+
+**Latest authorization superseding the discussion pause:** the owner says this is a good point to start building and fine-tuning gameplay, and explicitly chose a closer follow camera with keyboard movement and phone controls. The initial Homecoming preview is implemented at `/?preview=legacy`, linked from the existing kennel. It offers a new walkable courtyard, Grandpa's ledger, preparation of one run, kennel naming, and an introduction to the future nursery/training spaces. The normal preview begins without a dog and ends before adoption. Separate test controls add a temporary companion and restored finishes. This is an environment/control prototype with existing character models, not the finished art direction, a playable rescue visit, new breeding implementation, or the full admin editor. Preview state lasts only for the visit and never mounts the existing persisted game store. See [Homecoming preview](HOMECOMING_PREVIEW.md).
+
+**Owner feedback and next refinement:** the owner prefers the close view over the overhead view, but destinations such as the front gate need stronger signage/direction or view orientation. The owner also requests professionally presented people and dogs rather than boxy placeholder figures. Preserve the close camera while improving wayfinding and character quality. Implemented locally: front-gate architecture and courtyard signs, a destination/distance/bearing indicator with Face destination, full camera rotation with building clearance, and new original Blender keeper plus athletic/stocky dog assets for the preview. These replace the preview's old figures, with smoother connected forms, facial/clothing details, articulated rigs and animation; they do not establish final approved art, realistic coat inheritance, or breed-specific models. Existing game saves and earlier scenes are unchanged by the asset replacement.
+
+**Latest authorization and playable continuation (September 30):** the owner requests a shelter, choosing/naming the founding dog, and continued development with periodic meaningful testing check-ins rather than approval for every implementation step. Build connected playable sections; ask when a substantial design decision is unresolved. Implemented in the same Homecoming route: 3D shelter with three mixed-breed rescues, distinct greeting responses and observations, candidate-specific meeting prerequisite, name validation and adoption, return with the chosen dog, settling at the prepared run, and a physical first recall with a one-time bond gain. Hidden fictional aptitude profiles are preserved for future performance systems, not yet wired into new competitions or genetics. The first adoption is covered; ongoing money/food economy remains pending. Homecoming now saves story/name/dog/progress in a separate versioned IndexedDB repository with revision-conflict checks. This supersedes earlier statements that the preview ends at the gate or lasts only for the visit. Original game saves remain separate. Existing test toggles are not a full admin editor. See [Homecoming implementation notes](HOMECOMING_PREVIEW.md).
+
+**Confirmed visual direction and next step:** the owner wants the rebuilt game eventually to have polished, cartoony graphics rather than the current visibly basic 3D assets. This is not a request to complete the art overhaul immediately. Preserve the gameplay/save architecture while planning a coherent stylized character/environment/material/lighting/animation pass. Current meshes are replaceable prototypes, not approved final art. The owner tested shelter/adoption and authorized proceeding.
+
+**Care and foundation training continuation:** implemented meals, water and quiet rest at the run, a persistent condition/supply display, four starter meals and a rescue emergency ration when empty. This is the beginning of the care loop, not the final economy or real-time lifecycle. No offline neglect/aging is applied by this slice. The dog walks to the run and finishes a short care action before the resource/state change commits. No repeat-care bond farming. A separate 3D focus-walk lesson lets the keeper choose a route and pace through five markers, handle scent distractions and praise close following. Natural focus, learned focus and keeper experience affect distraction sensitivity and following speed. Completed lessons award quality-dependent focus/keeper experience and use condition; cancellation gives no reward/cost. A newcomers' meet invitation follows the first completion, but the actual event remains unimplemented. Version-one Homecoming saves migrate to version two without losing the adopted dog or completed introduction.
+
+**October 1 correction from the owner:** the Homecoming rebuild still feels like the same game with a new camera: the palette, repeated clicking and underlying play were not different enough. Do not treat the added care/lesson/intro systems as proof the redesign succeeded. Stop expanding that loop until a different interaction is worth playing. The owner authorized rebuilding the yard as a demonstration of the proposed direction.
+
+**Implemented separate play yard:** `/?preview=yard`, with a prominent link from Homecoming. This uses a new pastel garden, original code-built cartoon dog/keeper, continuous keeper movement, free ground aiming and hold/release throws, bouncing/rolling toy physics, obstacle-aware retrieval, optional moving target, camera orbit/wide view and desktop/phone controls. Pip can take a playful victory lap; June hesitates on long throws and responds to encouragement. Three returns reduce that behavior within the temporary demo session. Those are illustrative personalities, not the finalized aptitude or training rules. No adoption, care, breeding, economy, save migration or real kennel rewards are coupled to this experiment. It never opens a database. The owner must judge whether this is a more enjoyable direction; automated retrieval tests and brighter art do not establish that it is.
+
 ## 14. Evidence that the next milestone is working
+
+**Confirmed opening-story addition (September 30):** the owner wants the beginning to explain more of Grandpa's story, with pictures of him and of the kennel in its successful years while explaining that he left it to the player. Implemented in the Homecoming preview: a player-paced, three-part illustrated prologue covering Grandpa and his dogs, the kennel's championship/breeding history, and the inheritance with modest starting resources and a rescue-first future. Original generated illustrations accompany HTML text, Back/Continue/Skip controls and journal replay. The final page points to the ledger. Replay does not reset preview progress. This adds narrative presentation, not economy grants or newly playable later systems; preview isolation and intended breeding progression remain intact. See [story artwork and prompts](../art/story/homecoming/README.md).
 
 - A new player can explain the goal and identify a useful next action without the developer coaching them.
 - Activities involve different decisions, not just different graphics.
@@ -233,3 +290,27 @@ Later work must settle championship composition and qualification, richer team r
 - [Playable first day](APPRENTICESHIP.md) and [playable tutorial](PLAYABLE_TUTORIAL.md): current onboarding implementation history.
 
 Update this document when the owner makes a product decision. Record what changed, distinguish proposals from commitments, and keep the implementation snapshot honest.
+
+
+## October 1: combine the characters and Homecoming yard
+
+**Confirmed owner clarification:** use the newest play-yard characters in the Homecoming environment. The dissatisfaction centers on game feel and mechanics more than appearance. Preserve the inherited property as the connected setting instead of treating another palette/environment change as the solution.
+
+**Implemented locally:** the shared Homecoming character renderer now uses the cartoon keeper and athletic/stocky dog variants across courtyard, shelter and focus walk. Existing adoption identity, collar, name and progress remain. Homecoming offers optional **Play fetch** in the actual courtyard, with hold/aim/release throws, continuous movement while retrieving, obstacle-safe ball bounces and paths, return to the moving keeper, and recall encouragement. Putting the toy away restores exploration; care and travel clear free play. Objective/direction cards hide during fetch so they do not cover the play space. No new forced tutorial, daily task or separate score screen was added.
+
+The shared fetch simulation now takes an environment adapter. Courtyard collision/path rules replace the small garden bounds, and there is no invisible moving-target reward here. Saved retrieval aptitude controls speed (initial rule: 3.6 + aptitude / 40 meters per second). Below 70 retrieval aptitude, a long throw can cause a short hesitation; below 60 natural focus, the dog can take a brief playful lap. Existing learned focus of 20 removes these beginner behaviors. These are provisional game rules, not biological claims or a final ability model. Every dog can finish; encouragement helps. Homecoming does not inherit the standalone demo's automatic three-return familiarity unlock. Fetch returns do not award or persist training, bond, money or condition changes yet.
+
+The isolated garden remains available as an experiment. Future work should improve the connected Homecoming interaction, training and purpose in response to actual playtesting. This combination is not proof the overall gameplay problem is solved.
+
+
+## October 1: a complete neighborhood outing to judge the game
+
+**Owner feedback:** after days of prototypes, the owner still finds the game subpar and wants enough actual gameplay to judge whether to continue. They authorized more development. A complete search-and-return outing is the current implementation choice, not a claim that the game's direction has now been validated.
+
+**Implemented locally in Homecoming:** a request board at the front gate, available once the founding rescue is settled, leads to the orchard loop. Mara asks for a missing satchel. The keeper walks continuously, chooses a path and creek crossing, can direct nearby searches, adjusts careful/jogging pace, reads the dog's local scent indication, handles rabbit distractions, finds two clues and the item, asks the dog to retrieve it, and physically returns to the neighbor. There is no countdown or forced failure. The trail map labels landmarks and crossings without exposing hidden items. Pause/exit is available throughout.
+
+Scent aptitude changes detection distance; careful pace preserves detection while jogging reduces it. Learned focus helps scent work and resisting distractions. Earned search experience increases detection distance on later outings; keeper experience reduces inspection time. These are tunable fictional game rules. Actual dog behavior and local gold scent motes show the differences. Findings happen through exploration/proximity and dog work, not repeated clicks on stationary clue buttons.
+
+The first completed request grants two pantry meals, eight keeper experience, ten search experience and four bond, while using fifteen energy, twelve water and eight food. It unlocks Ellis's eastern delivery search and Rowan's cross-property notebook search. These are three authored requests in the same environment, not three new disciplines or procedural content. First-completion rewards are saved once; replays are free with no repeat rewards/costs, and abandoning an outing changes no saved stats. Further economy, competitions, training curriculum, facility upgrades and breeding remain unfinished.
+
+The optional `work` field extends the version-two Homecoming snapshot. Existing saves without it keep their original data and read as no completed jobs. Invalid work records stop loading instead of being discarded. No original-game database changes or cloud dependencies were introduced. See `docs/NEIGHBORHOOD_OUTINGS.md` for implementation and verification notes.

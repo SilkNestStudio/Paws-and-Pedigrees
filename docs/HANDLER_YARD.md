@@ -16,3 +16,9 @@ The yard now separates the player's actions from the companion's choices.
 Local IndexedDB requires no migration. Before enabling Supabase sync, apply `supabase/migrations/20260928000000_yard_bowls.sql`, which adds the dog's JSON bowl state. No cloud service or deployment was changed for this work.
 
 Validation: unit coverage in `tests/game.test.ts`; isolated browser fixtures in `scripts/yard-handler-smoke.mjs`, `scripts/yard-roaming-smoke.mjs`, `scripts/yard-camera-smoke.mjs`; real first-day flow in `scripts/first-day-smoke.mjs`. Tests use separate browser contexts and do not reset the player's save.
+
+## Training menu (September 30)
+
+The former Agility yard marker and side action are labeled **Training**. Walking there opens the yard training menu: agility footwork, scent focus, herding steadiness and water conditioning. These reuse the Field Club training simulation and atomic session accounting. Other training plans remain accessible from the menu. Training sessions return to this menu; Return to the yard restores the outdoor view. Unfinished sessions can be continued or ended explicitly, and existing club events cannot be overwritten.
+
+The station keeps its internal `agility` key so existing yard geometry and historical tutorial launches remain compatible. Historical explicit agility/obedience launches retain their behavior; the normal physical entry opens the menu without selecting or starting an exercise.

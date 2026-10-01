@@ -1,3 +1,4 @@
+import type { ActivityReport } from './performance';
 import type { Dog, UserProfile } from '../../types';
 import { rescueBreeds } from '../../data/rescueBreeds';
 import { shopBreeds } from '../../data/shopBreeds';
@@ -6,16 +7,16 @@ export const DISCIPLINES = ['agility', 'search', 'herding', 'water'] as const;
 export type Discipline = typeof DISCIPLINES[number];
 export type FieldDiscipline = Exclude<Discipline, 'agility'>;
 export const DISCIPLINE_INFO: Record<Discipline, { name: string; short: string; verb: string; detail: string; effect: string; color: string }> = {
-  agility: { name: 'Agility', short: 'THE MEADOW', verb: 'Find your rhythm', detail: 'Guide the course in order. Cue jumps, negotiate the tunnel, and keep faults down.', effect: 'Course speed', color: '#b27847' },
-  search: { name: 'Scent search', short: 'THE ORCHARD', verb: 'Follow their nose', detail: 'Send your dog between search stations. Read the scent signal and investigate three hidden objects.', effect: 'Scent detection range and inspection speed', color: '#6c778f' },
-  herding: { name: 'Herding', short: 'THE PADDOCK', verb: 'Work as a partnership', detail: 'Position your dog behind the sheep. Use gentle pressure to guide all three into the far pen.', effect: 'Working distance and calm flock control', color: '#8c7852' },
-  water: { name: 'Water retrieval', short: 'THE LAKE', verb: 'Plan the return', detail: 'Guide your dog to the numbered dummies in order and bring each back to shore. Avoid the current.', effect: 'Swimming speed and stamina efficiency', color: '#4e849c' },
+  agility: { name: 'Agility', short: 'THE MEADOW', verb: 'Find your rhythm', detail: 'Guide the course in order. Cue jumps, negotiate the tunnel, and keep faults down.', effect: 'Running speed, turning control and jump technique', color: '#b27847' },
+  search: { name: 'Scent search', short: 'THE WOODLAND', verb: 'Follow their nose', detail: 'Recover a missing pack by reading woodland clues, choosing trails and guiding your dog through distracting scents.', effect: 'Scent range, trail confidence and inspection speed', color: '#6c778f' },
+  herding: { name: 'Herding', short: 'THE PADDOCK', verb: 'Work as a partnership', detail: 'Choose a sheep to work. Your dog keeps pressure on it; use left and right flanks to correct the line, and steady handling to prevent scatters.', effect: 'Working distance and calm flock control', color: '#8c7852' },
+  water: { name: 'Water retrieval', short: 'THE LAKE', verb: 'Plan the return', detail: 'Choose a direct or sheltered retrieve. Your dog collects and returns the dummy. Watch its stamina before the next send; you can redirect it at any time.', effect: 'Swimming speed and stamina efficiency', color: '#4e849c' },
 };
-export interface DisciplineRecord { xp: number; sessions: number; best: number; last: number; }
+export interface DisciplineRecord { xp: number; sessions: number; best: number; last: number; bestRules?: 2; bestActivity?: ActivityReport['activity']; clubSessions?: number; trainingSessions?: number; trainingCompleted?: boolean; }
 export interface ClubRound { discipline: Discipline; dogId: string; }
-export interface ClubResult extends ClubRound { score: number; dogName: string; gain: number; }
+export interface ClubResult extends ClubRound { score: number; dogName: string; gain: number; abilityBefore?: number; abilityAfter?: number; report?: ActivityReport; }
 export type ClubEvent = 'practice' | 'specialist' | 'combined' | 'team';
-export interface ClubRun { id: string; kind: ClubEvent; rounds: ClubRound[]; results: ClubResult[]; seed: number; startedAt: string; }
+export interface ClubRun { id: string; kind: ClubEvent; exercise?: 'training' | 'club'; challenge?: boolean; rounds: ClubRound[]; results: ClubResult[]; seed: number; startedAt: string; }
 export interface ClubMatch { id: string; kind: ClubEvent; results: ClubResult[]; average: number; placement: number; cash: number; finishedAt: string; }
 export interface ClubProgress {
   version: 1;
@@ -56,7 +57,7 @@ export function aptitude(dog: Dog, discipline: Discipline): number {
 export function learned(record: DisciplineRecord) { return clamp(record.xp / 10, 0, 100); }
 export function fieldAbility(dog: Dog, discipline: Discipline, record: DisciplineRecord) {
   const legacy = discipline === 'agility' ? dog.agility_trained : discipline === 'water' ? dog.endurance_trained : dog.obedience_trained;
-  return clamp(aptitude(dog, discipline) * .55 + learned(record) * .4 + clamp(legacy, 0, 100) * .12 + Math.min(10, dog.bond_level) * .5, 10, 100);
+  return clamp((aptitude(dog, discipline) - 25) * .9 + learned(record) * .32 + clamp(legacy, 0, 100) * .12 + Math.min(10, dog.bond_level) * .5, 10, 100);
 }
 export function keeperBonus(user: Pick<UserProfile, 'level'>) { return 1 + Math.min(20, Math.max(0, user.level - 1)) * .04; }
 export function trainingGain(dog: Dog, discipline: Discipline, score: number, user: Pick<UserProfile, 'level' | 'training_skill'>) {
@@ -68,7 +69,7 @@ export function discoveredText(dog: Dog, discipline: Discipline, record: Discipl
   const band = value >= 80 ? 'Natural strength' : value >= 65 ? 'Promising' : 'Room to grow';
   return record.sessions >= 3 || !dog.is_rescue ? `${band} · aptitude ${value}` : `${band} · early indication`;
 }
-export function sampledAll(progress: ClubProgress, dogId: string) { return DISCIPLINES.every(d => recordFor(progress, dogId, d).sessions > 0); }
+export function sampledAll(progress: ClubProgress, dogId: string) { return DISCIPLINES.every(d => (recordFor(progress, dogId, d).clubSessions ?? recordFor(progress, dogId, d).sessions) > 0); }
 export function roundScore(performance: number) { return Math.round(clamp((performance - .3) / 1.2 * 100, 0, 100)); }
 export function standings(results: ClubResult[], team = false) {
   // Stable local club rivals, with visible strengths/weaknesses on the same 100-point scale.
@@ -77,7 +78,17 @@ export function standings(results: ClubResult[], team = false) {
   ] : [
     { name: 'Fern · Oak Hollow', scores: [66, 48, 70, 43] }, { name: 'Milo · Brookside', scores: [46, 66, 44, 65] }, { name: 'Pip · Meadow', scores: [42, 48, 49, 45] },
   ];
+  const modernScores = team ? [[94, 85, 93, 86], [86, 94, 84, 93], [82, 85, 84, 86]] : [[94, 85, 92, 83], [86, 94, 84, 93], [82, 86, 85, 85]];
+  if (results.every(r => r.report?.rules === 2)) rivals.forEach((r, i) => { r.scores = modernScores[i]; });
   const rows = rivals.map(r => ({ name: r.name, player: false, scores: results.map(round => r.scores[DISCIPLINES.indexOf(round.discipline)]) }));
   rows.push({ name: 'Your kennel', player: true, scores: results.map(r => r.score) });
-  return rows.map(r => ({ ...r, average: Math.round(r.scores.reduce((n, s) => n + s, 0) / Math.max(1, r.scores.length)) })).sort((a, b) => b.average - a.average || Number(b.player) - Number(a.player));
+  return rows.map(r => ({ ...r, average: Math.round(r.scores.reduce((n, s) => n + s, 0) / Math.max(1, r.scores.length) * 10) / 10 })).sort((a, b) => b.average - a.average || Number(b.player) - Number(a.player));
+}
+
+export function clubQualified(dog: Dog, discipline: Discipline, record: DisciplineRecord) {
+  return fieldAbility(dog, discipline, record) >= 35;
+}
+
+export function challengeQualified(dog: Dog, discipline: Discipline, record: DisciplineRecord) {
+  return record.xp >= 120 && fieldAbility(dog, discipline, record) >= 55;
 }

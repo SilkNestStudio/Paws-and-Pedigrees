@@ -1,5 +1,5 @@
 import { ClubInvitation } from '../club/FieldClub';
-﻿import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { Group, OrthographicCamera } from 'three';
@@ -71,7 +71,7 @@ export default function KennelInterior({onNavigate}:{onNavigate:(view:string,opt
   else if (!desk && dialog?.open) dialog.close();
  }, [desk]);
  const go=(view:string)=>onNavigate(view,view==='shop'?{shopTab:'items'}:undefined);
- const choose=(d:HubDestination)=>{if(paused)return;if(d.view!=='desk'&&!lessonViewUnlocked(tutorialProgress,d.view)){setMessage(`${d.label} opens after your introductory trial. ${next?'Next: '+next.title+'.':''}`);return;}setDesk(false);pending.current=d;setDestination({x:d.x,z:d.z});setMessage(`Walking to ${d.label.toLowerCase()}. ${d.detail}`);};
+ const choose=(d:HubDestination)=>{if(paused)return;if(d.view!=='desk'&&!lessonViewUnlocked(tutorialProgress,d.view)){setMessage(`${d.label} opens after your first club event. ${next?'Next: '+next.title+'.':''}`);return;}setDesk(false);pending.current=d;setDestination({x:d.x,z:d.z});setMessage(`Walking to ${d.label.toLowerCase()}. ${d.detail}`);};
  return <section className="kennel-interior"><header className="interior-heading"><div><span className="journey-eyebrow">YOUR HOME / KENNEL LEVEL {level}</span><h1>Every great kennel starts somewhere.</h1><p>{style.description}</p></div><div className="interior-capacity"><strong>{getKennelLevelInfo(level).name}</strong><span>{dogs.filter(d=>!d.is_dead).length} / {getKennelCapacity(level)} companions</span></div></header>
  <ClubInvitation onNavigate={onNavigate}/>
  {!tutorialProgress.fieldClub&&!apprenticeshipComplete(tutorialProgress)&&<FirstRibbonGuide compact onNavigate={onNavigate}/>}
@@ -83,9 +83,9 @@ export default function KennelInterior({onNavigate}:{onNavigate:(view:string,opt
   <section className="interior-desk" aria-label="Keeper desk">
    <div><span className="journey-eyebrow">AT YOUR DESK</span><h2 id="keeper-desk-title">Keeper desk</h2><p>Manage your kennel, plan training, and build your breeding program. Expansion changes this room as your kennel grows.</p>
 
- {!apprenticeshipComplete(tutorialProgress)&&<div className="interior-desk-lesson"><p>Explore the Field Club and complete a combined trial to open the rest of your kennel.</p><button onClick={()=>go('fieldClub')}>Continue at the Field Club</button></div>}
+ {!apprenticeshipComplete(tutorialProgress)&&<div className="interior-desk-lesson"><p>Explore the Field Club and finish a qualified club event to open the rest of your kennel.</p><button onClick={()=>go('fieldClub')}>Continue at the Field Club</button></div>}
    </div>
-   <div>{[['fieldClub','Field Club sports'],['expansion','Expand the kennel'],['training','Training plans'],['breeding','Breeding & nursery'],['jobs','Find work'],['story','Story chapters']].map(([view,label])=><button key={view} disabled={!lessonViewUnlocked(tutorialProgress,view)} onClick={()=>go(view)}>{label}{!lessonViewUnlocked(tutorialProgress,view)&&<small>{view==='training'?'After your introduction':'After your introductory trial'}</small>}</button>)}</div>
+   <div>{[['fieldClub','Field Club sports'],['expansion','Expand the kennel'],['training','Training plans'],['breeding','Breeding & nursery'],['jobs','Find work'],['story','Story chapters']].map(([view,label])=><button key={view} disabled={!lessonViewUnlocked(tutorialProgress,view)} onClick={()=>go(view)}>{label}{!lessonViewUnlocked(tutorialProgress,view)&&<small>{view==='training'?'After your introduction':'After your first club event'}</small>}</button>)}</div>
   </section>
  </dialog>
  <details className="interior-shortcuts"><summary>Room shortcuts · skip the walk</summary><p>Use these whenever you prefer quick navigation or cannot use the 3D view.</p><div>{HUB_DESTINATIONS.map(d=><button key={d.id} disabled={d.view!=='desk'&&!lessonViewUnlocked(tutorialProgress,d.view)} onClick={()=>{if(d.view==='desk'){pending.current=null;setDestination(null);setDesk(true);}else go(d.view);}}>{d.label}</button>)}</div></details>

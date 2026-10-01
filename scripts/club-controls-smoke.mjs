@@ -13,23 +13,24 @@ try {
     await page.getByLabel('What will you call your dog?').fill('Scout');
     await page.getByRole('button', { name: 'Bring Scout home', exact: true }).click();
     await page.getByRole('button', { name: 'Visit the Field Club', exact: false }).click();
-    await page.getByRole('button', { name: 'Practice Scent search', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Play Scent search', exact: true }).first().click();
     await page.getByRole('button', { name: 'Begin Scent search round', exact: true }).click();
-    await page.getByRole('button', { name: 'Begin round', exact: true }).click();
-    const field = page.locator('.field-game');
-    const box = await page.locator('.field-stage canvas').boundingBox();
+    await page.getByRole('button', { name: 'Take the scent & begin', exact: true }).click();
+    const field = page.locator('.search-adventure');
+    const beforeZ = Number(await field.getAttribute('data-z'));
+    const box = await page.locator('.search-world canvas').boundingBox();
     if (mobile) await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
     else await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    await page.waitForFunction(() => Number(document.querySelector('.field-game').dataset.z) < 5);
+    await page.waitForFunction(z => Math.abs(Number(document.querySelector('.search-adventure').dataset.z) - z) > .3, beforeZ);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await page.waitForTimeout(200);
     const paused = await field.getAttribute('data-z');
     await page.waitForTimeout(700); assert.equal(await field.getAttribute('data-z'), paused);
-    await page.getByRole('button', { name: 'Resume round', exact: true }).click();
-    await page.getByRole('button', { name: 'Exit round', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue search', exact: true }).click();
+    await page.getByRole('button', { name: 'Exit search', exact: true }).click();
     await page.getByRole('button', { name: 'Leave this visit', exact: true }).click();
     await page.getByRole('button', { name: 'End visit and return to club', exact: true }).click();
-    await page.getByRole('button', { name: 'Practice Agility', exact: true }).click();
+    await page.getByRole('button', { name: 'Play Agility', exact: true }).click();
     await page.getByRole('button', { name: 'Begin Agility round', exact: true }).click();
     await page.getByRole('button', { name: 'Start session', exact: true }).click();
     await page.getByRole('button', { name: 'Pause', exact: true }).waitFor();
@@ -49,4 +50,4 @@ try {
     console.log(mobile ? 'Touch' : 'Mouse', 'ground commands, pause/resume, agility destination movement and safe cancellation passed');
     await context.close();
   }
-} catch (error) { await activePage?.screenshot({ path: '.browser.local/club-controls-failure.png' }); console.log(await activePage?.locator('.field-game').evaluate(el => ({ x: el.dataset.x, z: el.dataset.z, text: el.innerText })).catch(() => null)); throw error; } finally { await browser.close(); }
+} catch (error) { await activePage?.screenshot({ path: '.browser.local/club-controls-failure.png' }); console.log(await activePage?.locator('.search-adventure').evaluate(el => ({ x: el.dataset.x, z: el.dataset.z, text: el.innerText })).catch(() => null)); throw error; } finally { await browser.close(); }

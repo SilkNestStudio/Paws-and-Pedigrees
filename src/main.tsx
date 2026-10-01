@@ -3,13 +3,17 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 const App = lazy(() => import('./App.tsx'));
 const PracticeView = lazy(() => import('./game/agility/PracticeView'));
+const LegacyPreview = lazy(() => import('./game/legacy/LegacyPreview'));
+const PlayYard = lazy(() => import('./game/playyard/PlayYard'));
+const playYard = new URLSearchParams(window.location.search).get('preview') === 'yard';
 const practice = new URLSearchParams(window.location.search).get('practice') === 'agility';
+const legacyPreview = new URLSearchParams(window.location.search).get('preview') === 'legacy';
 import { isLocalMode } from './lib/storage/config';
 import ErrorBoundary from './components/common/ErrorBoundary'
 
 const root = createRoot(document.getElementById('root')!);
 async function start() {
-  if (isLocalMode && !practice) {
+  if (isLocalMode && !practice && !legacyPreview && !playYard) {
     // One writer per origin prevents two tabs silently overwriting each other's kennel.
     if (navigator.locks) await new Promise<void>((resolve, reject) => {
       void navigator.locks.request('paws-and-pedigrees-writer', { ifAvailable: true }, async lock => {
@@ -28,7 +32,7 @@ async function start() {
   <StrictMode>
     <ErrorBoundary>
       <Suspense fallback={<div className="min-h-screen bg-earth-50 p-8">Loading your game…</div>}>
-        {practice ? <PracticeView /> : <App />}
+        {playYard ? <PlayYard /> : legacyPreview ? <LegacyPreview /> : practice ? <PracticeView /> : <App />}
       </Suspense>
     </ErrorBoundary>
   </StrictMode>,

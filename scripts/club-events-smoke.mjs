@@ -24,8 +24,6 @@ async function lastRound() {
   await page.getByRole('button', { name: 'Begin round', exact: true }).click();
   for (let i = 1; i <= 3; i++) {
     await page.getByRole('button', { name: `Retrieve dummy ${i}`, exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('.field-game').dataset.carrying === 'true', null, { timeout: 30000 });
-    await page.getByRole('button', { name: 'Call back to shore', exact: true }).click();
     await page.waitForFunction(n => Number(document.querySelector('.field-game').dataset.count) === n, i, { timeout: 30000 });
   }
   await page.getByRole('button', { name: 'Save round & continue', exact: true }).click();
@@ -46,7 +44,7 @@ try {
       const state = useGameStore.getState();
       const dog = { ...generateDog(rescueBreeds[1], 'Scout', state.user.id, true, 'male'), hunger: 100, thirst: 100, health: 100, energy_stat: 100, training_points: 100 };
       const progress = newClubProgress();
-      progress.records[dog.id] = Object.fromEntries(DISCIPLINES.map(d => [d, { xp: 20, sessions: 1, best: 75, last: 75 }]));
+      progress.records[dog.id] = Object.fromEntries(DISCIPLINES.map(d => [d, { xp: 800, sessions: 12, best: 75, last: 75 }]));
       useGameStore.setState({ dogs: [dog], hasAdoptedFirstDog: true, activeTutorial: null, tutorialProgress: { ...state.tutorialProgress, firstRibbon: undefined, fieldClub: progress } });
       await flushLocalSave();
     });

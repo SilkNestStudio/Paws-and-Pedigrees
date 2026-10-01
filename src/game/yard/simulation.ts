@@ -21,7 +21,7 @@ export const stations = [
     { id: 'rest', name: 'Settle down', x: -4, z: .5, hint: 'Take a breather on the outdoor bed.' },
     { id: 'inside', name: 'Inside the kennel', x: -5.6, z: -1.5, hint: 'Walk to the cottage door and return to your kennel.' },
     { id: 'supplies', name: 'Visit Supplies', x: 0, z: 9, hint: 'Walk to the entrance to open the shop.' },
-    { id: 'agility', name: 'Enter agility training', x: 6, z: -9.5, hint: 'Train together on the full agility course.' },
+    { id: 'agility', name: 'Training', x: 6, z: -9.5, hint: 'Choose an exercise to develop skills together.' },
 ] as const;
 export function nearbyStation(p: YardPosition) { return stations.filter(s => Math.hypot(p.x - s.x, p.z - s.z) < 1.65).sort((a, b) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(p.x - b.x, p.z - b.z))[0]; }
 

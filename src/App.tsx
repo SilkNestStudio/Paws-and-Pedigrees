@@ -277,7 +277,7 @@ function App() {
           <SceneBackground scene={currentView} kennelLevel={user?.kennel_level || 1}>
             <div className="club-content">
               {!tutorialProgress.fieldClub&&currentView!=='fieldClub'&&currentView!=='office'&&currentView!=='hub'&&<FirstRibbonGuide compact onNavigate={(view,options)=>handleViewChange(view,view==='shop'?{shopTab:'items'}:options)}/>}
-              {currentView === 'hub' && <Suspense fallback={<p>Opening your kennel...</p>}><KennelInterior onNavigate={handleViewChange}/></Suspense>}
+              {currentView === 'hub' && <><a href="/?preview=legacy" className="mb-3 flex items-center justify-between rounded-xl border border-amber-200/30 bg-slate-800 px-5 py-3 text-sm text-amber-100"><span>Homecoming · Explore the new kennel preview</span><span aria-hidden="true">↗</span></a><Suspense fallback={<p>Opening your kennel...</p>}><KennelInterior onNavigate={handleViewChange}/></Suspense></>}
               {currentView === 'fieldClub' && <FieldClub onNavigate={handleViewChange}/>}
               {currentView === 'expansion' && <KennelUpgradeView/>}
 
@@ -310,7 +310,7 @@ function App() {
 
               {currentView === 'vet' && <VetClinicView />}
 
-              {currentView === 'demo3d' && <Suspense fallback={<p>Preparing practice…</p>}><Demo3DView onInside={()=>handleViewChange('hub')} launch={yardLaunch} onWelcomeComplete={()=>handleViewChange('office')} onShop={() => handleViewChange('shop', {shopTab: 'items'})} /></Suspense>}
+              {currentView === 'demo3d' && <Suspense fallback={<p>Preparing practice…</p>}><Demo3DView onFieldClub={()=>handleViewChange('fieldClub')} onInside={()=>handleViewChange('hub')} launch={yardLaunch} onWelcomeComplete={()=>handleViewChange('office')} onShop={() => handleViewChange('shop', {shopTab: 'items'})} /></Suspense>}
             </div>
           </SceneBackground>
         </main>
