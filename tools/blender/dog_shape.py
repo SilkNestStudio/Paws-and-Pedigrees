@@ -11,7 +11,7 @@ from sdf_lib import (Model, Ellipsoid, Sphere, RoundCone, RoundBox, Chain, Func,
                      smax, smin, normalize)
 
 SIDES = (('L', -1.0), ('R', 1.0))
-HO = vec(0, -0.012, -0.026)   # moves the whole head (shorter, lower neck carriage)
+HO = vec(0, -0.020, -0.040)   # moves the whole head (shorter, lower neck carriage)
 
 
 def hp(x, y, z):
@@ -142,14 +142,14 @@ def build_body(slit=True, sockets=True):
     m = Model()
     # ---- torso --------------------------------------------------------
     T = 'torso'
-    m.add(Ellipsoid((0, 0.090, 0.352), (0.118, 0.165, 0.130)).tag(T, 'ribcage'))
+    m.add(Ellipsoid((0, 0.090, 0.352), (0.122, 0.165, 0.130)).tag(T, 'ribcage'))
     m.add(Sphere((0, 0.190, 0.336), 0.094).tag(T, 'forechest'), 0.05)
     m.add(Ellipsoid((0, 0.135, 0.430), (0.090, 0.105, 0.070)).tag(T, 'withers'), 0.05)
     m.add(Ellipsoid((0, -0.045, 0.410), (0.094, 0.125, 0.088)).tag(T, 'loin'), 0.07)
     m.add(Ellipsoid((0, -0.140, 0.412), (0.100, 0.110, 0.090)).tag(T, 'croup'), 0.05)
     m.add(Ellipsoid((0, -0.180, 0.382), (0.094, 0.080, 0.090)).tag(T, 'rump'), 0.04)
     # ---- neck & head --------------------------------------------------
-    m.add(RoundCone((0, 0.160, 0.430), hp(0, 0.252, 0.566), 0.092, 0.062).tag('neck', 'neck'), 0.05)
+    m.add(RoundCone((0, 0.160, 0.430), hp(0, 0.252, 0.566), 0.094, 0.068).tag('neck', 'neck'), 0.05)
     m.add(Ellipsoid((0, 0.212, 0.432), (0.080, 0.065, 0.085)).tag('neck', 'throat'), 0.04)
     H = 'head'
     m.add(Ellipsoid(hp(0, 0.305, 0.646), (0.106, 0.097, 0.095)).tag(H, 'cranium'), 0.026)
@@ -167,32 +167,32 @@ def build_body(slit=True, sockets=True):
         scap_dir = f['S'] - f['anchor']
         m.add(Ellipsoid(f['anchor'] * 0.45 + f['S'] * 0.55 + vec(s * 0.004, 0, 0), (0.040, 0.092, 0.066),
                         frame_from(scap_dir, (0, 1, 0))).tag(reg, 'scapula'), 0.04)
-        m.add(RoundCone(f['S'], f['E'], 0.060, 0.045).tag(reg, 'upperarm'), 0.035)
-        m.add(Sphere(f['E'] + vec(0, -0.010, 0.004), 0.035).tag(reg, 'elbow'), 0.02)
+        m.add(RoundCone(f['S'], f['E'], 0.064, 0.048).tag(reg, 'upperarm'), 0.035)
+        m.add(Sphere(f['E'] + vec(0, -0.010, 0.004), 0.038).tag(reg, 'elbow'), 0.02)
         mid = f['E'] * 0.55 + f['C'] * 0.45 + vec(0, 0.002, 0)
-        m.add(Chain([f['E'], mid, f['C']], [0.040, 0.034, 0.030], 0.0).tag(reg, 'forearm'), 0.02)
-        m.add(Sphere(f['C'] + vec(0, -0.002, 0), 0.0285).tag(reg, 'carpus'), 0.012)
+        m.add(Chain([f['E'], mid, f['C']], [0.043, 0.036, 0.0315], 0.0).tag(reg, 'forearm'), 0.02)
+        m.add(Sphere(f['C'] + vec(0, -0.002, 0), 0.031).tag(reg, 'carpus'), 0.012)
         pc = vec(f['C'][0], 0.214, 0.028)
-        m.add(RoundCone(f['C'], pc + vec(0, -0.010, 0.010), 0.0275, 0.027).tag(reg, 'pastern'), 0.012)
-        m.add(Ellipsoid(pc, (0.036, 0.046, 0.028)).tag(reg, 'paw'), 0.014)
-        for t in toes(pc, s, 0.247, 0.018, r=0.0158, spread=0.0235):
+        m.add(RoundCone(f['C'], pc + vec(0, -0.010, 0.010), 0.030, 0.030).tag(reg, 'pastern'), 0.012)
+        m.add(Ellipsoid(pc, (0.040, 0.050, 0.030)).tag(reg, 'paw'), 0.014)
+        for t in toes(pc, s, 0.250, 0.019, r=0.0172, spread=0.0255):
             m.add(t.tag(reg, 'toe'), 0.007)
         h = hind_leg(s)
         reg = 'H' + side
         fem = h['K'] - h['H']
-        m.add(Ellipsoid(h['H'] + fem * 0.30 + vec(s * 0.004, -0.022, 0.004), (0.055, 0.125, 0.092),
+        m.add(Ellipsoid(h['H'] + fem * 0.30 + vec(s * 0.004, -0.022, 0.004), (0.060, 0.130, 0.098),
                         frame_from(fem, (0, 1, 0))).tag(reg, 'ham'), 0.045)
-        m.add(RoundCone(h['H'], h['K'], 0.058, 0.042).tag(reg, 'thigh'), 0.03)
-        m.add(Sphere(h['K'] + vec(0, 0.004, 0), 0.036).tag(reg, 'stifle'), 0.02)
+        m.add(RoundCone(h['H'], h['K'], 0.062, 0.046).tag(reg, 'thigh'), 0.03)
+        m.add(Sphere(h['K'] + vec(0, 0.004, 0), 0.040).tag(reg, 'stifle'), 0.02)
         tib = h['J'] - h['K']
-        m.add(RoundCone(h['K'], h['J'], 0.040, 0.025).tag(reg, 'shin'), 0.02)
-        m.add(Ellipsoid(h['K'] + tib * 0.33 + vec(0, -0.017, 0.004), (0.032, 0.058, 0.036),
+        m.add(RoundCone(h['K'], h['J'], 0.044, 0.028).tag(reg, 'shin'), 0.02)
+        m.add(Ellipsoid(h['K'] + tib * 0.33 + vec(0, -0.017, 0.004), (0.036, 0.060, 0.040),
                         frame_from(tib, (0, 1, 0))).tag(reg, 'gaskin'), 0.025)
-        m.add(Sphere(h['J'] + vec(0, -0.012, 0.006), 0.022).tag(reg, 'hockpoint'), 0.012)
+        m.add(Sphere(h['J'] + vec(0, -0.012, 0.006), 0.025).tag(reg, 'hockpoint'), 0.012)
         pc = vec(h['P'][0], -0.141, 0.027)
-        m.add(RoundCone(h['J'], h['P'] + vec(0, 0.004, 0.0), 0.025, 0.025).tag(reg, 'metatarsus'), 0.012)
-        m.add(Ellipsoid(pc, (0.034, 0.044, 0.027)).tag(reg, 'paw'), 0.014)
-        for t in toes(pc, s, -0.111, 0.017, r=0.015, spread=0.022):
+        m.add(RoundCone(h['J'], h['P'] + vec(0, 0.004, 0.0), 0.028, 0.029).tag(reg, 'metatarsus'), 0.012)
+        m.add(Ellipsoid(pc, (0.038, 0.048, 0.029)).tag(reg, 'paw'), 0.014)
+        for t in toes(pc, s, -0.110, 0.018, r=0.0165, spread=0.0245):
             m.add(t.tag(reg, 'toe'), 0.007)
     # ---- tail ---------------------------------------------------------
     m.add(Chain(TAIL, TAIL_R, 0.0).tag('tail', 'tail'), 0.035)
@@ -211,3 +211,116 @@ def build_body(slit=True, sockets=True):
 
 
 BODY_BOUNDS = ((-0.17, -0.58, -0.01), (0.17, 0.53, 0.74))
+
+
+# --------------------------------------------------------------------------
+# Skinning chains: (region, polyline points, bones per segment, joint widths)
+# --------------------------------------------------------------------------
+def chains():
+    c = [('torso', [vec(0, -0.32, 0.42), SPINE[1], SPINE[2], vec(0, 0.32, 0.43)],
+          ['spine_01', 'spine_02', 'spine_03'], [0.065, 0.065]),
+         ('neck', [vec(0, 0.08, 0.40), NECK[0], NECK[1], NECK[2], HEAD[1]],
+          ['spine_03', 'neck_01', 'neck_02', 'head'], [0.05, 0.035, 0.03]),
+         ('head', [NECK[1], NECK[2], HEAD[1] + vec(0, 0.2, 0)], ['neck_02', 'head'], [0.03]),
+         ('tail', [SPINE[0] + vec(0, -0.02, 0)] + TAIL,
+          ['spine_01', 'tail_01', 'tail_02', 'tail_03', 'tail_04', 'tail_05'], [0.03, 0.022, 0.02, 0.018, 0.015])]
+    for side, s in SIDES:
+        f = front_leg(s)
+        c.append(('F' + side, [f['anchor'], f['S'], f['E'], f['C'], f['T']],
+                  ['spine_03', 'upperarm_' + side, 'forearm_' + side, 'paw_front_' + side], [0.05, 0.032, 0.018]))
+        h = hind_leg(s)
+        c.append(('H' + side, [h['anchor'], h['H'], h['K'], h['J'], h['P'], h['T']],
+                  ['spine_01', 'thigh_' + side, 'shin_' + side, 'hock_' + side, 'paw_hind_' + side],
+                  [0.055, 0.034, 0.02, 0.012]))
+    return c
+
+
+def jaw_mask(P):
+    d = P - HINGE
+    a = -0.10
+    mid = d[:, 2] * np.cos(a) - d[:, 1] * np.sin(a)
+    from sdf_lib import smoothstep
+    return smoothstep(0.003, -0.003, mid) * smoothstep(HINGE[1] - 0.012, HINGE[1] + 0.03, P[:, 1]) \
+        * smoothstep(HINGE[2] - 0.075, HINGE[2] - 0.05, P[:, 2])
+
+
+# --------------------------------------------------------------------------
+# Breed morphs: displacement fields defined for any point in space, driven by
+# region weights.  Used for the body, accessories and rig joints alike.
+# --------------------------------------------------------------------------
+MORPHS = ['legs_long', 'legs_short', 'body_long', 'body_short', 'chest_deep',
+          'muzzle_long', 'muzzle_short', 'head_wide', 'stocky', 'slim']
+STOP_Y = HO[1] + 0.372
+
+
+def _chain_axis(P, region):
+    from sdf_lib import project_polyline
+    for reg, pts, bones, widths in chains():
+        if reg == region:
+            return project_polyline(P, pts[1:] if region[0] in 'FH' else pts)[1]
+    raise KeyError(region)
+
+
+def morph_delta(name, P, Rw):
+    from sdf_lib import smoothstep
+    r = {k: Rw[:, i] for i, k in enumerate(REGIONS)}
+    front = r['FL'] + r['FR']
+    hind = r['HL'] + r['HR']
+    leg = front + hind
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    D = np.zeros_like(P)
+    if name in ('legs_long', 'legs_short'):
+        delta = 0.10 if name == 'legs_long' else -0.115
+        band = smoothstep(0.035, 0.30, z)
+        D[:, 2] = delta * (leg * band + (1 - leg))
+    elif name in ('body_long', 'body_short'):
+        delta = 0.10 if name == 'body_long' else -0.075
+        t = smoothstep(-0.11, 0.13, y) - 0.5
+        D[:, 1] = delta * (r['torso'] * t + (front + r['neck'] + r['head']) * 0.5 - (hind + r['tail']) * 0.5)
+    elif name == 'chest_deep':
+        bell = smoothstep(-0.14, 0.0, y) * (1 - smoothstep(0.24, 0.34, y))
+        low = smoothstep(0.42, 0.25, z)
+        D[:, 2] = -0.05 * r['torso'] * bell * low
+        D[:, 0] = 0.12 * x * r['torso'] * bell * low
+        D[:, 1] = 0.012 * r['torso'] * smoothstep(0.12, 0.26, y) * low
+    elif name in ('muzzle_long', 'muzzle_short'):
+        hd = r['head']
+        if name == 'muzzle_long':
+            f = smoothstep(STOP_Y - 0.01, STOP_Y + 0.07, y)
+            D[:, 1] = 0.055 * hd * f
+            D[:, 2] = -0.010 * hd * f
+            D[:, 0] = -0.10 * x * hd * f
+        else:
+            f = smoothstep(STOP_Y - 0.01, STOP_Y + 0.10, y)
+            D[:, 1] = -0.050 * hd * f
+            D[:, 2] = 0.008 * hd * f
+            D[:, 0] = 0.14 * x * hd * f
+    elif name == 'head_wide':
+        D[:, 0] = x * (0.22 * r['head'] + 0.10 * r['neck'])
+        D[:, 2] = -0.02 * (z - (HO[2] + 0.64)) * r['head']
+    elif name in ('stocky', 'slim'):
+        st = name == 'stocky'
+        sx, sz = (1.20, 1.10) if st else (0.86, 0.93)
+        sl, sn, sh, stl = (1.24, 1.16, 1.05, 1.18) if st else (0.80, 0.88, 0.97, 0.85)
+        zc = np.interp(y, [-0.25, -0.05, 0.10, 0.30], [0.40, 0.41, 0.36, 0.34])
+        tr = r['torso']
+        D[:, 0] += (sx - 1) * x * tr
+        D[:, 2] += (sz - 1) * (z - zc) * tr
+        ground = smoothstep(0.0, 0.07, z)
+        for reg in ('FL', 'FR', 'HL', 'HR'):
+            w = r[reg]
+            if not np.any(w > 1e-4):
+                continue
+            Q = _chain_axis(P, reg)
+            off = (P - Q) * (sl - 1)
+            off[:, 2] *= ground
+            D += off * w[:, None]
+            attach_x = (front_leg if reg[0] == 'F' else hind_leg)(-1 if reg[1] == 'L' else 1)['S' if reg[0] == 'F' else 'H'][0]
+            D[:, 0] += (sx - 1) * attach_x * w
+        Q = _chain_axis(P, 'neck')
+        D += (P - Q) * (sn - 1) * r['neck'][:, None]
+        Q = _chain_axis(P, 'tail')
+        D += (P - Q) * (stl - 1) * r['tail'][:, None]
+        hc = HO + vec(0, 0.33, 0.62)
+        D += (P - hc) * (sh - 1) * r['head'][:, None]
+    return D

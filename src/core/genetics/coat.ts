@@ -45,7 +45,7 @@ export interface CoatAppearance {
 }
 
 const EUMELANIN = {
-  black: '#2a2422',
+  black: '#352d2a',
   liver: '#5b3423',
   blue: '#5d6470',
   isabella: '#a08a7b',

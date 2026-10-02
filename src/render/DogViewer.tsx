@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { createRng } from '../core/rng';
 import { breedDescription, coatOf, generateShelterTrio, type Dog } from '../core/dog/dog';
 import type { Pose, Tell } from '../sim/agents';
-import { DogModel, type DogView } from './dog/DogModel';
+import { type DogView } from './dog/DogModel';
+import { AnyDog } from './dog/AnyDog';
 import { KeeperModel } from './KeeperModel';
 
 /**
@@ -79,7 +80,7 @@ function ViewerDog({ dog, x, poseIndex }: { dog: Dog; x: number; poseIndex: numb
     };
     return v;
   }, [x, p]);
-  return <DogModel dog={dog} view={() => view} />;
+  return <AnyDog dog={dog} view={() => view} />;
 }
 
 function Turntable({ children, spin }: { children: React.ReactNode; spin: boolean }) {

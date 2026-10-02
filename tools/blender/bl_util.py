@@ -74,6 +74,8 @@ def triangulate(obj):
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bmesh.ops.triangulate(bm, faces=bm.faces)
+    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-6)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(obj.data)
     bm.free()
 

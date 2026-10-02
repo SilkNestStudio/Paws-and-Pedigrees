@@ -114,14 +114,15 @@ class Sphere(Ellipsoid):
 class RoundCone(Prim):
     """Capsule whose radius tapers from r1 at a to r2 at b (exact SDF)."""
 
-    def __init__(self, a, b, r1, r2=None, scale=None):
+    def __init__(self, a, b, r1, r2=None, scale=None, up=(0, 0, 1)):
         self.a, self.b = vec(a), vec(b)
         self.r1 = float(r1)
         self.r2 = float(r1 if r2 is None else r2)
-        # Optional anisotropic squash in a local frame (x across, z up).
+        # Optional anisotropic squash in a local frame (x across, y along,
+        # z towards the `up` hint).
         self.scale = None if scale is None else vec(scale)
         if self.scale is not None:
-            self.R = frame_from(self.b - self.a)
+            self.R = frame_from(self.b - self.a, up)
 
     def _eval(self, P, a, b):
         r1, r2 = self.r1, self.r2
@@ -157,7 +158,7 @@ class RoundCone(Prim):
     def bbox(self):
         r = max(self.r1, self.r2)
         if self.scale is not None:
-            r *= self.scale.max()
+            r *= max(1.0, self.scale.max())
         return np.minimum(self.a, self.b) - r, np.maximum(self.a, self.b) + r
 
     def axis(self, P):

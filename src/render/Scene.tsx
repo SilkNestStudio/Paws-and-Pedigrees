@@ -22,8 +22,10 @@ import { cameraState, movementVector } from '../app/input';
 import { publish } from '../app/hud';
 import { tapGround, walkTarget } from '../app/actions';
 import { activityFinished, fieldFor, homeDogAte, MARA_POS } from '../app/flow';
-import { DogModel, type DogView } from './dog/DogModel';
-import { HELPER_PALETTE, KeeperModel, type KeeperView, type Palette } from './KeeperModel';
+import { type DogView } from './dog/DogModel';
+import { AnyDog } from './dog/AnyDog';
+import { type KeeperView } from './KeeperModel';
+import { LOOKS, PersonModel } from './PersonModel';
 import { Ground, Grass, Hedges, Trees, WindClock, WindFlag } from './world/Field';
 import { Kennel } from './world/Kennel';
 import { Yard } from './world/Yard';
@@ -31,9 +33,6 @@ import { Orchard, Shelter, VillageGreen } from './world/Places';
 import { Lighting, Sky } from './world/Atmosphere';
 import { heightAt } from './world/terrain';
 
-const MARA_PALETTE: Palette = { jacket: '#4f6f9a', trousers: '#5a4f45', cap: '#cfcac0' };
-const VICTOR_PALETTE: Palette = { jacket: '#27344a', trousers: '#2c2c30', cap: '#27344a' };
-const BILLY_PALETTE: Palette = { jacket: '#d9622b', trousers: '#4a5a8a', cap: '#f4d35e' };
 
 /** Where the pointer is on the ground (desktop), for the aim line. */
 const aim: { point: Vec2 | null } = { point: null };
@@ -562,9 +561,9 @@ function Throwers({ session }: { session: RetrieveSession }) {
   return (
     <>
       {session.throwers.map((t, i) => (
-        <KeeperModel
+        <PersonModel
           key={i}
-          palette={HELPER_PALETTE}
+          look={LOOKS.helper}
           view={() => ({
             pos: t.pos,
             heading: Math.atan2(
@@ -817,8 +816,8 @@ function Bystanders({ place }: { place: Place }) {
   return (
     <>
       {maraHere && (
-        <KeeperModel
-          palette={MARA_PALETTE}
+        <PersonModel
+          look={LOOKS.mara}
           view={() => ({
             pos: maraPos,
             heading: Math.PI * (place === 'home' ? 0.9 : 0.8),
@@ -832,8 +831,8 @@ function Bystanders({ place }: { place: Place }) {
       )}
       {place === 'green' && rivals.length === 2 && (
         <>
-          <KeeperModel
-            palette={VICTOR_PALETTE}
+          <PersonModel
+            look={LOOKS.victor}
             view={() => ({
               pos: { x: -8, z: 16 },
               heading: Math.PI,
@@ -844,9 +843,9 @@ function Bystanders({ place }: { place: Place }) {
               watch: null,
             })}
           />
-          <DogModel dog={rivals[0]!.dog} view={() => still({ x: -8.9, z: 16.2 }, Math.PI)} />
-          <KeeperModel
-            palette={BILLY_PALETTE}
+          <AnyDog dog={rivals[0]!.dog} view={() => still({ x: -8.9, z: 16.2 }, Math.PI)} />
+          <PersonModel
+            look={LOOKS.billy}
             view={() => ({
               pos: { x: 9, z: 16 },
               heading: Math.PI,
@@ -857,7 +856,7 @@ function Bystanders({ place }: { place: Place }) {
               watch: null,
             })}
           />
-          <DogModel
+          <AnyDog
             dog={rivals[1]!.dog}
             view={() => still({ x: 9.9, z: 16.2 }, Math.PI * 0.9, 'down')}
           />
@@ -866,7 +865,7 @@ function Bystanders({ place }: { place: Place }) {
       {place === 'shelter' &&
         game.shelter.map((d, i) =>
           i === useApp.getState().shelterPick ? null : (
-            <DogModel
+            <AnyDog
               key={d.id}
               dog={d}
               view={() => still({ x: -10 + i * 10, z: -19 }, 0, i % 2 ? 'down' : 'sit')}
@@ -952,11 +951,11 @@ export function Scene() {
       <AimLine />
       <DogBeacon />
       <GoalBeacon />
-      <KeeperModel view={keeperView} />
+      <PersonModel view={keeperView} />
       <Bystanders place={place} />
       <group key={`run-${runId}`}>
         {current && dogView() && (
-          <DogModel dog={current} view={() => dogView() ?? still({ x: 0, z: 0 }, 0)} />
+          <AnyDog dog={current} view={() => dogView() ?? still({ x: 0, z: 0 }, 0)} />
         )}
         {live.field && <Throwers session={live.field} />}
         {live.field && <BlindStakes session={live.field} />}

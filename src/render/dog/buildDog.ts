@@ -48,7 +48,7 @@ export interface DogDims {
   earErect: number;
 }
 
-type Part =
+export type Part =
   | 'torso'
   | 'chest'
   | 'hip'
@@ -350,7 +350,7 @@ function paintMasks(painted: Painted[], root: THREE.Group, d: DogDims): void {
   const toRest = new THREE.Matrix4();
   const v = new THREE.Vector3();
   const headCenter = new THREE.Vector3();
-  const sk = d.skull;
+  const out = [0, 0, 0, 0];
 
   // Head centre in rest space, for face markings.
   const skullMesh = painted.find((p) => p.part === 'skull')?.mesh;
@@ -370,91 +370,113 @@ function paintMasks(painted: Painted[], root: THREE.Group, d: DogDims): void {
       rest[i * 3 + 1] = v.y;
       rest[i * 3 + 2] = v.z;
 
-      const ax = Math.abs(v.x);
-      const legLow = smooth(d.jointY * 0.6, d.jointY * 0.3, v.y);
-      const belly = smooth(d.torsoY - d.chestR * 0.45, d.torsoY - d.chestR * 0.9, v.y);
-      const chestFront = smooth(d.chestZ + d.chestR * 0.2, d.chestZ + d.chestR * 0.8, v.z);
-      const torsoDorsal = smooth(d.torsoY - d.chestR * 0.85, d.torsoY + d.chestR * 0.85, v.y);
-      const hy = v.y - headCenter.y;
-      const hz = v.z - headCenter.z;
-
-      let tan = 0;
-      let white = 0.35;
-      let dorsal = 0.5;
-      let face = 0;
-
-      switch (part) {
-        case 'torso':
-        case 'chest':
-        case 'hip':
-        case 'ruff':
-          dorsal = torsoDorsal;
-          tan = Math.max(
-            belly * 0.85,
-            chestFront *
-              smooth(d.torsoY, d.torsoY - d.chestR * 0.5, v.y) *
-              smooth(d.chestR * 0.12, d.chestR * 0.3, ax),
-          );
-          white = Math.max(
-            0.32,
-            chestFront * (1 - ax / (d.chestR * 0.75)) * 1.05,
-            belly * (0.85 - ax / (d.chestR * 1.4)),
-          );
-          if (part === 'hip') white = Math.min(white, 0.2 + belly * 0.5);
-          break;
-        case 'neck':
-          dorsal = torsoDorsal * 0.9 + 0.1;
-          white = 0.55 + (v.z > d.chestZ + d.chestR * 0.3 ? 0.25 : 0) - torsoDorsal * 0.2;
-          tan = smooth(d.torsoY + d.chestR * 0.2, d.torsoY - d.chestR * 0.1, v.y) * 0.6;
-          break;
-        case 'skull': {
-          dorsal = smooth(-sk * 0.6, sk * 0.9, hy);
-          const brow = Math.min(
-            Math.hypot(v.x - sk * 0.32, hy - sk * 0.62, hz - sk * 0.62),
-            Math.hypot(v.x + sk * 0.32, hy - sk * 0.62, hz - sk * 0.62),
-          );
-          const cheek = smooth(sk * 0.15, sk * 0.6, hz) * smooth(sk * 0.1, -sk * 0.3, hy);
-          tan = Math.max(smooth(sk * 0.2, sk * 0.1, brow), cheek);
-          const blaze = smooth(sk * 0.22, sk * 0.06, ax) * smooth(-sk * 0.2, sk * 0.5, hz);
-          white = Math.max(0.05, blaze * 0.95, cheek * 0.25);
-          face = cheek * 0.8 + smooth(sk * 0.5, sk * 0.9, hz) * 0.4;
-          break;
-        }
-        case 'muzzle':
-          dorsal = smooth(-sk * 0.5, sk * 0.25, hy) * 0.7;
-          tan = smooth(sk * 0.05, -sk * 0.2, hy) * 0.9 + smooth(sk * 0.15, sk * 0.3, ax) * 0.4;
-          white = 0.55 + smooth(sk * 0.6, sk * 1.4, hz) * 0.35 - dorsal * 0.2;
-          face = 1;
-          break;
-        case 'ear':
-          dorsal = 1;
-          white = 0;
-          break;
-        case 'leg':
-          dorsal = 0.08;
-          tan = legLow;
-          white = 0.4 + legLow * 0.6;
-          break;
-        case 'paw':
-          dorsal = 0;
-          tan = 1;
-          white = 1;
-          break;
-        case 'tail':
-          dorsal = 0.85;
-          white = 0.15;
-          break;
-        case 'tailTip':
-          dorsal = 0.85;
-          white = 0.95;
-          break;
-      }
-      mask[i * 4] = tan;
-      mask[i * 4 + 1] = white;
-      mask[i * 4 + 2] = dorsal;
-      mask[i * 4 + 3] = face;
+      coatMask(v, part, d, headCenter, out);
+      mask.set(out, i * 4);
     }
     geometry.setAttribute('aRest', new THREE.BufferAttribute(rest, 3));
     geometry.setAttribute('aMask', new THREE.BufferAttribute(mask, 4));
   }
+}
+
+/** Body measurements the coat masks need. */
+export interface MaskDims {
+  jointY: number;
+  torsoY: number;
+  chestR: number;
+  chestZ: number;
+  skull: number;
+}
+
+type V3 = { x: number; y: number; z: number };
+
+/**
+ * Coat region masks for one point on the dog, written to `out` as
+ * [tan points, white-spotting prior, dorsal, face]. Shared by the code-built
+ * dog and the Blender dog so markings follow the same anatomy on both.
+ */
+export function coatMask(v: V3, part: Part, d: MaskDims, headCenter: V3, out: number[]): void {
+  const sk = d.skull;
+  const ax = Math.abs(v.x);
+  const legLow = smooth(d.jointY * 0.6, d.jointY * 0.3, v.y);
+  const belly = smooth(d.torsoY - d.chestR * 0.45, d.torsoY - d.chestR * 0.9, v.y);
+  const chestFront = smooth(d.chestZ + d.chestR * 0.2, d.chestZ + d.chestR * 0.8, v.z);
+  const torsoDorsal = smooth(d.torsoY - d.chestR * 0.85, d.torsoY + d.chestR * 0.85, v.y);
+  const hy = v.y - headCenter.y;
+  const hz = v.z - headCenter.z;
+
+  let tan = 0;
+  let white = 0.35;
+  let dorsal = 0.5;
+  let face = 0;
+
+  switch (part) {
+    case 'torso':
+    case 'chest':
+    case 'hip':
+    case 'ruff':
+      dorsal = torsoDorsal;
+      tan = Math.max(
+        belly * 0.85,
+        chestFront *
+          smooth(d.torsoY, d.torsoY - d.chestR * 0.5, v.y) *
+          smooth(d.chestR * 0.12, d.chestR * 0.3, ax),
+      );
+      white = Math.max(
+        0.32,
+        chestFront * (1 - ax / (d.chestR * 0.75)) * 1.05,
+        belly * (0.85 - ax / (d.chestR * 1.4)),
+      );
+      if (part === 'hip') white = Math.min(white, 0.2 + belly * 0.5);
+      break;
+    case 'neck':
+      dorsal = torsoDorsal * 0.9 + 0.1;
+      white = 0.55 + (v.z > d.chestZ + d.chestR * 0.3 ? 0.25 : 0) - torsoDorsal * 0.2;
+      tan = smooth(d.torsoY + d.chestR * 0.2, d.torsoY - d.chestR * 0.1, v.y) * 0.6;
+      break;
+    case 'skull': {
+      dorsal = smooth(-sk * 0.6, sk * 0.9, hy);
+      const brow = Math.min(
+        Math.hypot(v.x - sk * 0.32, hy - sk * 0.62, hz - sk * 0.62),
+        Math.hypot(v.x + sk * 0.32, hy - sk * 0.62, hz - sk * 0.62),
+      );
+      const cheek = smooth(sk * 0.15, sk * 0.6, hz) * smooth(sk * 0.1, -sk * 0.3, hy);
+      tan = Math.max(smooth(sk * 0.2, sk * 0.1, brow), cheek);
+      const blaze = smooth(sk * 0.22, sk * 0.06, ax) * smooth(-sk * 0.2, sk * 0.5, hz);
+      white = Math.max(0.05, blaze * 0.95, cheek * 0.25);
+      face = cheek * 0.8 + smooth(sk * 0.5, sk * 0.9, hz) * 0.4;
+      break;
+    }
+    case 'muzzle':
+      dorsal = smooth(-sk * 0.5, sk * 0.25, hy) * 0.7;
+      tan = smooth(sk * 0.05, -sk * 0.2, hy) * 0.9 + smooth(sk * 0.15, sk * 0.3, ax) * 0.4;
+      white = 0.55 + smooth(sk * 0.6, sk * 1.4, hz) * 0.35 - dorsal * 0.2;
+      face = 1;
+      break;
+    case 'ear':
+      dorsal = 1;
+      white = 0;
+      break;
+    case 'leg':
+      dorsal = 0.08;
+      tan = legLow;
+      white = 0.4 + legLow * 0.6;
+      break;
+    case 'paw':
+      dorsal = 0;
+      tan = 1;
+      white = 1;
+      break;
+    case 'tail':
+      dorsal = 0.85;
+      white = 0.15;
+      break;
+    case 'tailTip':
+      dorsal = 0.85;
+      white = 0.95;
+      break;
+  }
+  out[0] = tan;
+  out[1] = white;
+  out[2] = dorsal;
+  out[3] = face;
 }
