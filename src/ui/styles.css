@@ -61,10 +61,18 @@ body,
 }
 
 /* Dog read-out, top left */
-.dog-chip {
+.top-bar {
   position: absolute;
   top: 12px;
   left: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 150px);
+}
+
+.dog-chip {
   padding: 10px 14px 10px 12px;
   display: flex;
   gap: 10px;

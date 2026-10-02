@@ -131,7 +131,7 @@ export function createCoatMaterial(coat: CoatAppearance, scale: number): CoatMat
     metalness: 0,
   }) as CoatMaterial;
   const merleDilute =
-    coat.eumelanin === '#1f1b1a' ? '#9aa3ad' : coat.eumelanin === '#5b3423' ? '#c9a38a' : '#c3c0bd';
+    coat.eumelanin === '#2a2422' ? '#9aa3ad' : coat.eumelanin === '#5b3423' ? '#c9a38a' : '#c3c0bd';
   const uniforms: Record<string, THREE.IUniform> = {
     uEu: { value: linear(coat.eumelanin) },
     uPheo: { value: linear(coat.pheomelanin) },
@@ -168,8 +168,15 @@ export function createCoatMaterial(coat: CoatAppearance, scale: number): CoatMat
       .replace(
         '#include <color_fragment>',
         '#include <color_fragment>\ndiffuseColor.rgb = coatColour();',
+      )
+      // A soft rim of light along the silhouette, like sheen on fur, so dark coats keep their shape.
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+         float furRim = pow(1.0 - clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0), 2.5);
+         totalEmissiveRadiance += furRim * 0.22 * mix(vec3(1.0, 0.95, 0.85), diffuseColor.rgb * 3.0 + 0.2, 0.4);`,
       );
   };
-  material.customProgramCacheKey = () => 'dog-coat-v1';
+  material.customProgramCacheKey = () => 'dog-coat-v2';
   return material;
 }

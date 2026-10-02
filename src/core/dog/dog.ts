@@ -177,7 +177,7 @@ export function generateRescue(rng: Rng, name?: string): Dog {
     premiumTouched: false,
     skills: {
       sit: range(rng, 0.3, 0.6),
-      stay: range(rng, 0.05, 0.2),
+      stay: range(rng, 0.25, 0.45),
       recall: range(rng, 0.25, 0.5),
       stop: 0,
       cast: 0,

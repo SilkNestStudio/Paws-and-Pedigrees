@@ -1,241 +1,125 @@
 import { create } from 'zustand';
-import { createRng, int } from '../core/rng';
-import { generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
-import { createRetrieveSession, type RetrieveSession } from '../sim/retrieve';
-import {
-  createTrainingSession,
-  lessonSummary,
-  type Lesson,
-  type TrainingSession,
-} from '../sim/training';
-import { setupById } from '../sim/exercises';
-import { buildReport, type RetrieveReport } from '../sim/report';
+import type { Discovery } from '../core/dog/knowledge';
+import type { Line } from '../game/story';
+import type { GameState } from '../game/state';
+import type { Job } from '../game/jobs';
+import type { RoundId } from '../game/funday';
+import type { HomeSession, SpotId } from '../sim/home';
+import type { RetrieveSession } from '../sim/retrieve';
+import type { SearchSession, SearchSetup } from '../sim/search';
+import type { RetrieveSetup } from '../sim/exercises';
+import type { Lesson, TrainingSession } from '../sim/training';
 
 /**
- * App state for the Phase 1 field test. Live simulations are kept outside
- * React state (in `live`) and stepped every frame; the store only holds what
- * the interface shows, refreshed about ten times a second.
+ * Interface state. The saved game lives in `game`; live simulations live in
+ * `live` (outside React, stepped every frame). Game rules never live here:
+ * flow.ts calls the pure rules in src/game and stores the result.
  */
-export type Screen = { kind: 'field'; setupId: string } | { kind: 'lesson'; lesson: Lesson };
-export type Panel = 'none' | 'welcome' | 'book' | 'result';
+export type Place = 'home' | 'orchard' | 'green' | 'shelter';
 
-export interface HistoryEntry {
-  setupId: string;
-  dogId: string;
+export type Screen =
+  | { kind: 'loading' }
+  | { kind: 'title' }
+  | { kind: 'letter'; page: number }
+  | { kind: 'home' }
+  | { kind: 'shelter' }
+  | { kind: 'retrieve'; place: Place; setup: RetrieveSetup; job?: Job; round?: RoundId }
+  | { kind: 'search'; place: Place; setup: SearchSetup; job?: Job; round?: RoundId }
+  | { kind: 'lesson'; lesson: Lesson };
+
+export type Panel =
+  | null
+  | 'office'
+  | 'noticeboard'
+  | 'van'
+  | 'shop'
+  | 'gateSign'
+  | 'fieldGate'
+  | 'scentGarden'
+  | 'bed'
+  | 'result'
+  | 'intro'
+  | 'funDay'
+  | 'adopt'
+  | 'menu';
+
+export interface ResultView {
+  title: string;
+  grade: string;
   score: number;
-  grade: RetrieveReport['grade'];
+  seconds: number;
+  notes: { text: string; tone: 'good' | 'info' | 'warn' }[];
+  discoveries: Discovery[];
+  pay: number;
+  /** Lesson results show skill before and after. */
+  skill?: { name: string; before: number; after: number };
+  suggestion?: string;
+  next: 'home' | 'funDayNext' | 'funDayDone' | 'shelter';
 }
 
-export interface LessonResult {
-  lesson: Lesson;
-  dogName: string;
-  before: number;
-  after: number;
-  reps: number;
-  counts: ReturnType<typeof lessonSummary>['counts'];
-  averageOffset: number | null;
+export interface IntroCard {
+  title: string;
+  lines: string[];
+  key: string;
 }
 
-export const live: { field: RetrieveSession | null; lesson: TrainingSession | null } = {
-  field: null,
-  lesson: null,
-};
-
-interface SaveData {
-  version: 1;
-  seed: number;
-  dogs: Dog[];
-  activeDogId: string;
-  history: HistoryEntry[];
-  welcomed: boolean;
+export interface FunDayProgress {
+  round: number;
+  player: number[];
+  rivals: number[][];
 }
 
-const SAVE_KEY = 'paws-rebuild-field-test';
-
-function loadSave(): SaveData | null {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw) as SaveData;
-    return data.version === 1 && Array.isArray(data.dogs) && data.dogs.length > 0 ? data : null;
-  } catch {
-    return null;
-  }
+export interface Toast {
+  id: number;
+  text: string;
+  tone: 'good' | 'info' | 'warn';
 }
 
-function writeSave(data: SaveData): void {
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  } catch {
-    // Private mode or storage full: the test still works, it just won't remember.
-  }
-}
+export const live: {
+  home: HomeSession | null;
+  field: RetrieveSession | null;
+  search: SearchSession | null;
+  lesson: TrainingSession | null;
+} = { home: null, field: null, search: null, lesson: null };
 
-function freshSave(): SaveData {
-  const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-  const dogs = generateShelterTrio(createRng(seed));
-  return { version: 1, seed, dogs, activeDogId: dogs[0].id, history: [], welcomed: false };
-}
-
-export interface GameState {
-  seed: number;
-  dogs: Dog[];
-  activeDogId: string;
-  history: HistoryEntry[];
-  welcomed: boolean;
+export interface AppState {
+  game: GameState | null;
   screen: Screen;
   panel: Panel;
+  dialog: { lines: Line[]; index: number; then?: () => void } | null;
+  intro: IntroCard | null;
+  result: ResultView | null;
+  funDay: FunDayProgress | null;
+  toasts: Toast[];
+  /** Bumped whenever a new live session starts, so the 3D scene remounts. */
   runId: number;
-  report: RetrieveReport | null;
-  lessonResult: LessonResult | null;
-  bookTab: 'work' | 'lessons' | 'dogs';
-
-  activeDog: () => Dog;
-  startField: (setupId: string) => void;
-  startLesson: (lesson: Lesson) => void;
-  restart: () => void;
-  selectDog: (id: string) => void;
-  setPanel: (panel: Panel) => void;
-  setBookTab: (tab: GameState['bookTab']) => void;
-  finishField: () => void;
-  finishLesson: () => void;
-  dismissWelcome: () => void;
-  newRescues: () => void;
-  devSetSkill: (cue: Cue, value: number) => void;
+  /** Where the keeper appears when returning home. */
+  homeSpawn: SpotId | 'arrive';
+  shelterPick: number;
 }
 
-const initial = loadSave() ?? freshSave();
-
-function persist(state: GameState): void {
-  writeSave({
-    version: 1,
-    seed: state.seed,
-    dogs: state.dogs,
-    activeDogId: state.activeDogId,
-    history: state.history,
-    welcomed: state.welcomed,
-  });
-}
-
-function sessionSeed(state: { seed: number; runId: number }): number {
-  return int(createRng(state.seed + state.runId * 7919), 1, 2 ** 30);
-}
-
-export const useGame = create<GameState>((set, get) => ({
-  seed: initial.seed,
-  dogs: initial.dogs,
-  activeDogId: initial.activeDogId,
-  history: initial.history,
-  welcomed: initial.welcomed,
-  screen: { kind: 'field', setupId: 'free' },
-  panel: initial.welcomed ? 'none' : 'welcome',
+export const useApp = create<AppState>(() => ({
+  game: null,
+  screen: { kind: 'loading' },
+  panel: null,
+  dialog: null,
+  intro: null,
+  result: null,
+  funDay: null,
+  toasts: [],
   runId: 0,
-  report: null,
-  lessonResult: null,
-  bookTab: 'work',
-
-  activeDog: () => get().dogs.find((d) => d.id === get().activeDogId) ?? get().dogs[0]!,
-
-  startField: (setupId) => {
-    const runId = get().runId + 1;
-    live.lesson = null;
-    live.field = createRetrieveSession(
-      get().activeDog(),
-      setupById(setupId),
-      sessionSeed({ seed: get().seed, runId }),
-    );
-    set({ screen: { kind: 'field', setupId }, runId, panel: 'none', report: null });
-  },
-
-  startLesson: (lesson) => {
-    const runId = get().runId + 1;
-    live.field = null;
-    live.lesson = createTrainingSession(
-      get().activeDog(),
-      lesson,
-      sessionSeed({ seed: get().seed, runId }),
-    );
-    set({ screen: { kind: 'lesson', lesson }, runId, panel: 'none', lessonResult: null });
-  },
-
-  restart: () => {
-    const screen = get().screen;
-    if (screen.kind === 'field') get().startField(screen.setupId);
-    else get().startLesson(screen.lesson);
-  },
-
-  selectDog: (id) => {
-    set({ activeDogId: id });
-    persist(get());
-    get().restart();
-  },
-
-  setPanel: (panel) => set({ panel }),
-  setBookTab: (bookTab) => set({ bookTab }),
-
-  finishField: () => {
-    const s = live.field;
-    const screen = get().screen;
-    if (!s || screen.kind !== 'field') return;
-    const report = buildReport(s);
-    const history = [
-      ...get().history,
-      {
-        setupId: screen.setupId,
-        dogId: get().activeDogId,
-        score: report.score,
-        grade: report.grade,
-      },
-    ].slice(-200);
-    set({ report, history, panel: 'result' });
-    persist(get());
-  },
-
-  finishLesson: () => {
-    const t = live.lesson;
-    if (!t) return;
-    const summary = lessonSummary(t);
-    const dogs = get().dogs.map((d) =>
-      d.id === get().activeDogId ? { ...d, skills: { ...d.skills, [t.lesson]: t.skill } } : d,
-    );
-    set({
-      dogs,
-      panel: 'result',
-      lessonResult: { lesson: t.lesson, dogName: t.dogName, ...summary },
-    });
-    persist(get());
-  },
-
-  dismissWelcome: () => {
-    set({ welcomed: true, panel: 'none' });
-    persist(get());
-  },
-
-  newRescues: () => {
-    const fresh = freshSave();
-    set({ seed: fresh.seed, dogs: fresh.dogs, activeDogId: fresh.activeDogId, history: [] });
-    persist(get());
-    get().startField('free');
-  },
-
-  devSetSkill: (cue, value) => {
-    const dogs = get().dogs.map((d) =>
-      d.id === get().activeDogId ? { ...d, skills: { ...d.skills, [cue]: value } } : d,
-    );
-    set({ dogs });
-    persist(get());
-    get().restart();
-  },
+  homeSpawn: 'arrive',
+  shelterPick: 0,
 }));
 
-/** Start the first session immediately so the field is never empty. */
-live.field = createRetrieveSession(
-  useGame.getState().activeDog(),
-  setupById('free'),
-  sessionSeed({ seed: initial.seed, runId: 0 }),
-);
+let toastId = 0;
+export function toast(text: string, tone: Toast['tone'] = 'info'): void {
+  const id = ++toastId;
+  useApp.setState((s) => ({ toasts: [...s.toasts.slice(-3), { id, text, tone }] }));
+  setTimeout(() => useApp.setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 4500);
+}
 
 // Development builds expose the live state so browser test scripts can watch it.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __game: unknown }).__game = { live, useGame };
+  (window as unknown as { __game: unknown }).__game = { live, useApp };
 }

@@ -58,8 +58,8 @@ export interface Block2 {
 export const HOME_SPOTS: Spot[] = [
   { id: 'office', pos: { x: -16, z: 57.2 }, reach: 2.6, label: 'Office' },
   { id: 'house', pos: { x: -11, z: 57.2 }, reach: 2.4, label: 'Front door (bed)' },
-  { id: 'runs', pos: { x: 10, z: 54.5 }, reach: 3, label: 'Kennel runs' },
-  { id: 'bowl', pos: { x: 13.5, z: 54 }, reach: 2.2, label: 'Food bowl' },
+  { id: 'runs', pos: { x: 10, z: 52.8 }, reach: 2.6, label: 'Kennel runs' },
+  { id: 'bowl', pos: { x: 13.5, z: 52.4 }, reach: 2.2, label: 'Food bowl' },
   { id: 'pantry', pos: { x: 22.5, z: 57 }, reach: 2.4, label: 'Pantry' },
   { id: 'noticeboard', pos: { x: 5, z: 47.5 }, reach: 2.4, label: 'Noticeboard' },
   { id: 'fieldGate', pos: { x: 0, z: 44.5 }, reach: 3, label: 'Training field' },
@@ -70,11 +70,12 @@ export const HOME_SPOTS: Spot[] = [
 
 export const HOME_BOUNDS = { minX: -40, maxX: 40, minZ: 45, maxZ: 82 };
 
-export const HOME_SOLIDS: Block2[] = [
-  { minX: -21.5, maxX: -10.5, minZ: 58.5, maxZ: 65.5 }, // farmhouse
-  { minX: 6.5, maxX: 21.5, minZ: 57.8, maxZ: 62.2 }, // kennel block
-  { minX: 21, maxX: 24, minZ: 58, maxZ: 62 }, // pantry shed
-  { minX: 23.5, maxX: 28.5, minZ: 71, maxZ: 74 }, // van
+export const HOME_SOLIDS: (Block2 & { height: number })[] = [
+  { minX: -21.5, maxX: -10.5, minZ: 58.5, maxZ: 65.5, height: 8.5 }, // farmhouse
+  { minX: 6.5, maxX: 21.5, minZ: 57.8, maxZ: 62.2, height: 4.8 }, // kennel block
+  { minX: 6.5, maxX: 21.5, minZ: 54.4, maxZ: 57.8, height: 1.6 }, // the runs in front of it
+  { minX: 21, maxX: 24, minZ: 58, maxZ: 62, height: 2.8 }, // pantry shed
+  { minX: 23.5, maxX: 28.5, minZ: 71, maxZ: 74, height: 2.4 }, // van
 ];
 
 /** Where the dog likes to potter about when nothing is happening. */
@@ -168,27 +169,89 @@ function segmentBlocked(a: Vec2, b: Vec2, box: Block2, pad: number): boolean {
   return false;
 }
 
-/** Next point to head for so the dog walks round buildings instead of into them. */
-export function routeAround(from: Vec2, to: Vec2): Vec2 {
-  for (const box of HOME_SOLIDS) {
-    if (!segmentBlocked(from, to, box, 0.6)) continue;
-    const pad = 1.4;
-    const corners: Vec2[] = [
-      { x: box.minX - pad, z: box.minZ - pad },
-      { x: box.maxX + pad, z: box.minZ - pad },
-      { x: box.minX - pad, z: box.maxZ + pad },
-      { x: box.maxX + pad, z: box.maxZ + pad },
-    ];
-    const usable = corners.filter(
-      (c) => !segmentBlocked(from, c, box, 0.6) && distance(from, c) > 1.6,
-    );
-    if (usable.length === 0) continue;
-    // Prefer a corner with a clear view of the destination.
-    const cost = (c: Vec2) =>
-      distance(from, c) + distance(c, to) + (segmentBlocked(c, to, box, 0.6) ? 20 : 0);
-    return usable.reduce((best, c) => (cost(c) < cost(best) ? c : best));
+const clear = (a: Vec2, b: Vec2, pad = 0.55) =>
+  HOME_SOLIDS.every((box) => !segmentBlocked(a, b, box, pad));
+
+// A 1 m walking grid over the yard, with buildings (plus a margin) marked solid.
+const CELL = 1;
+const COLS = Math.round((HOME_BOUNDS.maxX - HOME_BOUNDS.minX) / CELL);
+const ROWS = Math.round((HOME_BOUNDS.maxZ - HOME_BOUNDS.minZ) / CELL);
+const cellCenter = (c: number, r: number): Vec2 => ({
+  x: HOME_BOUNDS.minX + (c + 0.5) * CELL,
+  z: HOME_BOUNDS.minZ + (r + 0.5) * CELL,
+});
+const SOLID_CELLS: boolean[] = Array.from({ length: COLS * ROWS }, (_, i) => {
+  const p = cellCenter(i % COLS, Math.floor(i / COLS));
+  return HOME_SOLIDS.some((b) => insideBox(p, b, 0.8));
+});
+const cellOf = (p: Vec2) => ({
+  c: clamp(Math.floor((p.x - HOME_BOUNDS.minX) / CELL), 0, COLS - 1),
+  r: clamp(Math.floor((p.z - HOME_BOUNDS.minZ) / CELL), 0, ROWS - 1),
+});
+
+/** A* over the yard grid; returns waypoints from start to goal, smoothed. */
+export function findPath(from: Vec2, to: Vec2): Vec2[] {
+  const start = cellOf(from);
+  const goal = cellOf(to);
+  const index = (c: number, r: number) => r * COLS + c;
+  const open: number[] = [index(start.c, start.r)];
+  const came = new Map<number, number>();
+  const cost = new Map<number, number>([[index(start.c, start.r), 0]]);
+  const goalIndex = index(goal.c, goal.r);
+  const h = (i: number) => Math.hypot((i % COLS) - goal.c, Math.floor(i / COLS) - goal.r);
+  let found = false;
+  for (let guard = 0; open.length && guard < 6000; guard++) {
+    open.sort((a, b) => cost.get(a)! + h(a) - (cost.get(b)! + h(b)));
+    const current = open.shift()!;
+    if (current === goalIndex) {
+      found = true;
+      break;
+    }
+    const cc = current % COLS;
+    const cr = Math.floor(current / COLS);
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (!dc && !dr) continue;
+        const nc = cc + dc;
+        const nr = cr + dr;
+        if (nc < 0 || nr < 0 || nc >= COLS || nr >= ROWS) continue;
+        const next = index(nc, nr);
+        if (SOLID_CELLS[next] && next !== goalIndex) continue;
+        const step = dc && dr ? Math.SQRT2 : 1;
+        const g = cost.get(current)! + step;
+        if (g < (cost.get(next) ?? Infinity)) {
+          cost.set(next, g);
+          came.set(next, current);
+          if (!open.includes(next)) open.push(next);
+        }
+      }
+    }
   }
-  return to;
+  if (!found) return [to];
+  const cells: Vec2[] = [];
+  for (let i: number | undefined = goalIndex; i !== undefined; i = came.get(i)) {
+    cells.unshift(cellCenter(i % COLS, Math.floor(i / COLS)));
+  }
+  cells[cells.length - 1] = to;
+  // String-pull: skip waypoints while the straight line stays clear.
+  const path: Vec2[] = [];
+  let anchor = from;
+  let k = 0;
+  while (k < cells.length) {
+    let far = k;
+    while (far + 1 < cells.length && clear(anchor, cells[far + 1]!)) far++;
+    path.push(cells[far]!);
+    anchor = cells[far]!;
+    k = far + 1;
+  }
+  return path;
+}
+
+/** Next point to head for so walkers go round buildings instead of into them. */
+export function routeAround(from: Vec2, to: Vec2): Vec2 {
+  if (clear(from, to)) return to;
+  const path = findPath(from, to);
+  return path.find((p) => distance(p, from) > 0.8) ?? to;
 }
 
 const WALK = 2.8;
@@ -255,7 +318,8 @@ function stepKeeperHome(k: KeeperAgent, dt: number): void {
   }
 }
 
-const BOWL: Vec2 = { x: 13.5, z: 55.2 };
+/** Where the dog stands to eat, facing the bowl just outside the runs. */
+const BOWL: Vec2 = { x: 13.5, z: 52.7 };
 
 function stepHomeDog(s: HomeSession, dog: DogAgent, params: DogParams, dt: number): void {
   const k = s.keeper;

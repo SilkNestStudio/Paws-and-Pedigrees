@@ -1,51 +1,182 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { coatOf } from '../core/dog/dog';
 import { wrapAngle } from '../core/math';
-import { createTrainingField } from '../sim/field';
+import { activeDog, dayName } from '../game/state';
+import { objective } from '../game/story';
+import { fieldFor, abandonActivity } from '../app/flow';
 import { LESSONS } from '../sim/training';
 import { useHud, type HudSnapshot } from '../app/hud';
-import { useGame } from '../app/store';
+import { useApp, type Place } from '../app/store';
 import { input } from '../app/input';
 import * as act from '../app/actions';
 
-const FIELD = createTrainingField();
 const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
+/** The in-game interface over the 3D view. */
 export function Hud() {
   const snap = useHud((s) => s.snap);
-  const panel = useGame((s) => s.panel);
-  if (!snap) return null;
+  const panel = useApp((s) => s.panel);
+  const dialog = useApp((s) => s.dialog);
+  const screen = useApp((s) => s.screen);
+  if (!snap || screen.kind === 'title' || screen.kind === 'letter' || screen.kind === 'loading')
+    return null;
+  const busy = panel !== null || dialog !== null;
   return (
     <div className="hud">
-      <DogChip snap={snap} />
-      <TopCentre snap={snap} />
+      <TopBar snap={snap} />
+      {snap.kind === 'home' ? <ObjectiveCard /> : <ActivityCard snap={snap} />}
       <TopRight snap={snap} />
-      {snap.lesson && <LessonPanel snap={snap} />}
-      {snap.lesson?.feedback && <Coach snap={snap} />}
-      {panel === 'none' && snap.hint && <div className="hint card">{snap.hint}</div>}
-      {panel === 'none' && <Actions snap={snap} />}
-      {snap.kind === 'field' && (isTouch ? <Stick /> : <Keys snap={snap} />)}
-      {snap.kind === 'lesson' && !isTouch && <Keys snap={snap} />}
+      {snap.lesson?.feedback && snap.lesson.time - snap.lesson.feedback.time < 3 && (
+        <div className={`coach card ${snap.lesson.feedback.tone}`}>{snap.lesson.feedback.text}</div>
+      )}
+      <Events snap={snap} />
+      {!busy && snap.hint && !(isTouch && snap.kind === 'home') && (
+        <div className="hint card">{snap.hint}</div>
+      )}
+      {!busy && <Actions snap={snap} />}
+      {!busy && snap.kind !== 'lesson' && isTouch && <Stick />}
+      {!busy && !isTouch && <Keys snap={snap} />}
     </div>
   );
 }
 
-function DogChip({ snap }: { snap: HudSnapshot }) {
-  const dog = useGame((s) => s.activeDog());
-  const coat = coatOf(dog);
-  const swatch =
-    coat.base === 'eumelanin' && !coat.points
-      ? coat.eumelanin
+function Meter({ value, colour }: { value: number; colour: string }) {
+  return (
+    <div className="mini-meter">
+      <div style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: colour }} />
+    </div>
+  );
+}
+
+function TopBar({ snap }: { snap: HudSnapshot }) {
+  const game = useApp((s) => s.game);
+  const screen = useApp((s) => s.screen);
+  const shelterPick = useApp((s) => s.shelterPick);
+  if (!game) return null;
+  const dog = screen.kind === 'shelter' ? game.shelter[shelterPick] : activeDog(game);
+  const coat = dog ? coatOf(dog) : null;
+  const swatch = !coat
+    ? '#ccc'
+    : coat.whiteAmount > 0.45
+      ? `radial-gradient(circle at 35% 35%, ${coat.base === 'eumelanin' ? coat.eumelanin : coat.pheomelanin} 30%, ${coat.white} 32%)`
       : coat.points
         ? `linear-gradient(135deg, ${coat.eumelanin} 55%, ${coat.pheomelanin} 55%)`
-        : coat.pheomelanin;
+        : coat.base === 'eumelanin'
+          ? coat.eumelanin
+          : coat.pheomelanin;
   return (
-    <div className="dog-chip card">
-      <div className="swatch" style={{ background: swatch }} />
-      <div>
-        <div className="name">{snap.dogName}</div>
-        <div className="tell">{snap.tell}</div>
+    <div className="top-bar">
+      <div className="dog-chip card">
+        {dog ? (
+          <>
+            <div className="swatch" style={{ background: swatch }} />
+            <div className="dog-text">
+              <div className="name">{dog.name}</div>
+              <div className="tell">{snap.tell || coat?.name}</div>
+              {screen.kind !== 'shelter' && (
+                <div className="needs">
+                  <span title="Energy">Energy</span>
+                  <Meter value={dog.energy} colour={dog.energy < 25 ? '#c0632a' : '#3f8a4f'} />
+                  <span title="Fullness">Fed</span>
+                  <Meter value={dog.fullness} colour={dog.fullness < 30 ? '#c0632a' : '#d9a03a'} />
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="dog-text">
+            <div className="name">
+              {game.kennelName ? `${game.kennelName} Kennels` : "Grandpa's kennel"}
+            </div>
+            <div className="tell">No dog yet</div>
+          </div>
+        )}
       </div>
+      <div className="day-chip card">
+        <div className="day">
+          {dayName(game.day)} · <span className="block">{game.block}</span>
+        </div>
+        <div className="stock">
+          <span title="Money">${game.money}</span>
+          <span title="Meals in the pantry">{game.food} meals</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ObjectiveCard() {
+  const game = useApp((s) => s.game);
+  const [open, setOpen] = useState(true);
+  if (!game) return null;
+  const obj = objective(game);
+  if (!obj.steps.length) return null;
+  return (
+    <div className="objective card" onClick={() => setOpen((o) => !o)}>
+      <div className="objective-title">
+        <span className="dot" /> {obj.title}
+      </div>
+      {open && (
+        <ul>
+          {obj.steps.map((s) => (
+            <li key={s.text} className={s.done ? 'done' : ''}>
+              {s.done ? '✓' : '○'} {s.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ActivityCard({ snap }: { snap: HudSnapshot }) {
+  const screen = useApp((s) => s.screen);
+  let title = '';
+  let sub = '';
+  if (screen.kind === 'retrieve') {
+    title = screen.setup.title;
+    sub = screen.job
+      ? `Job for ${screen.job.client} · $${screen.job.pay}`
+      : screen.round
+        ? 'Village Fun Day'
+        : screen.setup.focus;
+  } else if (screen.kind === 'search') {
+    title = screen.setup.title;
+    sub = screen.job
+      ? `Job for ${screen.job.client} · $${screen.job.pay}`
+      : screen.round
+        ? 'Village Fun Day'
+        : 'Search';
+  } else if (screen.kind === 'lesson') {
+    title = LESSONS[screen.lesson].title;
+    sub = LESSONS[screen.lesson].how;
+  } else if (screen.kind === 'shelter') {
+    title = 'Larchwood Rescue';
+    sub = 'Play with each dog, then choose.';
+  }
+  const l = snap.lesson;
+  return (
+    <div className={`objective card activity ${l ? 'lesson' : ''}`}>
+      <div className="objective-title">{title}</div>
+      <div className="sub">{sub}</div>
+      {l && (
+        <>
+          <div className="stat-row">
+            <span>{snap.dogName}'s skill</span>
+            <span>{Math.round(l.skill * 100)}%</span>
+          </div>
+          <div className="meter">
+            <div className="fill" style={{ width: `${l.skill * 100}%` }} />
+            <div className="before" style={{ left: `${l.before * 100}%` }} />
+          </div>
+          <div className="stat-row muted">
+            <span>Treats left: {l.treats}</span>
+            <span>
+              Interest: {l.interest > 0.7 ? 'keen' : l.interest > 0.45 ? 'fading' : 'tired'}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -60,14 +191,16 @@ function windWords(strength: number): string {
         : 'Strong wind';
 }
 
-function TopCentre({ snap }: { snap: HudSnapshot }) {
+function Events({ snap }: { snap: HudSnapshot }) {
+  const toasts = useApp((s) => s.toasts);
   const rel = snap.wind ? wrapAngle(snap.wind.heading - snap.cameraYaw) : 0;
+  const recent = snap.events.filter((e) => e.text).slice(-2);
   return (
     <div className="top-centre">
       {snap.wind && (
         <div
           className="wind card"
-          title="The arrow shows where the wind is blowing, relative to your view. Scent drifts the same way."
+          title="Where the wind blows, relative to your view. Scent drifts the same way."
         >
           <div className="dial">
             <svg
@@ -81,55 +214,73 @@ function TopCentre({ snap }: { snap: HudSnapshot }) {
               <rect x="-1.2" y="1" width="2.4" height="9" fill="#d9622b" />
             </svg>
           </div>
-          {windWords(snap.wind.strength)}
+          Wind: {windWords(snap.wind.strength)}
         </div>
       )}
       <div className="events">
-        {snap.field &&
-          snap.events
-            .slice(-2)
-            .map((e) => <FadingEvent key={`${e.time}-${e.text}`} text={e.text} tone={e.tone} />)}
+        {recent
+          .filter((e, i) => recent.findIndex((x) => x.text === e.text) === i)
+          .map((e) => (
+            <div key={`${e.time}-${e.text}`} className={`event card ${e.tone}`}>
+              {e.text}
+            </div>
+          ))}
+        {toasts.map((t) => (
+          <div key={t.id} className={`event card ${t.tone}`}>
+            {t.text}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function FadingEvent({ text, tone }: { text: string; tone: string }) {
-  const [visible, setVisible] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(false), 4200);
-    return () => clearTimeout(t);
-  }, []);
-  return visible ? <div className={`event card ${tone}`}>{text}</div> : null;
-}
-
 function TopRight({ snap }: { snap: HudSnapshot }) {
   const [showMap, setShowMap] = useState(!isTouch);
+  const screen = useApp((s) => s.screen);
+  const inActivity =
+    screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'lesson';
   return (
     <div className="top-right">
-      <button className="icon-button" onClick={act.openBook}>
-        Field book
+      <button className="icon-button" onClick={() => useApp.setState({ panel: 'menu' })}>
+        Menu
       </button>
-      {snap.field && (
+      {inActivity && (
+        <button className="icon-button" onClick={abandonActivity}>
+          Leave
+        </button>
+      )}
+      {(snap.field || snap.search) && (
         <button className="icon-button" onClick={() => setShowMap((v) => !v)}>
           {showMap ? 'Hide map' : 'Map'}
         </button>
       )}
-      {snap.field && showMap && <MiniMap snap={snap} />}
+      {(snap.field || snap.search) && showMap && <MiniMap snap={snap} />}
     </div>
   );
 }
 
 function MiniMap({ snap }: { snap: HudSnapshot }) {
-  const f = snap.field!;
-  const w = FIELD.maxX - FIELD.minX;
-  const h = FIELD.maxZ - FIELD.minZ;
-  const rel = snap.wind ? snap.wind.heading : 0;
+  const screen = useApp((s) => s.screen);
+  const place: Place =
+    screen.kind === 'retrieve' || screen.kind === 'search'
+      ? screen.place
+      : screen.kind === 'shelter'
+        ? 'shelter'
+        : 'home';
+  const field = fieldFor(place);
+  const w = field.maxX - field.minX;
+  const h = field.maxZ - field.minZ;
+  const f = snap.field;
+  const s = snap.search;
+  const keeper = f?.keeper ?? s?.keeper;
+  const dog = f?.dog ?? s?.dog;
+  const trace = f?.trace ?? s?.trace ?? [];
   return (
     <div className="minimap card">
-      <svg viewBox={`${FIELD.minX} ${FIELD.minZ} ${w} ${h}`}>
-        <rect x={FIELD.minX} y={FIELD.minZ} width={w} height={h} fill="#8fb35f" />
-        {FIELD.cover.map((c, i) => (
+      <svg viewBox={`${field.minX} ${field.minZ} ${w} ${h}`}>
+        <rect x={field.minX} y={field.minZ} width={w} height={h} fill="#8fb35f" />
+        {field.cover.map((c, i) => (
           <circle
             key={i}
             cx={c.center.x}
@@ -139,19 +290,30 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
             opacity={0.85}
           />
         ))}
-        {FIELD.trees.map((t, i) => (
-          <circle key={i} cx={t.pos.x} cy={t.pos.z} r={3} fill="#3f6a33" />
+        {field.trees.map((t, i) => (
+          <circle key={i} cx={t.pos.x} cy={t.pos.z} r={2.2} fill="#3f6a33" />
         ))}
-        {f.trace.length > 1 && (
+        {s && (
+          <circle
+            cx={s.hint.center.x}
+            cy={s.hint.center.z}
+            r={s.hint.radius}
+            fill="none"
+            stroke="#f3a24b"
+            strokeWidth={1.5}
+            strokeDasharray="3 2"
+          />
+        )}
+        {trace.length > 1 && (
           <polyline
-            points={f.trace.map((p) => `${p.x},${p.z}`).join(' ')}
+            points={trace.map((p) => `${p.x},${p.z}`).join(' ')}
             fill="none"
             stroke="#fff"
             strokeWidth={1.2}
             strokeOpacity={0.8}
           />
         )}
-        {f.items.map((it, i) =>
+        {f?.items.map((it, i) =>
           it.state === 'lying' || it.state === 'flying' ? (
             it.kind === 'blind' ? (
               <rect key={i} x={it.pos.x - 2} y={it.pos.z - 2} width={4} height={4} fill="#e2622d" />
@@ -173,65 +335,59 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
             )
           ) : null,
         )}
-        <circle
-          cx={f.keeper.x}
-          cy={f.keeper.z}
-          r={2.6}
-          fill="#22352a"
-          stroke="#fff"
-          strokeWidth={0.8}
-        />
-        <circle cx={f.dog.x} cy={f.dog.z} r={2.6} fill="#d9622b" stroke="#fff" strokeWidth={0.8} />
-        <g
-          transform={`translate(${FIELD.maxX - 10} ${FIELD.minZ + 10}) rotate(${(-rel * 180) / Math.PI + 180})`}
-        >
-          <path d="M0 -7 L4 3 L0 1 L-4 3 Z" fill="#fff" />
-        </g>
+        {keeper && (
+          <circle
+            cx={keeper.x}
+            cy={keeper.z}
+            r={2.4}
+            fill="#22352a"
+            stroke="#fff"
+            strokeWidth={0.8}
+          />
+        )}
+        {dog && (
+          <circle cx={dog.x} cy={dog.z} r={2.4} fill="#d9622b" stroke="#fff" strokeWidth={0.8} />
+        )}
       </svg>
     </div>
   );
 }
 
-function LessonPanel({ snap }: { snap: HudSnapshot }) {
-  const l = snap.lesson!;
-  const info = LESSONS[l.lesson];
-  return (
-    <div className="lesson-panel card">
-      <h3>{info.title}</h3>
-      <p>{info.how}</p>
-      <div className="stat-row">
-        <span>{snap.dogName}'s skill</span>
-        <span>{Math.round(l.skill * 100)}%</span>
-      </div>
-      <div className="meter">
-        <div className="fill" style={{ width: `${l.skill * 100}%` }} />
-        <div className="before" style={{ left: `${l.before * 100}%` }} />
-      </div>
-      <div className="stat-row" style={{ fontWeight: 600, color: 'var(--ink-soft)' }}>
-        <span>Treats left: {l.treats}</span>
-        <span>Interest: {l.interest > 0.7 ? 'keen' : l.interest > 0.45 ? 'fading' : 'tired'}</span>
-      </div>
-    </div>
-  );
-}
-
-function Coach({ snap }: { snap: HudSnapshot }) {
-  const f = snap.lesson!.feedback!;
-  if (snap.lesson!.time - f.time > 3) return null;
-  return <div className={`coach card ${f.tone}`}>{f.text}</div>;
-}
-
 function Actions({ snap }: { snap: HudSnapshot }) {
+  if (snap.kind === 'home') {
+    const near = snap.home?.near;
+    return (
+      <div className="actions">
+        {snap.dogName && (
+          <button className="action" onClick={act.recall}>
+            Call<small>R</small>
+          </button>
+        )}
+        {snap.home?.nearDog && near?.id !== 'dog' && (
+          <button className="action" onClick={act.pat}>
+            Pat<small>F</small>
+          </button>
+        )}
+        {near && (
+          <button className="action primary wide" onClick={act.interact}>
+            {near.label}
+            <small>E</small>
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (snap.kind === 'shelter') return null;
   if (snap.field) {
     const f = snap.field;
     return (
       <div className="actions">
         {f.canThrow && (
-          <button className="action" onClick={act.throwsPlease}>
+          <button className="action primary" onClick={act.throwsPlease}>
             Throw!<small>T</small>
           </button>
         )}
-        {!f.dogAway && !f.free && (
+        {!f.dogAway && !f.free && !f.canThrow && (
           <button className="action" onClick={act.steady}>
             Sit<small>F</small>
           </button>
@@ -241,9 +397,34 @@ function Actions({ snap }: { snap: HudSnapshot }) {
             Here!<small>R</small>
           </button>
         )}
-        <button className="action primary" onClick={act.whistle}>
-          Whistle<small>Space</small>
-        </button>
+        {!f.canThrow && (
+          <button className="action primary" onClick={act.whistle}>
+            Whistle<small>Space</small>
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (snap.search) {
+    const s = snap.search;
+    return (
+      <div className="actions">
+        {s.phase === 'alert' ? (
+          <>
+            <button className="action" onClick={act.searchOn}>
+              Search on<small>X</small>
+            </button>
+            <button className="action primary" onClick={act.showMe}>
+              Show me!<small>Space</small>
+            </button>
+          </>
+        ) : (
+          s.phase !== 'ready' && (
+            <button className="action" onClick={act.recall}>
+              Here!<small>R</small>
+            </button>
+          )
+        )}
       </div>
     );
   }
@@ -254,6 +435,11 @@ function Actions({ snap }: { snap: HudSnapshot }) {
       {l.lesson === 'sit' && (
         <button className="action" disabled={busy} onClick={() => act.lessonCue()}>
           Sit<small>F</small>
+        </button>
+      )}
+      {l.lesson === 'indicate' && (
+        <button className="action" disabled={busy} onClick={() => act.lessonCue()}>
+          Find it<small>F</small>
         </button>
       )}
       {l.lesson === 'stay' && (
@@ -293,41 +479,26 @@ function Actions({ snap }: { snap: HudSnapshot }) {
 }
 
 function Keys({ snap }: { snap: HudSnapshot }) {
-  if (snap.lesson) {
-    const cue =
-      snap.lesson.lesson === 'stop'
-        ? 'throw, then whistle'
-        : snap.lesson.lesson === 'cast'
-          ? 'or 1 2 3: send'
-          : 'cue';
-    return (
-      <div className="keys card">
-        <kbd>Space</kbd> Yes! (mark) · <kbd>F</kbd> {cue} · drag to look around
-      </div>
-    );
-  }
-  return (
-    <div className="keys card">
-      <kbd>WASD</kbd> walk · <kbd>Shift</kbd> run · <kbd>Click</kbd> send / throw / direct
-      <br />
-      <kbd>Space</kbd> whistle · <kbd>R</kbd> here · <kbd>F</kbd> sit · <kbd>Q</kbd>
-      <kbd>E</kbd> or drag to turn
-    </div>
-  );
+  const text =
+    snap.kind === 'home'
+      ? 'WASD walk · Shift jog · E use · F pat your dog · R call · drag or Q to look'
+      : snap.kind === 'lesson'
+        ? 'Space: Yes! · F: cue · drag to look around'
+        : snap.kind === 'search'
+          ? 'WASD walk · click: search here · Space: show me · X: search on · R: here'
+          : 'WASD walk · click: send / throw / direct · Space whistle · R here · F sit · T throw';
+  return <div className="keys card">{text}</div>;
 }
 
-/** Touch joystick: drag the knob to walk; push to the edge to run. */
+/** Touch joystick: drag the knob to walk; push to the edge to jog. */
 function Stick() {
   const base = useRef<HTMLDivElement>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const active = useRef<number | null>(null);
-
   const update = (clientX: number, clientY: number) => {
     const rect = base.current!.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    let dx = (clientX - cx) / (rect.width / 2);
-    let dy = (clientY - cy) / (rect.height / 2);
+    let dx = (clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
+    let dy = (clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
     const len = Math.hypot(dx, dy);
     if (len > 1) {
       dx /= len;
@@ -343,7 +514,6 @@ function Stick() {
     input.stick.y = 0;
     setKnob({ x: 0, y: 0 });
   };
-
   return (
     <div
       ref={base}

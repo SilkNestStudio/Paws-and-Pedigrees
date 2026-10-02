@@ -1,416 +1,836 @@
-import {
-  aptitudeProfile,
-  breedDescription,
-  coatOf,
-  CUE_LABELS,
-  CUES,
-  type Dog,
-} from '../core/dog/dog';
-import { formatGenotype } from '../core/genetics/loci';
+import { useState } from 'react';
+import { aptitude, breedDescription, coatOf, CUE_LABELS, CUES, type Dog } from '../core/dog/dog';
+import { describe as describeEstimate, isKnown } from '../core/dog/knowledge';
 import { APTITUDE_LABELS, APTITUDES } from '../core/genetics/traits';
+import { activeDog, dayName, FUN_DAY, hasFlag, type GameState } from '../game/state';
+import { ACTIVITY_ENERGY, RESTORATIONS, SHOP } from '../game/rules';
+import { ROUNDS } from '../game/funday';
 import { FREE_PLAY, RETRIEVE_SETUPS } from '../sim/exercises';
 import { LESSONS, type Lesson } from '../sim/training';
-import { useGame } from '../app/store';
+import { useApp } from '../app/store';
+import {
+  adopt,
+  brush,
+  buyItem,
+  canGoToFunDay,
+  closeIntro,
+  closeResult,
+  devAdoptQuick,
+  devMoney,
+  devSkipDays,
+  goToBed,
+  leaveFunDay,
+  meetShelterDog,
+  nameKennel,
+  resetGame,
+  restEvening,
+  restoreGarden,
+  showIntro,
+  startFieldWork,
+  startJob,
+  startLesson,
+  travel,
+} from '../app/flow';
+
+const close = () => useApp.setState({ panel: null });
 
 export function Panels() {
-  const panel = useGame((s) => s.panel);
-  if (panel === 'none') return null;
+  const panel = useApp((s) => s.panel);
+  const game = useApp((s) => s.game);
+  const screen = useApp((s) => s.screen);
+  if (!game) return null;
+  if (!panel) return screen.kind === 'shelter' ? <ShelterCards game={game} /> : null;
+  const dismissable = !['result', 'intro', 'funDay'].includes(panel);
   return (
     <div
       className="overlay"
-      onPointerDown={(e) =>
-        e.target === e.currentTarget && panel === 'book' && useGame.getState().setPanel('none')
-      }
+      onPointerDown={(e) => e.target === e.currentTarget && dismissable && close()}
     >
-      {panel === 'welcome' && <Welcome />}
-      {panel === 'book' && <Book />}
+      {panel === 'office' && <Office game={game} />}
+      {panel === 'noticeboard' && <Noticeboard game={game} />}
+      {panel === 'van' && <VanPanel game={game} />}
+      {panel === 'shop' && <Shop game={game} />}
+      {panel === 'gateSign' && <GateSign game={game} />}
+      {panel === 'fieldGate' && <FieldGate game={game} />}
+      {panel === 'scentGarden' && <ScentGardenPanel game={game} />}
+      {panel === 'bed' && <Bed game={game} />}
       {panel === 'result' && <Result />}
+      {panel === 'intro' && <Intro />}
+      {panel === 'funDay' && <FunDayTable game={game} />}
+      {panel === 'menu' && <Menu />}
     </div>
   );
 }
 
-function Welcome() {
-  const dog = useGame((s) => s.activeDog());
-  const dismiss = useGame((s) => s.dismissWelcome);
+function Close({ label = 'Close' }: { label?: string }) {
   return (
-    <div className="panel card">
-      <h2>Field test: working with your dog</h2>
-      <p className="lead">
-        This is an early test of how it feels to work with a dog in Grandpa's old training field.
-        The story, the kennel and breeding come later. Right now the question is simple: is this
-        fun, and does your skill matter?
-      </p>
-      <p>
-        You're working with <b>{dog.name}</b>, one of three rescues. Each has different natural
-        strengths you'll notice as you play. Start with some free play, then try the set-ups and
-        lessons in the <b>Field book</b>.
-      </p>
-      <h3>Controls</h3>
-      <div className="controls-grid">
-        <kbd>WASD / stick</kbd>
-        <span>Walk (Shift or push the stick fully to run)</span>
-        <kbd>Click / tap ground</kbd>
-        <span>Throw the ball, send your dog, or point a direction when it's waiting</span>
-        <kbd>Space</kbd>
-        <span>Stop whistle in the field · "Yes!" in lessons</span>
-        <kbd>R</kbd>
-        <span>"Here!" — call your dog back</span>
-        <kbd>F</kbd>
-        <span>"Sit" to steady your dog · the lesson's cue</span>
-        <kbd>Drag / Q E</kbd>
-        <span>Look around</span>
-      </div>
-      <p>
-        Watch your dog's body language at the top left. Dogs show what they're about to do before
-        they do it. Wind matters: scent drifts the way the wind arrow points.
-      </p>
-      <div className="button-row">
-        <button className="button" onClick={dismiss}>
-          Let's go
-        </button>
-      </div>
-    </div>
+    <button className="button secondary" onClick={close}>
+      {label}
+    </button>
   );
 }
 
-function Book() {
-  const tab = useGame((s) => s.bookTab);
-  const setTab = useGame((s) => s.setBookTab);
-  const setPanel = useGame((s) => s.setPanel);
+// ---------------------------------------------------------------------------
+// The office: Grandpa's ledger
+// ---------------------------------------------------------------------------
+
+function Office({ game }: { game: GameState }) {
+  const [tab, setTab] = useState<'dog' | 'diary' | 'notes'>(game.dogs.length ? 'dog' : 'notes');
+  const dog = activeDog(game);
   return (
     <div className="panel card">
-      <h2>Field book</h2>
+      <div className="kicker">The office</div>
+      <h2>Grandpa's ledger</h2>
       <div className="tabs">
-        {(['work', 'lessons', 'dogs'] as const).map((t) => (
-          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-            {t === 'work' ? 'Field work' : t === 'lessons' ? 'Lessons' : 'Dogs'}
+        {dog && (
+          <button className={`tab ${tab === 'dog' ? 'active' : ''}`} onClick={() => setTab('dog')}>
+            {dog.name}
           </button>
-        ))}
-      </div>
-      {tab === 'work' && <WorkTab />}
-      {tab === 'lessons' && <LessonsTab />}
-      {tab === 'dogs' && <DogsTab />}
-      <div className="button-row">
-        <button className="button secondary" onClick={() => setPanel('none')}>
-          Close
+        )}
+        <button
+          className={`tab ${tab === 'diary' ? 'active' : ''}`}
+          onClick={() => setTab('diary')}
+        >
+          Diary
+        </button>
+        <button
+          className={`tab ${tab === 'notes' ? 'active' : ''}`}
+          onClick={() => setTab('notes')}
+        >
+          Grandpa's notes
         </button>
       </div>
+      {tab === 'dog' && dog && <DogCard dog={dog} game={game} />}
+      {tab === 'diary' && (
+        <ul className="notes">
+          {game.diary.length === 0 && <li>Nothing written yet. The pages are waiting.</li>}
+          {[...game.diary].reverse().map((d, i) => (
+            <li key={i}>
+              <b>{dayName(d.day)}:</b> {d.text}
+            </li>
+          ))}
+        </ul>
+      )}
+      {tab === 'notes' && (
+        <ul className="notes">
+          <li>
+            "Watch the dog before you command it. Ears, tail, nose: they tell you what comes next."
+          </li>
+          <li>"Feed before you train. A hungry dog listens to its stomach."</li>
+          <li>"Mark the moment, not the minute after. Late praise teaches nothing."</li>
+          <li>
+            "Scent runs downwind like smoke. Put the dog below the wind and let the nose work."
+          </li>
+          <li>
+            "A dog that's bouncing about found something fun. A dog that slows down found something
+            real."
+          </li>
+          <li>"Rest days are training days too."</li>
+        </ul>
+      )}
+      <div className="button-row">
+        <Close />
+      </div>
     </div>
   );
 }
 
-function bestGrade(setupId: string, dogId: string) {
-  const runs = useGame.getState().history.filter((h) => h.setupId === setupId && h.dogId === dogId);
-  if (runs.length === 0) return null;
-  return runs.reduce((a, b) => (b.score > a.score ? b : a));
-}
-
-function WorkTab() {
-  const dog = useGame((s) => s.activeDog());
-  const screen = useGame((s) => s.screen);
-  const start = useGame((s) => s.startField);
-  useGame((s) => s.history.length);
+function Bar({ value }: { value: number }) {
   return (
-    <div className="list">
-      {[FREE_PLAY, ...RETRIEVE_SETUPS].map((setup) => {
-        const best = setup.free ? null : bestGrade(setup.id, dog.id);
-        const current = screen.kind === 'field' && screen.setupId === setup.id;
-        return (
-          <div key={setup.id} className={`row ${current ? 'active' : ''}`}>
-            <div className="grow">
-              <div className="title">{setup.title}</div>
-              <div className="sub">{setup.summary}</div>
-            </div>
-            {best && (
-              <span
-                className={`badge ${best.grade === 'Excellent' || best.grade === 'Very good' ? 'good' : ''}`}
-              >
-                {best.grade}
-              </span>
-            )}
-            <button className="button" onClick={() => start(setup.id)}>
-              {current ? 'Restart' : 'Go'}
-            </button>
-          </div>
-        );
-      })}
+    <div className="meter">
+      <div className="fill" style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
     </div>
   );
 }
 
-function LessonsTab() {
-  const dog = useGame((s) => s.activeDog());
-  const start = useGame((s) => s.startLesson);
+function DogCard({ dog, game }: { dog: Dog; game: GameState }) {
+  const coat = coatOf(dog);
+  const knowledge = game.knowledge[dog.id] ?? {};
   return (
-    <>
+    <div>
       <p className="lead">
-        Lessons are marker training: you decide what to reward and press "Yes!" at exactly the right
-        moment. What {dog.name} learns here shows up in the field.
+        {dog.name} · {dog.sex}, about {Math.max(1, Math.round(dog.ageMonths / 12))} years old ·{' '}
+        {coat.name} · {breedDescription(dog)}
       </p>
+      <div className="two-col">
+        <div>
+          <h3>Natural talents</h3>
+          <p className="small">
+            What you've learned by watching {dog.name} work. Ranges narrow with experience.
+          </p>
+          <div className="skills">
+            {APTITUDES.map((a) => {
+              const est = knowledge[a];
+              return (
+                <div key={a} className="talent-row" title={APTITUDE_LABELS[a].effect}>
+                  <span>{APTITUDE_LABELS[a].name}</span>
+                  <span className={isKnown(est) ? 'known' : 'unknown'}>
+                    {describeEstimate(est)}
+                  </span>
+                  <div className="range">
+                    {est && (
+                      <div
+                        className="band"
+                        style={{ left: `${est.lo}%`, width: `${Math.max(2, est.hi - est.lo)}%` }}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <h3>Trained skills</h3>
+          <div className="skills">
+            {CUES.map((c) => (
+              <div key={c} className="talent-row">
+                <span>{CUE_LABELS[c].name}</span>
+                <span>{Math.round(dog.skills[c] * 100)}%</span>
+                <Bar value={dog.skills[c]} />
+              </div>
+            ))}
+          </div>
+          <h3>Bond</h3>
+          <Bar value={dog.bond / 100} />
+          {hasFlag(game, 'own:brush') && (
+            <div className="button-row">
+              <button className="button secondary" onClick={brush}>
+                Brush {dog.name}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {coat.notes.length > 0 && <p className="small">{coat.notes.join(' ')}</p>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Noticeboard, van, shop
+// ---------------------------------------------------------------------------
+
+function Noticeboard({ game }: { game: GameState }) {
+  return (
+    <div className="panel card">
+      <div className="kicker">The noticeboard</div>
+      <h2>Jobs and requests</h2>
+      <p className="lead">Each job uses one part of the day. You'll travel there in the van.</p>
       <div className="list">
-        {(Object.keys(LESSONS) as Lesson[]).map((lesson) => (
-          <div key={lesson} className="row">
+        {game.jobs.length === 0 && (
+          <div className="row">No new notices today. Check again tomorrow.</div>
+        )}
+        {game.jobs.map((job) => (
+          <div key={job.id} className="row">
             <div className="grow">
-              <div className="title">{LESSONS[lesson].title}</div>
-              <div className="sub">{LESSONS[lesson].summary}</div>
-              <div className="meter" style={{ marginTop: 6, height: 8 }}>
-                <div className="fill" style={{ width: `${dog.skills[lesson] * 100}%` }} />
+              <div className="title">{job.title}</div>
+              <div className="sub">
+                {job.client}: "{job.blurb}"
+              </div>
+              <div className="sub">
+                {job.kind === 'search'
+                  ? 'Scent search'
+                  : job.kind === 'blind'
+                    ? 'A blind retrieve'
+                    : 'Marked retrieves'}{' '}
+                · {job.place === 'orchard' ? "Mara's orchard" : "Grandpa's field"}
               </div>
             </div>
-            <span className="badge">{Math.round(dog.skills[lesson] * 100)}%</span>
-            <button className="button" onClick={() => start(lesson)}>
-              Train
+            <span className="badge good">${job.pay}</span>
+            <button
+              className="button"
+              disabled={game.block === 'night' || !game.dogs.length}
+              onClick={() => startJob(job)}
+            >
+              Take it
             </button>
           </div>
         ))}
       </div>
-    </>
-  );
-}
-
-function SkillBars({ dog }: { dog: Dog }) {
-  return (
-    <div className="skills">
-      {CUES.map((cue) => (
-        <FragmentRow key={cue} label={CUE_LABELS[cue].name} value={dog.skills[cue]} />
-      ))}
+      <div className="button-row">
+        <Close />
+      </div>
     </div>
   );
 }
 
-function FragmentRow({ label, value }: { label: string; value: number }) {
+function VanPanel({ game }: { game: GameState }) {
+  const hasDog = game.dogs.length > 0;
+  const funDay = canGoToFunDay(game);
   return (
-    <>
-      <span>{label}</span>
-      <div className="meter">
-        <div className="fill" style={{ width: `${value * 100}%` }} />
+    <div className="panel card">
+      <div className="kicker">The van</div>
+      <h2>Where to?</h2>
+      <div className="list">
+        {!hasDog && (
+          <div className="row">
+            <div className="grow">
+              <div className="title">Larchwood Rescue</div>
+              <div className="sub">Grandpa's wish: start with a dog that needs you.</div>
+            </div>
+            <button className="button" onClick={() => travel('shelter')}>
+              Drive there
+            </button>
+          </div>
+        )}
+        {hasDog && (
+          <div className="row">
+            <div className="grow">
+              <div className="title">Mara's orchard</div>
+              <div className="sub">
+                Jobs in the orchard start from the noticeboard by your gate.
+              </div>
+            </div>
+            <button
+              className="button secondary"
+              onClick={() => useApp.setState({ panel: 'noticeboard' })}
+            >
+              See jobs
+            </button>
+          </div>
+        )}
+        <div className="row">
+          <div className="grow">
+            <div className="title">Village shop</div>
+            <div className="sub">Kibble and kit. A short drive; it doesn't use up the day.</div>
+          </div>
+          <button className="button" onClick={() => travel('village')}>
+            Go shopping
+          </button>
+        </div>
+        {hasDog && (
+          <div className="row">
+            <div className="grow">
+              <div className="title">Village green: the Fun Day</div>
+              <div className="sub">
+                {game.funDay
+                  ? 'Done for this year.'
+                  : game.day >= FUN_DAY
+                    ? 'Today! Three rounds: a mark, a search and a blind.'
+                    : `Sunday. ${FUN_DAY - game.day} day${FUN_DAY - game.day > 1 ? 's' : ''} to go.`}
+              </div>
+            </div>
+            <button className="button" disabled={!funDay} onClick={() => travel('green')}>
+              Enter
+            </button>
+          </div>
+        )}
       </div>
-    </>
+      <div className="button-row">
+        <Close label="Stay home" />
+      </div>
+    </div>
   );
 }
 
-function DogsTab() {
-  const dogs = useGame((s) => s.dogs);
-  const activeId = useGame((s) => s.activeDogId);
-  const select = useGame((s) => s.selectDog);
-  const newRescues = useGame((s) => s.newRescues);
+function Shop({ game }: { game: GameState }) {
   return (
-    <>
+    <div className="panel card">
+      <div className="kicker">The village shop</div>
+      <h2>Supplies</h2>
       <p className="lead">
-        Three rescues from the shelter. Each looks and works differently. Try the same set-up with
-        each.
+        You have <b>${game.money}</b> and <b>{game.food} meals</b> in the pantry.
       </p>
       <div className="list">
-        {dogs.map((dog) => {
-          const coat = coatOf(dog);
+        {SHOP.map((item) => {
+          const owned = item.once && hasFlag(game, `own:${item.id}`);
           return (
-            <div
-              key={dog.id}
-              className={`row ${dog.id === activeId ? 'active' : ''}`}
-              style={{ alignItems: 'flex-start' }}
-            >
+            <div key={item.id} className="row">
               <div className="grow">
-                <div className="title">
-                  {dog.name}{' '}
-                  <span className="sub">
-                    · {dog.sex}, {Math.round(dog.ageMonths / 12)} yrs
-                  </span>
-                </div>
-                <div className="sub">
-                  {coat.name} · {breedDescription(dog)}
-                </div>
-                <SkillBars dog={dog} />
-                <DevAptitudes dog={dog} />
+                <div className="title">{item.name}</div>
+                <div className="sub">{item.description}</div>
               </div>
-              {dog.id === activeId ? (
-                <span className="badge good">Working</span>
-              ) : (
-                <button className="button" onClick={() => select(dog.id)}>
-                  Work with {dog.name}
-                </button>
-              )}
+              <span className="badge">${item.cost}</span>
+              <button
+                className="button"
+                disabled={owned || game.money < item.cost}
+                onClick={() => buyItem(item.id)}
+              >
+                {owned ? 'Owned' : 'Buy'}
+              </button>
             </div>
           );
         })}
       </div>
-      <div className="dev">
-        <b>Tester tools.</b> These are for the field test only.
-        <div className="button-row">
-          <button className="button secondary" onClick={newRescues}>
-            Meet three new rescues
-          </button>
-          <DevSkillButtons />
-        </div>
+      <div className="button-row">
+        <Close label="Drive home" />
       </div>
-    </>
+    </div>
   );
 }
 
-function DevAptitudes({ dog }: { dog: Dog }) {
-  const profile = aptitudeProfile(dog);
+function GateSign({ game }: { game: GameState }) {
+  const [name, setName] = useState(game.kennelName);
   return (
-    <details style={{ marginTop: 8 }}>
-      <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-        Hidden aptitudes (tester view)
-      </summary>
-      <div className="skills">
-        {APTITUDES.map((a) => (
-          <FragmentRow
-            key={a}
-            label={`${APTITUDE_LABELS[a].name} ${profile[a]}`}
-            value={profile[a] / 100}
+    <div className="panel card narrow">
+      <div className="kicker">The gate sign</div>
+      <h2>{game.kennelName ? `${game.kennelName} Kennels` : 'Name your kennel'}</h2>
+      <p className="lead">
+        {game.kennelName
+          ? "Your name, on Grandpa's gate. You can repaint it if you like."
+          : "Grandpa's old name has worn away. What will your kennel be called?"}
+      </p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          nameKennel(name);
+        }}
+      >
+        <div className="name-input">
+          <input
+            autoFocus
+            maxLength={28}
+            value={name}
+            placeholder="e.g. Oak Hollow"
+            onChange={(e) => setName(e.target.value)}
           />
-        ))}
-      </div>
-      <div className="sub" style={{ marginTop: 6, fontFamily: 'monospace', fontSize: 11 }}>
-        {formatGenotype(dog.genome.loci)}
-      </div>
-      {coatOf(dog).notes.map((n) => (
-        <div key={n} className="sub">
-          {n}
+          <span>Kennels</span>
         </div>
-      ))}
-    </details>
-  );
-}
-
-function DevSkillButtons() {
-  const setSkill = useGame((s) => s.devSetSkill);
-  return (
-    <>
-      <button
-        className="button secondary"
-        onClick={() => (['stop', 'cast', 'stay'] as const).forEach((c) => setSkill(c, 0.85))}
-      >
-        Skip ahead: trained dog
-      </button>
-      <button
-        className="button secondary"
-        onClick={() => (['stop', 'cast', 'stay'] as const).forEach((c) => setSkill(c, 0))}
-      >
-        Reset training
-      </button>
-    </>
-  );
-}
-
-function Result() {
-  const report = useGame((s) => s.report);
-  const lessonResult = useGame((s) => s.lessonResult);
-  const screen = useGame((s) => s.screen);
-  const restart = useGame((s) => s.restart);
-  const startField = useGame((s) => s.startField);
-  const startLesson = useGame((s) => s.startLesson);
-  const setPanel = useGame((s) => s.setPanel);
-  const dog = useGame((s) => s.activeDog());
-
-  if (screen.kind === 'lesson' && lessonResult) {
-    const gain = lessonResult.after - lessonResult.before;
-    const c = lessonResult.counts;
-    return (
-      <div className="panel card">
-        <h2>{LESSONS[lessonResult.lesson].title}: session over</h2>
-        <div className="grade">
-          <span className="big">
-            {Math.round(lessonResult.before * 100)}% → {Math.round(lessonResult.after * 100)}%
-          </span>
-          <span className={`badge ${gain > 0 ? 'good' : ''}`}>
-            {gain >= 0 ? '+' : ''}
-            {Math.round(gain * 100)} points
-          </span>
-        </div>
-        <ul className="notes">
-          {(c.perfect ?? 0) > 0 && <li className="good">{c.perfect} perfectly timed rewards.</li>}
-          {(c.shaping ?? 0) > 0 && (
-            <li className="good">{c.shaping} rewards for steps in the right direction.</li>
-          )}
-          {((c.early ?? 0) > 0 || (c.late ?? 0) > 0) && (
-            <li>
-              {c.early ?? 0} early and {c.late ?? 0} late marks
-              {lessonResult.averageOffset !== null &&
-                ` (on average ${lessonResult.averageOffset >= 0 ? '+' : ''}${lessonResult.averageOffset.toFixed(2)} s)`}
-              .
-            </li>
-          )}
-          {((c.wrong ?? 0) > 0 || (c.sloppy ?? 0) > 0) && (
-            <li className="warn">
-              {(c.wrong ?? 0) + (c.sloppy ?? 0)} rewards for the wrong thing. Those cost progress.
-            </li>
-          )}
-          {(c.nothing ?? 0) > 0 && (
-            <li className="warn">{c.nothing} marks when nothing was happening.</li>
-          )}
-          <li>
-            {lessonResult.dogName}'s {LESSONS[lessonResult.lesson].title.toLowerCase()} skill is now{' '}
-            {Math.round(lessonResult.after * 100)}%. It carries over to field work.
-          </li>
-        </ul>
         <div className="button-row">
-          <button className="button" onClick={restart}>
-            Another session
+          <button className="button" type="submit" disabled={name.trim().length < 2}>
+            Paint the sign
           </button>
-          <button
-            className="button secondary"
-            onClick={() => startField(lessonResult.lesson === 'sit' ? 'free' : 'first-blind')}
-          >
-            Try it in the field
-          </button>
-          <button className="button secondary" onClick={() => setPanel('book')}>
-            Field book
-          </button>
+          <Close label="Later" />
         </div>
-      </div>
-    );
-  }
+      </form>
+    </div>
+  );
+}
 
-  if (!report || screen.kind !== 'field') return null;
-  const setupIndex = RETRIEVE_SETUPS.findIndex((s) => s.id === screen.setupId);
-  const next = RETRIEVE_SETUPS[setupIndex + 1];
+// ---------------------------------------------------------------------------
+// The training field gate
+// ---------------------------------------------------------------------------
+
+function FieldGate({ game }: { game: GameState }) {
+  const dog = activeDog(game)!;
+  const [tab, setTab] = useState<'lessons' | 'field'>(
+    game.story === 'firstLesson' ? 'lessons' : game.story === 'firstMark' ? 'field' : 'lessons',
+  );
+  const best = (title: string) =>
+    game.results.filter((r) => r.title === title).reduce((b, r) => Math.max(b, r.score), -1);
+  const night = game.block === 'night';
+  const lessons = (Object.keys(LESSONS) as Lesson[]).filter(
+    (l) => l !== 'indicate' || hasFlag(game, 'restored:scentGarden'),
+  );
   return (
     <div className="panel card">
-      <h2>{RETRIEVE_SETUPS[setupIndex]?.title ?? 'Retrieve'}</h2>
-      <div className="grade">
-        <span className="big">{report.grade}</span>
-        <span className="badge">{report.score} points</span>
-        <span className="badge">{Math.round(report.seconds)} s</span>
+      <div className="kicker">Grandpa's training field · {game.block}</div>
+      <h2>What shall we work on?</h2>
+      <p className="lead">
+        Each choice uses one part of the day and some of {dog.name}'s energy (
+        {Math.round(dog.energy)}% left).
+        {night && " It's dark now: only free play until tomorrow."}
+      </p>
+      <div className="tabs">
+        <button
+          className={`tab ${tab === 'lessons' ? 'active' : ''}`}
+          onClick={() => setTab('lessons')}
+        >
+          Lessons
+        </button>
+        <button
+          className={`tab ${tab === 'field' ? 'active' : ''}`}
+          onClick={() => setTab('field')}
+        >
+          Field work
+        </button>
       </div>
+      {tab === 'lessons' && (
+        <div className="list">
+          {lessons.map((l) => (
+            <div
+              key={l}
+              className={`row ${game.story === 'firstLesson' && l === 'sit' ? 'active' : ''}`}
+            >
+              <div className="grow">
+                <div className="title">{LESSONS[l].title}</div>
+                <div className="sub">{LESSONS[l].summary}</div>
+                <Bar value={dog.skills[l]} />
+              </div>
+              <span className="badge">-{ACTIVITY_ENERGY.lesson} energy</span>
+              <button className="button" disabled={night} onClick={() => startLesson(l)}>
+                Train
+              </button>
+            </div>
+          ))}
+          {!hasFlag(game, 'restored:scentGarden') && (
+            <div className="row muted">
+              <div className="grow">
+                <div className="title">Search and indicate (locked)</div>
+                <div className="sub">Restore Grandpa's scent garden to unlock this lesson.</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {tab === 'field' && (
+        <div className="list">
+          {[FREE_PLAY, ...RETRIEVE_SETUPS].map((s) => {
+            const b = best(s.title);
+            const highlight = game.story === 'firstMark' && s.id === 'first-mark';
+            return (
+              <div key={s.id} className={`row ${highlight ? 'active' : ''}`}>
+                <div className="grow">
+                  <div className="title">{s.title}</div>
+                  <div className="sub">{s.summary}</div>
+                </div>
+                {b >= 0 && <span className="badge good">Best {b}</span>}
+                {!s.free && <span className="badge">-{ACTIVITY_ENERGY.mark} energy</span>}
+                <button
+                  className="button"
+                  disabled={night && !s.free}
+                  onClick={() => startFieldWork(s)}
+                >
+                  {s.free ? 'Play' : 'Go'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="button-row">
+        <button
+          className="link"
+          onClick={() => showIntro(tab === 'lessons' ? 'lesson' : 'mark', true)}
+        >
+          How does this work?
+        </button>
+        <Close />
+      </div>
+    </div>
+  );
+}
+
+function ScentGardenPanel({ game }: { game: GameState }) {
+  const r = RESTORATIONS[0]!;
+  const done = hasFlag(game, `restored:${r.id}`);
+  return (
+    <div className="panel card narrow">
+      <div className="kicker">Restoration</div>
+      <h2>{r.name}</h2>
+      <p className="lead">
+        {done
+          ? 'Cleared, the boxes set out again. It looks like it did in the old photographs.'
+          : r.description}
+      </p>
+      <p>
+        <b>Unlocks:</b> {r.unlocks}
+      </p>
+      <div className="button-row">
+        {!done && (
+          <button className="button" disabled={game.money < r.cost} onClick={restoreGarden}>
+            Restore for ${r.cost}
+          </button>
+        )}
+        {done && game.dogs.length > 0 && (
+          <button className="button" onClick={() => startLesson('indicate')}>
+            Train Search and indicate
+          </button>
+        )}
+        <Close />
+      </div>
+      {!done && game.money < r.cost && (
+        <p className="small">You have ${game.money}. Noticeboard jobs pay.</p>
+      )}
+    </div>
+  );
+}
+
+function Bed({ game }: { game: GameState }) {
+  const dog = activeDog(game);
+  return (
+    <div className="panel card narrow">
+      <div className="kicker">The farmhouse</div>
+      <h2>{game.block === 'night' ? 'Time for bed' : `It's ${game.block}`}</h2>
+      {dog && (
+        <ul className="notes">
+          <li className={dog.fullness < 30 && !game.bowlFilled ? 'warn' : ''}>
+            {game.bowlFilled
+              ? `${dog.name}'s bowl is filled for the night.`
+              : dog.fullness < 50
+                ? `${dog.name} is hungry. Fill the bowl at the runs before bed.`
+                : `${dog.name} is well fed.`}
+          </li>
+          <li>
+            {game.food <= 2
+              ? `Only ${game.food} meals left: buy kibble soon.`
+              : `${game.food} meals in the pantry.`}
+          </li>
+          <li>
+            {dog.energy < 40
+              ? `${dog.name} is tired and needs a good night.`
+              : `${dog.name} has energy to spare.`}
+          </li>
+        </ul>
+      )}
+      <div className="button-row">
+        <button className="button" onClick={goToBed}>
+          Go to bed
+        </button>
+        {dog && game.block === 'evening' && (
+          <button className="button secondary" onClick={restEvening}>
+            Rest together a while
+          </button>
+        )}
+        <Close label="Not yet" />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Results, intro cards, the Fun Day table, the menu
+// ---------------------------------------------------------------------------
+
+function Result() {
+  const r = useApp((s) => s.result);
+  if (!r) return null;
+  return (
+    <div className="panel card">
+      <h2>{r.title}</h2>
+      <div className="grade">
+        <span className="big">{r.grade}</span>
+        {!r.skill && <span className="badge">{r.score} points</span>}
+        {r.seconds > 0 && !r.skill && <span className="badge">{Math.round(r.seconds)} s</span>}
+        {r.pay > 0 && <span className="badge good">+${r.pay}</span>}
+      </div>
+      {r.skill && (
+        <div className="skill-change">
+          <span>{r.skill.name}</span>
+          <div className="meter">
+            <div className="fill" style={{ width: `${r.skill.after * 100}%` }} />
+            <div className="before" style={{ left: `${r.skill.before * 100}%` }} />
+          </div>
+          <span>
+            {Math.round(r.skill.before * 100)}% → {Math.round(r.skill.after * 100)}%
+          </span>
+        </div>
+      )}
       <ul className="notes">
-        {report.notes.map((n) => (
+        {r.notes.map((n) => (
           <li key={n.text} className={n.tone}>
             {n.text}
           </li>
         ))}
-        {report.notes.length === 0 && <li>{dog.name} got the job done.</li>}
+        {r.discoveries.map((d) => (
+          <li key={d.text} className="discovery">
+            ★ {d.text}
+          </li>
+        ))}
       </ul>
-      <p style={{ marginTop: 12, fontWeight: 700 }}>{report.suggestion.text}</p>
+      {r.suggestion && <p style={{ marginTop: 12, fontWeight: 700 }}>{r.suggestion}</p>}
       <div className="button-row">
-        {report.suggestion.kind === 'lesson' && (
-          <button
-            className="button"
-            onClick={() =>
-              startLesson(
-                report.suggestion.kind === 'lesson' ? (report.suggestion.lesson as Lesson) : 'sit',
-              )
-            }
-          >
-            Go to the lesson
-          </button>
-        )}
-        <button
-          className={`button ${report.suggestion.kind === 'lesson' ? 'secondary' : ''}`}
-          onClick={restart}
-        >
-          Try again
-        </button>
-        {next && (
-          <button className="button secondary" onClick={() => startField(next.id)}>
-            Next: {next.title}
-          </button>
-        )}
-        <button className="button secondary" onClick={() => setPanel('book')}>
-          Field book
+        <button className="button" onClick={closeResult}>
+          {r.next === 'funDayNext'
+            ? 'Next round'
+            : r.next === 'funDayDone'
+              ? 'Final standings'
+              : 'Back home'}
         </button>
       </div>
+    </div>
+  );
+}
+
+function Intro() {
+  const intro = useApp((s) => s.intro);
+  if (!intro) return null;
+  return (
+    <div className="panel card narrow">
+      <div className="kicker">How to play</div>
+      <h2>{intro.title}</h2>
+      <ul className="steps">
+        {intro.lines.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
+      <div className="button-row">
+        <button className="button" onClick={closeIntro}>
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FunDayTable({ game }: { game: GameState }) {
+  const record = game.funDay;
+  if (!record) return null;
+  return (
+    <div className="panel card">
+      <div className="kicker">Village Fun Day · final standings</div>
+      <h2>{record.entries[0]!.player ? 'You won!' : `${record.entries[0]!.kennel} wins`}</h2>
+      <table className="standings">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Kennel</th>
+            {ROUNDS.map((r) => (
+              <th key={r.id}>
+                {r.id === 'mark' ? 'Mark' : r.id === 'search' ? 'Search' : 'Blind'}
+              </th>
+            ))}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {record.entries.map((e, i) => (
+            <tr key={e.kennel} className={e.player ? 'you' : ''}>
+              <td>{i + 1}</td>
+              <td>
+                {e.kennel}
+                <div className="sub">{e.dog}</div>
+              </td>
+              {e.rounds.map((s, j) => (
+                <td key={j}>{s}</td>
+              ))}
+              <td>
+                <b>{e.total}</b>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="button-row">
+        <button className="button" onClick={leaveFunDay}>
+          Head home
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Menu() {
+  const game = useApp((s) => s.game);
+  return (
+    <div className="panel card narrow">
+      <h2>Menu</h2>
+      <div className="list">
+        <button className="button" onClick={close}>
+          Resume
+        </button>
+        <button
+          className="button secondary"
+          onClick={() => {
+            close();
+            useApp.setState({ screen: { kind: 'title' } });
+          }}
+        >
+          Back to the title screen (progress is saved)
+        </button>
+      </div>
+      <div className="dev">
+        <b>Tester tools</b> (for checking the game; not part of normal play)
+        <div className="button-row">
+          <button className="button secondary small" onClick={() => devMoney()}>
+            +$200 and food
+          </button>
+          <button className="button secondary small" onClick={() => devSkipDays(1)}>
+            Skip a day
+          </button>
+          {game && game.dogs.length === 0 && (
+            <button className="button secondary small" onClick={devAdoptQuick}>
+              Adopt the first dog now
+            </button>
+          )}
+          <button
+            className="button secondary small"
+            onClick={() => {
+              if (confirm('Delete this save and start again?')) void resetGame();
+            }}
+          >
+            Delete save
+          </button>
+        </div>
+        {game && activeDog(game) && <TesterAptitudes dog={activeDog(game)!} />}
+      </div>
+    </div>
+  );
+}
+
+function TesterAptitudes({ dog }: { dog: Dog }) {
+  return (
+    <details>
+      <summary>Hidden aptitudes (tester view)</summary>
+      <div className="small">
+        {APTITUDES.map((a) => `${APTITUDE_LABELS[a].name} ${aptitude(dog, a)}`).join(' · ')}
+      </div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The shelter
+// ---------------------------------------------------------------------------
+
+function ShelterCards({ game }: { game: GameState }) {
+  const pick = useApp((s) => s.shelterPick);
+  const [choosing, setChoosing] = useState<number | null>(null);
+  const [name, setName] = useState('');
+  return (
+    <div className="shelter-cards">
+      {game.shelter.map((dog, i) => {
+        const coat = coatOf(dog);
+        const k = game.knowledge[dog.id] ?? {};
+        const met = hasFlag(game, `met:${dog.id}`);
+        return (
+          <div key={dog.id} className={`shelter-card card ${i === pick ? 'active' : ''}`}>
+            <div className="title">{dog.name}</div>
+            <div className="sub">
+              {dog.sex}, about {Math.max(1, Math.round(dog.ageMonths / 12))} · {coat.name}
+            </div>
+            <div className="sub">{breedDescription(dog)}</div>
+            {met && (
+              <div className="sub">
+                Speed: {describeEstimate(k.speed).toLowerCase()} · Listens:{' '}
+                {describeEstimate(k.biddability).toLowerCase()}
+              </div>
+            )}
+            {choosing === i ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  adopt(i, name || dog.name);
+                }}
+              >
+                <input
+                  autoFocus
+                  maxLength={16}
+                  placeholder={dog.name}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <div className="button-row">
+                  <button className="button small" type="submit">
+                    Take {name || dog.name} home
+                  </button>
+                  <button className="link" type="button" onClick={() => setChoosing(null)}>
+                    Back
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="button-row">
+                {i !== pick && (
+                  <button className="button secondary small" onClick={() => meetShelterDog(i)}>
+                    Play
+                  </button>
+                )}
+                <button
+                  className="button small"
+                  onClick={() => {
+                    setChoosing(i);
+                    setName(dog.name);
+                  }}
+                >
+                  Choose
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -3,77 +3,179 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { damp, distance, wrapAngle, type Vec2 } from '../core/math';
 import type { Dog } from '../core/dog/dog';
-import { FIXED_DT, setKeeperInput, stepSession, type RetrieveSession } from '../sim/retrieve';
+import { activeDog, hasFlag } from '../game/state';
+import { objective, type Landmark } from '../game/story';
+import { createRivals } from '../game/funday';
+import {
+  FIXED_DT,
+  aimTarget,
+  setKeeperInput,
+  stepSession,
+  type RetrieveSession,
+} from '../sim/retrieve';
+import { setSearchKeeperInput, stepSearch, type SearchSession } from '../sim/search';
 import { stepTraining, type TrainingSession } from '../sim/training';
-import { createTrainingField } from '../sim/field';
+import { HOME_SOLIDS, HOME_SPOTS, routeAround, setHomeInput, stepHome } from '../sim/home';
 import { windAt } from '../sim/scent';
-import { live, useGame } from '../app/store';
+import { live, useApp, type Place } from '../app/store';
 import { cameraState, movementVector } from '../app/input';
-import { publishField, publishLesson } from '../app/hud';
-import { tapGround } from '../app/actions';
+import { publish } from '../app/hud';
+import { tapGround, walkTarget } from '../app/actions';
+import { activityFinished, fieldFor, homeDogAte, MARA_POS } from '../app/flow';
 import { DogModel, type DogView } from './dog/DogModel';
-import { HELPER_PALETTE, KeeperModel, type KeeperView } from './KeeperModel';
+import { HELPER_PALETTE, KeeperModel, type KeeperView, type Palette } from './KeeperModel';
 import { Ground, Grass, Hedges, Trees, WindClock, WindFlag } from './world/Field';
 import { Kennel } from './world/Kennel';
+import { Yard } from './world/Yard';
+import { Orchard, Shelter, VillageGreen } from './world/Places';
 import { Lighting, Sky } from './world/Atmosphere';
 import { heightAt } from './world/terrain';
 
-const FIELD = createTrainingField();
-const FLAG_SPOTS: Vec2[] = [
-  { x: -24, z: 8 },
-  { x: 30, z: -40 },
-  { x: -34, z: -76 },
-];
+const MARA_PALETTE: Palette = { jacket: '#4f6f9a', trousers: '#5a4f45', cap: '#cfcac0' };
+const VICTOR_PALETTE: Palette = { jacket: '#27344a', trousers: '#2c2c30', cap: '#27344a' };
+const BILLY_PALETTE: Palette = { jacket: '#d9622b', trousers: '#4a5a8a', cap: '#f4d35e' };
 
-/** Steps whichever simulation is live and publishes the interface snapshot. */
+/** Where the pointer is on the ground (desktop), for the aim line. */
+const aim: { point: Vec2 | null } = { point: null };
+
+function placeOf(screen: ReturnType<typeof useApp.getState>['screen']): Place {
+  if (screen.kind === 'retrieve' || screen.kind === 'search') return screen.place;
+  if (screen.kind === 'shelter') return 'shelter';
+  return 'home';
+}
+
+// ---------------------------------------------------------------------------
+// Simulation runner
+// ---------------------------------------------------------------------------
+
 function Runner() {
   const acc = useRef(0);
   const hudTimer = useRef(0);
   const finished = useRef<object | null>(null);
 
   useFrame((_, dt) => {
-    const field = live.field;
-    const lesson = live.lesson;
-    if (field) {
-      const { move, running } = movementVector();
-      setKeeperInput(field, move, running);
+    const app = useApp.getState();
+    const paused = app.panel !== null || app.dialog !== null;
+    const { move, running } = movementVector();
+
+    if (live.home) {
+      // Click-to-walk: head for the tapped point until close or the keys take over.
+      let input = move;
+      let jog = running;
+      const target = walkTarget.point;
+      if (target && Math.hypot(move.x, move.z) < 0.05) {
+        const dx = target.x - live.home.keeper.pos.x;
+        const dz = target.z - live.home.keeper.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.6) walkTarget.point = null;
+        else {
+          // Walk round buildings rather than into them.
+          const next = routeAround(live.home.keeper.pos, target);
+          const nx = next.x - live.home.keeper.pos.x;
+          const nz = next.z - live.home.keeper.pos.z;
+          const nd = Math.hypot(nx, nz) || 1;
+          input = { x: nx / nd, z: nz / nd };
+          jog = d > 6;
+        }
+      } else if (Math.hypot(move.x, move.z) > 0.05) walkTarget.point = null;
+      setHomeInput(live.home, paused ? { x: 0, z: 0 } : input, jog);
     }
-    const paused = useGame.getState().panel !== 'none';
+    if (live.field) setKeeperInput(live.field, paused ? { x: 0, z: 0 } : move, running);
+    if (live.search) setSearchKeeperInput(live.search, paused ? { x: 0, z: 0 } : move, running);
+
     if (!paused) {
       acc.current += Math.min(dt, 0.1);
       while (acc.current >= FIXED_DT) {
-        if (field) stepSession(field, FIXED_DT);
-        if (lesson) stepTraining(lesson, FIXED_DT);
+        if (live.home) stepHome(live.home, FIXED_DT);
+        if (live.field) stepSession(live.field, FIXED_DT);
+        if (live.search) stepSearch(live.search, FIXED_DT);
+        if (live.lesson) stepTraining(live.lesson, FIXED_DT);
         acc.current -= FIXED_DT;
       }
+    } else acc.current = 0;
+
+    if (live.home?.ate) {
+      live.home.ate = false;
+      homeDogAte();
     }
-    if (field && field.phase === 'complete' && finished.current !== field) {
-      finished.current = field;
-      setTimeout(() => useGame.getState().finishField(), 900);
-    }
-    if (lesson && lesson.phase === 'done' && finished.current !== lesson) {
-      finished.current = lesson;
-      setTimeout(() => useGame.getState().finishLesson(), 1200);
+    const done =
+      (live.field && live.field.phase === 'complete' && live.field) ||
+      (live.search && live.search.phase === 'complete' && live.search) ||
+      (live.lesson && live.lesson.phase === 'done' && live.lesson) ||
+      null;
+    if (done && finished.current !== done) {
+      finished.current = done;
+      setTimeout(() => activityFinished(), 900);
     }
     hudTimer.current += dt;
     if (hudTimer.current > 0.1) {
       hudTimer.current = 0;
-      if (field) publishField(field);
-      else if (lesson) publishLesson(lesson);
+      publish();
     }
   });
   return null;
 }
 
-/**
- * Third-person camera behind the keeper. When the dog is working far away
- * the camera rises and pulls back so both stay in view; you never lose
- * sight of your dog or where you are sending it.
- */
+// ---------------------------------------------------------------------------
+// Camera
+// ---------------------------------------------------------------------------
+
+function groundPoint(
+  e: { clientX: number; clientY: number },
+  el: HTMLElement,
+  camera: THREE.Camera,
+  ray: THREE.Raycaster,
+): Vec2 | null {
+  const rect = el.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((e.clientX - rect.left) / rect.width) * 2 - 1,
+    -((e.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  ray.setFromCamera(ndc, camera);
+  let groundY = 0;
+  let hit: THREE.Vector3 | null = null;
+  for (let i = 0; i < 3; i++) {
+    if (Math.abs(ray.ray.direction.y) < 1e-4) return null;
+    const t = (groundY - ray.ray.origin.y) / ray.ray.direction.y;
+    if (t < 0) return null;
+    hit = ray.ray.origin.clone().addScaledVector(ray.ray.direction, t);
+    groundY = heightAt(hit.x, hit.z);
+  }
+  return hit ? { x: hit.x, z: hit.z } : null;
+}
+
+/** Pulls the camera in toward the target if a building is in the way. */
+function keepOutOfBuildings(target: THREE.Vector3, camera: THREE.Vector3): void {
+  const steps = 24;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = target.x + (camera.x - target.x) * t;
+    const y = target.y + (camera.y - target.y) * t;
+    const z = target.z + (camera.z - target.z) * t;
+    const blocked = HOME_SOLIDS.some(
+      (b) =>
+        x > b.minX - 0.4 &&
+        x < b.maxX + 0.4 &&
+        z > b.minZ - 0.4 &&
+        z < b.maxZ + 0.4 &&
+        y < b.height + 0.5,
+    );
+    if (blocked) {
+      const keep = Math.max(0.15, (i - 1.5) / steps);
+      camera.set(
+        target.x + (camera.x - target.x) * keep,
+        Math.max(target.y + 1.5, target.y + (camera.y - target.y) * keep + 1.5),
+        target.z + (camera.z - target.z) * keep,
+      );
+      return;
+    }
+  }
+}
+
 function CameraRig() {
   const { camera, gl, size } = useThree();
-  const look = useRef(new THREE.Vector3(0, 1, 10));
-  const pos = useRef(new THREE.Vector3(0, 6, 20));
+  const look = useRef(new THREE.Vector3(0, 1, 70));
+  const pos = useRef(new THREE.Vector3(0, 8, 90));
   const pointer = useRef<{
     id: number;
     x: number;
@@ -96,11 +198,12 @@ function CameraRig() {
       };
     };
     const move = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') aim.point = groundPoint(e, el, camera, raycaster);
       const p = pointer.current;
       if (!p || p.id !== e.pointerId) return;
       const dx = e.clientX - p.x;
       const dy = e.clientY - p.y;
-      if (!p.moved && Math.hypot(dx, dy) < 8) return;
+      if (!p.moved && Math.hypot(dx, dy) < 10) return;
       p.moved = true;
       cameraState.yaw -= dx * 0.006;
       cameraState.pitch = Math.min(1.1, Math.max(0.12, cameraState.pitch + dy * 0.004));
@@ -113,42 +216,30 @@ function CameraRig() {
       if (!p || p.id !== e.pointerId) return;
       pointer.current = null;
       if (p.moved || p.button !== 0) return;
-      const rect = el.getBoundingClientRect();
-      const ndc = new THREE.Vector2(
-        ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        -((e.clientY - rect.top) / rect.height) * 2 + 1,
-      );
-      raycaster.setFromCamera(ndc, camera);
-      const ray = raycaster.ray;
-      // Intersect the ground, refining once for terrain height.
-      let groundY = 0;
-      for (let i = 0; i < 3; i++) {
-        if (Math.abs(ray.direction.y) < 1e-4) return;
-        const t = (groundY - ray.origin.y) / ray.direction.y;
-        if (t < 0) return;
-        const hit = ray.origin.clone().addScaledVector(ray.direction, t);
-        groundY = heightAt(hit.x, hit.z);
-        if (i === 2) tapGround({ x: hit.x, z: hit.z });
-      }
+      if (useApp.getState().panel || useApp.getState().dialog) return;
+      const point = groundPoint(e, el, camera, raycaster);
+      if (point) tapGround(point);
     };
     const wheel = (e: WheelEvent) => {
       cameraState.zoom = Math.min(
         2.4,
-        Math.max(0.55, cameraState.zoom * (1 + Math.sign(e.deltaY) * 0.1)),
+        Math.max(0.5, cameraState.zoom * (1 + Math.sign(e.deltaY) * 0.1)),
       );
     };
+    const menu = (e: Event) => e.preventDefault();
     el.addEventListener('pointerdown', down);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
     el.addEventListener('wheel', wheel, { passive: true });
-    el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('contextmenu', menu);
     return () => {
       el.removeEventListener('pointerdown', down);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
       el.removeEventListener('wheel', wheel);
+      el.removeEventListener('contextmenu', menu);
     };
   }, [camera, gl, raycaster]);
 
@@ -156,44 +247,76 @@ function CameraRig() {
     const dt = Math.min(rawDt, 0.05);
     const now = performance.now() / 1000;
     const portrait = size.height > size.width;
-    let target: Vec2;
-    let dist = 8.5;
+    let target: Vec2 = { x: 0, z: 70 };
+    let dist = 9;
     let pitch = cameraState.pitch;
     let autoYaw: number | null = null;
 
-    const field = live.field;
-    const lesson = live.lesson;
-    if (field) {
-      const k = field.keeper.pos;
-      const d = field.dog.pos;
+    const frameWork = (k: Vec2, d: Vec2, working: boolean) => {
       const away = distance(k, d);
-      const working = away > 10 && !(field.dog.mode === 'sit' || field.dog.mode === 'heel');
-      const spread = working ? Math.min(1, (away - 10) / 25) : 0;
+      const spread = working && away > 10 ? Math.min(1, (away - 10) / 25) : 0;
       target = cameraState.watchDog
         ? d
-        : { x: k.x + (d.x - k.x) * 0.38 * spread, z: k.z + (d.z - k.z) * 0.38 * spread };
-      dist = 8.5 + (working ? Math.min(24, away * 0.5) : 0);
-      pitch = cameraState.pitch + spread * 0.25;
-      if (working) autoYaw = Math.atan2(d.x - k.x, d.z - k.z);
-      else if (field.keeper.speed > 1) autoYaw = field.keeper.heading;
-    } else if (lesson) {
-      const k = lesson.keeper.pos;
-      const d = lesson.dog.pos;
+        : { x: k.x + (d.x - k.x) * 0.4 * spread, z: k.z + (d.z - k.z) * 0.4 * spread };
+      dist = 8.5 + (spread > 0 ? Math.min(24, away * 0.5) : 0);
+      pitch = cameraState.pitch + spread * 0.2;
+      if (spread > 0) autoYaw = Math.atan2(d.x - k.x, d.z - k.z);
+    };
+
+    if (live.home) {
+      const k = live.home.keeper;
+      target = k.pos;
+      dist = 8.5;
+      if (k.speed > 1) autoYaw = k.heading;
+    } else if (live.field) {
+      const s = live.field;
+      const flying = s.items.find((i) => i.state === 'flying' && i.kind !== 'ball');
+      if (flying) {
+        // Follow the throw so you can see exactly where it lands.
+        target = {
+          x: (s.keeper.pos.x + flying.landing.x) / 2,
+          z: (s.keeper.pos.z + flying.landing.z) / 2,
+        };
+        dist = 10 + distance(s.keeper.pos, flying.landing) * 0.55;
+        pitch = cameraState.pitch + 0.15;
+        autoYaw = Math.atan2(flying.landing.x - s.keeper.pos.x, flying.landing.z - s.keeper.pos.z);
+      } else {
+        const working = !(s.dog.mode === 'sit' || s.dog.mode === 'heel');
+        frameWork(s.keeper.pos, s.dog.pos, working);
+        if (!working && s.keeper.speed > 1) autoYaw = s.keeper.heading;
+      }
+    } else if (live.search) {
+      const s = live.search;
+      frameWork(s.keeper.pos, s.dog.pos, s.dog.mode !== 'heel' && s.dog.mode !== 'sit');
+      if (s.keeper.speed > 1) autoYaw = s.keeper.heading;
+    } else if (live.lesson) {
+      const t = live.lesson;
+      const k = t.keeper.pos;
+      const d = t.dog.pos;
       target = { x: (k.x + d.x) / 2, z: (k.z + d.z) / 2 };
-      const span = distance(k, d);
-      dist = lesson.lesson === 'sit' ? 4.8 : Math.max(9, span * 0.9 + 6);
-      if (lesson.lesson === 'cast') dist = 22;
-      pitch = lesson.lesson === 'sit' ? 0.28 : lesson.lesson === 'cast' ? 0.62 : 0.42;
-      autoYaw = lesson.lesson === 'sit' ? -Math.PI / 2 + 0.5 : Math.PI;
-    } else {
-      target = FIELD.line;
+      dist =
+        t.lesson === 'sit'
+          ? 5
+          : t.lesson === 'indicate'
+            ? 9
+            : t.lesson === 'cast'
+              ? 22
+              : Math.max(9, distance(k, d) * 0.9 + 6);
+      pitch =
+        t.lesson === 'sit'
+          ? 0.3
+          : t.lesson === 'cast'
+            ? 0.62
+            : t.lesson === 'indicate'
+              ? 0.55
+              : 0.42;
+      autoYaw = t.lesson === 'sit' ? -Math.PI / 2 + 0.5 : Math.PI;
     }
 
     if (autoYaw !== null && now - cameraState.manualAt > 2.5) {
       cameraState.yaw += wrapAngle(autoYaw - cameraState.yaw) * damp(1.4, dt);
     }
     dist *= cameraState.zoom * (portrait ? 1.3 : 1);
-
     const ty = heightAt(target.x, target.z) + 1.1;
     look.current.lerp(new THREE.Vector3(target.x, ty, target.z), damp(6, dt));
     const back = new THREE.Vector3(-Math.sin(cameraState.yaw), 0, -Math.cos(cameraState.yaw));
@@ -202,6 +325,7 @@ function CameraRig() {
       .addScaledVector(back, dist * Math.cos(pitch))
       .add(new THREE.Vector3(0, dist * Math.sin(pitch), 0));
     desired.y = Math.max(desired.y, heightAt(desired.x, desired.z) + 1.2);
+    if (live.home) keepOutOfBuildings(look.current, desired);
     pos.current.lerp(desired, damp(4.5, dt));
     camera.position.copy(pos.current);
     camera.lookAt(look.current);
@@ -209,61 +333,24 @@ function CameraRig() {
   return null;
 }
 
-/**
- * A small floating marker over the dog once it is far from the keeper, so
- * you can always pick out your dog at the far end of the field.
- */
-function DogBeacon() {
-  const ref = useRef<THREE.Group>(null);
-  const { camera } = useThree();
-  useFrame((state) => {
-    const g = ref.current;
-    const s = live.field;
-    if (!g) return;
-    if (!s) {
-      g.visible = false;
-      return;
-    }
-    const d = s.dog.pos;
-    const away = distance(d, s.keeper.pos);
-    const y = heightAt(d.x, d.z);
-    const toCamera = camera.position.distanceTo(new THREE.Vector3(d.x, y, d.z));
-    g.visible = away > 12;
-    g.position.set(
-      d.x,
-      y + 1.3 + Math.sin(state.clock.elapsedTime * 3) * 0.08 + toCamera * 0.02,
-      d.z,
-    );
-    g.scale.setScalar(Math.min(3.2, Math.max(0.6, toCamera / 22)));
-  });
-  return (
-    <group ref={ref} visible={false}>
-      <mesh rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.22, 0.42, 4]} />
-        <meshBasicMaterial color="#e2622d" />
-      </mesh>
-    </group>
-  );
-}
+// ---------------------------------------------------------------------------
+// Props and markers
+// ---------------------------------------------------------------------------
 
-function itemView(i: { pos: Vec2; y: number }) {
-  return { x: i.pos.x, y: heightAt(i.pos.x, i.pos.z) + i.y, z: i.pos.z };
-}
-
-/** Dummies and balls lying, flying or delivered; a small fixed pool of meshes. */
+/** Dummies and balls; a fixed pool of meshes driven each frame. */
 function Items() {
   const pool = useMemo(() => {
-    const dummyGeo = new THREE.CapsuleGeometry(0.08, 0.32, 4, 10);
-    const dummyMat = new THREE.MeshStandardMaterial({ color: '#ece4cf', roughness: 0.8 });
+    const dummyGeo = new THREE.CapsuleGeometry(0.09, 0.34, 4, 10);
+    const dummyMat = new THREE.MeshStandardMaterial({ color: '#f1ead6', roughness: 0.8 });
     const bandMat = new THREE.MeshStandardMaterial({ color: '#d5612f', roughness: 0.7 });
-    const ballGeo = new THREE.SphereGeometry(0.09, 14, 10);
+    const ballGeo = new THREE.SphereGeometry(0.1, 14, 10);
     const ballMat = new THREE.MeshStandardMaterial({ color: '#f0b429', roughness: 0.6 });
-    return Array.from({ length: 14 }, () => {
+    return Array.from({ length: 16 }, () => {
       const g = new THREE.Group();
       const dummy = new THREE.Mesh(dummyGeo, dummyMat);
       dummy.rotation.z = Math.PI / 2;
       dummy.castShadow = true;
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.07, 10), bandMat);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.08, 10), bandMat);
       band.rotation.z = Math.PI / 2;
       const ball = new THREE.Mesh(ballGeo, ballMat);
       ball.castShadow = true;
@@ -278,25 +365,21 @@ function Items() {
     const lesson = live.lesson;
     pool.forEach((p, i) => {
       const item = items[i];
-      if (item && (item.state === 'flying' || item.state === 'lying' || item.state === 'waiting')) {
-        const at = itemView(item);
-        p.g.position.set(at.x, at.y + 0.08, at.z);
+      if (item && (item.state === 'flying' || item.state === 'lying')) {
+        p.g.position.set(item.pos.x, heightAt(item.pos.x, item.pos.z) + item.y + 0.09, item.pos.z);
         p.g.rotation.y = i * 1.3;
-        p.g.visible = item.state !== 'waiting';
+        p.g.visible = true;
         p.ball.visible = item.kind === 'ball';
         p.dummy.visible = p.band.visible = item.kind !== 'ball';
       } else if (!item && lesson && i === 0 && lesson.scene.ball.visible) {
         const b = lesson.scene.ball;
-        p.g.position.set(b.pos.x, heightAt(b.pos.x, b.pos.z) + b.y + 0.08, b.pos.z);
+        p.g.position.set(b.pos.x, heightAt(b.pos.x, b.pos.z) + b.y + 0.09, b.pos.z);
         p.g.visible = true;
         p.ball.visible = lesson.lesson === 'stop';
         p.dummy.visible = p.band.visible = lesson.lesson !== 'stop';
-      } else {
-        p.g.visible = false;
-      }
+      } else p.g.visible = false;
     });
   });
-
   return (
     <>
       {pool.map((p, i) => (
@@ -306,26 +389,171 @@ function Items() {
   );
 }
 
-function BlindStakes({ session }: { session: RetrieveSession }) {
-  const stakes = session.items.filter((i) => i.kind === 'blind');
+/** A flag where each mark landed, so you know exactly where it fell. */
+function FallFlags() {
+  const flags = useMemo(
+    () =>
+      Array.from({ length: 4 }, () => {
+        const g = new THREE.Group();
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6),
+          new THREE.MeshStandardMaterial({ color: '#f3ead8' }),
+        );
+        pole.position.y = 0.8;
+        const cloth = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.5, 0.32),
+          new THREE.MeshStandardMaterial({
+            color: '#ffffff',
+            emissive: '#ffffff',
+            emissiveIntensity: 0.35,
+            side: THREE.DoubleSide,
+          }),
+        );
+        cloth.position.set(0.25, 1.45, 0);
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.9, 1.1, 32),
+          new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55 }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.05;
+        g.add(pole, cloth, ring);
+        g.visible = false;
+        return g;
+      }),
+    [],
+  );
+  useFrame((state) => {
+    const marks = (live.field?.items ?? []).filter((i) => i.kind === 'mark' && i.state === 'lying');
+    flags.forEach((g, i) => {
+      const m = marks[i];
+      if (!m) {
+        g.visible = false;
+        return;
+      }
+      g.visible = true;
+      g.position.set(m.landing.x, heightAt(m.landing.x, m.landing.z), m.landing.z);
+      g.children[1]!.rotation.y = Math.sin(state.clock.elapsedTime * 3 + i) * 0.3;
+    });
+  });
   return (
     <>
-      {stakes.map((s) => {
-        const x = s.pos.x + 1.2;
-        const z = s.pos.z;
-        return (
-          <group key={s.id} position={[x, heightAt(x, z), z]}>
-            <mesh position={[0, 0.7, 0]} castShadow>
-              <cylinderGeometry args={[0.04, 0.04, 1.4, 6]} />
-              <meshStandardMaterial color="#e2622d" emissive="#e2622d" emissiveIntensity={0.25} />
-            </mesh>
-            <mesh position={[0.18, 1.25, 0]}>
-              <boxGeometry args={[0.36, 0.22, 0.02]} />
-              <meshStandardMaterial color="#f3a24b" emissive="#f3a24b" emissiveIntensity={0.3} />
-            </mesh>
-          </group>
-        );
-      })}
+      {flags.map((g, i) => (
+        <primitive key={i} object={g} />
+      ))}
+    </>
+  );
+}
+
+/** Dotted line from the dog to where a click would send it (desktop hover). */
+function AimLine() {
+  const dots = useMemo(() => {
+    const m = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.09, 6, 4),
+      new THREE.MeshBasicMaterial({ color: '#ffffff' }),
+      40,
+    );
+    m.count = 0;
+    return m;
+  }, []);
+  const ring = useMemo(() => {
+    const r = new THREE.Mesh(
+      new THREE.RingGeometry(0.7, 0.9, 28),
+      new THREE.MeshBasicMaterial({ color: '#f3a24b', transparent: true, opacity: 0.9 }),
+    );
+    r.rotation.x = -Math.PI / 2;
+    r.visible = false;
+    return r;
+  }, []);
+  const tmp = useMemo(() => new THREE.Matrix4(), []);
+  useFrame(() => {
+    const s = live.field;
+    const p = aim.point;
+    let from: Vec2 | null = null;
+    let to: Vec2 | null = null;
+    if (s && p && !s.setup.free) {
+      const atSide = s.dog.mode === 'sit' || s.dog.mode === 'heel';
+      const waiting = s.dog.mode === 'stopped' || s.dog.mode === 'popped';
+      if ((atSide && s.phase !== 'throwing') || waiting) {
+        from = s.dog.pos;
+        const t = atSide ? aimTarget(s, p) : { kind: 'spot' as const, point: p };
+        to = t.kind === 'mark' ? t.item.landing : t.point;
+      }
+    } else if (live.search && p && live.search.phase !== 'complete') {
+      from = live.search.dog.pos;
+      to = p;
+    }
+    if (!from || !to) {
+      dots.count = 0;
+      ring.visible = false;
+      return;
+    }
+    const d = distance(from, to);
+    const n = Math.min(40, Math.max(2, Math.floor(d / 1.2)));
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n;
+      const x = from.x + (to.x - from.x) * t;
+      const z = from.z + (to.z - from.z) * t;
+      tmp.makeTranslation(x, heightAt(x, z) + 0.15, z);
+      dots.setMatrixAt(i, tmp);
+    }
+    dots.count = n;
+    dots.instanceMatrix.needsUpdate = true;
+    ring.visible = true;
+    ring.position.set(to.x, heightAt(to.x, to.z) + 0.06, to.z);
+  });
+  return (
+    <>
+      <primitive object={dots} />
+      <primitive object={ring} />
+    </>
+  );
+}
+
+function BlindStakes({ session }: { session: RetrieveSession }) {
+  return (
+    <>
+      {session.items
+        .filter((i) => i.kind === 'blind')
+        .map((s) => {
+          const x = s.pos.x + 1.2;
+          const z = s.pos.z;
+          return (
+            <group key={s.id} position={[x, heightAt(x, z), z]}>
+              <mesh position={[0, 0.9, 0]} castShadow>
+                <cylinderGeometry args={[0.05, 0.05, 1.8, 6]} />
+                <meshStandardMaterial color="#e2622d" emissive="#e2622d" emissiveIntensity={0.3} />
+              </mesh>
+              <mesh position={[0.22, 1.6, 0]}>
+                <boxGeometry args={[0.44, 0.28, 0.02]} />
+                <meshStandardMaterial color="#f3a24b" emissive="#f3a24b" emissiveIntensity={0.4} />
+              </mesh>
+            </group>
+          );
+        })}
+    </>
+  );
+}
+
+function SearchMarkers({ session }: { session: SearchSession }) {
+  const c = session.setup.hintCenter;
+  const centerRef = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const m = centerRef.current;
+    const sc = live.search?.searchCenter;
+    if (!m) return;
+    m.visible = !!sc;
+    if (sc) m.position.set(sc.x, heightAt(sc.x, sc.z) + 0.05, sc.z);
+  });
+  return (
+    <>
+      <mesh position={[c.x, heightAt(c.x, c.z) + 0.06, c.z]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[session.setup.hintRadius - 0.25, session.setup.hintRadius, 64]} />
+        <meshBasicMaterial color="#f3a24b" transparent opacity={0.7} />
+      </mesh>
+      <mesh ref={centerRef} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[1.4, 1.65, 32]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+      </mesh>
     </>
   );
 }
@@ -356,13 +584,20 @@ function Throwers({ session }: { session: RetrieveSession }) {
 }
 
 function LessonProps({ lesson }: { lesson: TrainingSession }) {
+  const tagRefs = useRef<(THREE.Mesh | null)[]>([]);
+  useFrame(() => {
+    lesson.scene.boxes.forEach((b, i) => {
+      const tag = tagRefs.current[i];
+      if (tag) tag.visible = b.hot;
+    });
+  });
   return (
     <>
       {lesson.scene.mound && (
         <mesh
           position={[
             lesson.scene.mound.x,
-            heightAt(lesson.scene.mound.x, lesson.scene.mound.z) + 0.02,
+            heightAt(lesson.scene.mound.x, lesson.scene.mound.z) + 0.03,
             lesson.scene.mound.z,
           ]}
           rotation={[-Math.PI / 2, 0, 0]}
@@ -382,12 +617,28 @@ function LessonProps({ lesson }: { lesson: TrainingSession }) {
               castShadow
             >
               <capsuleGeometry args={[0.08, 0.32, 4, 8]} />
-              <meshStandardMaterial color="#ece4cf" />
+              <meshStandardMaterial color="#f1ead6" />
             </mesh>
           ))}
-          <mesh position={[0, 0.6, -0.5]}>
-            <cylinderGeometry args={[0.03, 0.03, 1.2, 6]} />
+          <mesh position={[0, 0.7, -0.5]}>
+            <cylinderGeometry args={[0.03, 0.03, 1.4, 6]} />
             <meshStandardMaterial color="#d9622b" />
+          </mesh>
+        </group>
+      ))}
+      {lesson.scene.boxes.map((b, i) => (
+        <group key={i} position={[b.pos.x, heightAt(b.pos.x, b.pos.z), b.pos.z]}>
+          <mesh position={[0, 0.25, 0]} castShadow>
+            <boxGeometry args={[0.6, 0.5, 0.6]} />
+            <meshStandardMaterial color="#b88a5a" />
+          </mesh>
+          <mesh position={[0, 0.51, 0]}>
+            <boxGeometry args={[0.36, 0.02, 0.36]} />
+            <meshStandardMaterial color="#3a2c22" />
+          </mesh>
+          <mesh ref={(m) => (tagRefs.current[i] = m)} position={[0, 0.8, 0]} visible={false}>
+            <coneGeometry args={[0.16, 0.32, 4]} />
+            <meshStandardMaterial color="#e2622d" emissive="#e2622d" emissiveIntensity={0.4} />
           </mesh>
         </group>
       ))}
@@ -395,39 +646,136 @@ function LessonProps({ lesson }: { lesson: TrainingSession }) {
   );
 }
 
-function fieldDogView(s: RetrieveSession): DogView {
-  const carried = s.dog.carrying !== null ? s.items[s.dog.carrying] : undefined;
-  return {
-    pos: s.dog.pos,
-    heading: s.dog.heading,
-    speed: s.dog.speed,
-    pose: s.dog.pose,
-    tell: s.dog.tell,
-    lookAt: s.dog.lookAt,
-    carrying: carried ? (carried.kind === 'ball' ? 'ball' : 'dummy') : null,
-  };
+/** A floating arrow over the current goal at home. */
+function GoalBeacon() {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    const g = ref.current;
+    const game = useApp.getState().game;
+    if (!g) return;
+    const target = game && live.home ? objective(game).target : null;
+    const p = target ? landmarkPos(target) : null;
+    g.visible = !!p;
+    if (p)
+      g.position.set(
+        p.x,
+        heightAt(p.x, p.z) + 3.2 + Math.sin(state.clock.elapsedTime * 2.5) * 0.25,
+        p.z,
+      );
+    g.rotation.y += 0.02;
+  });
+  return (
+    <group ref={ref} visible={false}>
+      <mesh rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.32, 0.7, 4]} />
+        <meshBasicMaterial color="#e2622d" />
+      </mesh>
+    </group>
+  );
 }
 
-function lessonDogView(t: TrainingSession): DogView {
-  return {
-    pos: t.dog.pos,
-    heading: t.dog.heading,
-    speed: t.dog.speed,
-    pose: t.dog.pose,
-    tell: t.dog.tell,
-    lookAt: t.dog.lookAt,
-    carrying: null,
-  };
+export function landmarkPos(id: Landmark): Vec2 | null {
+  if (id === 'mara') return MARA_POS;
+  if (id === 'dog') return live.home?.dog?.pos ?? null;
+  return HOME_SPOTS.find((s) => s.id === id)?.pos ?? null;
+}
+
+/** A marker over the dog once it is far from you. */
+function DogBeacon() {
+  const ref = useRef<THREE.Group>(null);
+  const { camera } = useThree();
+  useFrame((state) => {
+    const g = ref.current;
+    const s = live.field ?? live.search;
+    if (!g) return;
+    if (!s) {
+      g.visible = false;
+      return;
+    }
+    const d = s.dog.pos;
+    const y = heightAt(d.x, d.z);
+    const toCamera = camera.position.distanceTo(new THREE.Vector3(d.x, y, d.z));
+    g.visible = distance(d, s.keeper.pos) > 12;
+    g.position.set(
+      d.x,
+      y + 1.4 + Math.sin(state.clock.elapsedTime * 3) * 0.08 + toCamera * 0.02,
+      d.z,
+    );
+    g.scale.setScalar(Math.min(3.2, Math.max(0.6, toCamera / 22)));
+  });
+  return (
+    <group ref={ref} visible={false}>
+      <mesh rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.22, 0.42, 4]} />
+        <meshBasicMaterial color="#ffffff" />
+      </mesh>
+    </group>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Views of the live characters
+// ---------------------------------------------------------------------------
+
+function dogView(): DogView | null {
+  if (live.home?.dog) {
+    const d = live.home.dog;
+    return {
+      pos: d.pos,
+      heading: d.heading,
+      speed: d.speed,
+      pose: d.pose,
+      tell: d.tell,
+      lookAt: d.lookAt,
+      carrying: null,
+    };
+  }
+  if (live.field) {
+    const s = live.field;
+    const carried = s.dog.carrying !== null ? s.items[s.dog.carrying] : undefined;
+    return {
+      pos: s.dog.pos,
+      heading: s.dog.heading,
+      speed: s.dog.speed,
+      pose: s.dog.pose,
+      tell: s.dog.tell,
+      lookAt: s.dog.lookAt,
+      carrying: carried ? (carried.kind === 'ball' ? 'ball' : 'dummy') : null,
+    };
+  }
+  if (live.search) {
+    const d = live.search.dog;
+    return {
+      pos: d.pos,
+      heading: d.heading,
+      speed: d.speed,
+      pose: d.pose,
+      tell: d.tell,
+      lookAt: d.lookAt,
+      carrying: d.carrying !== null ? 'dummy' : null,
+    };
+  }
+  if (live.lesson) {
+    const d = live.lesson.dog;
+    return {
+      pos: d.pos,
+      heading: d.heading,
+      speed: d.speed,
+      pose: d.pose,
+      tell: d.tell,
+      lookAt: d.lookAt,
+      carrying: null,
+    };
+  }
+  return null;
 }
 
 function keeperView(): KeeperView {
-  const s = live.field;
-  const t = live.lesson;
-  const k = s?.keeper ?? t?.keeper;
-  const dog = s?.dog ?? t?.dog;
+  const k = live.home?.keeper ?? live.field?.keeper ?? live.search?.keeper ?? live.lesson?.keeper;
+  const dog = live.home?.dog ?? live.field?.dog ?? live.search?.dog ?? live.lesson?.dog;
   if (!k)
     return {
-      pos: FIELD.line,
+      pos: { x: 0, z: 78 },
       heading: Math.PI,
       speed: 0,
       action: 'none',
@@ -442,54 +790,178 @@ function keeperView(): KeeperView {
     action: k.action,
     actionTime: k.actionTime,
     signalHeading: k.signalHeading,
-    watch: dog && distance(dog.pos, k.pos) > 2.5 ? dog.pos : null,
+    watch: dog && distance(dog.pos, k.pos) > 2.5 && !live.home ? dog.pos : null,
   };
 }
 
+const still = (pos: Vec2, heading: number, pose: DogView['pose'] = 'sit'): DogView => ({
+  pos,
+  heading,
+  speed: 0,
+  pose,
+  tell: { ears: 'neutral', tail: 'wag', noseDown: false, text: '' },
+  lookAt: null,
+  carrying: null,
+});
+
+function Bystanders({ place }: { place: Place }) {
+  const game = useApp((s) => s.game);
+  const screen = useApp((s) => s.screen);
+  const rivals = useMemo(() => (game ? createRivals(game.seed) : []), [game?.seed]);
+  if (!game) return null;
+  const maraHere =
+    (place === 'home' && game.story === 'meetMara') ||
+    (place === 'orchard' && screen.kind === 'search' && screen.job?.id === 'mara-keys');
+  const maraPos = place === 'home' ? MARA_POS : { x: -20, z: 16 };
+  return (
+    <>
+      {maraHere && (
+        <KeeperModel
+          palette={MARA_PALETTE}
+          view={() => ({
+            pos: maraPos,
+            heading: Math.PI * (place === 'home' ? 0.9 : 0.8),
+            speed: 0,
+            action: 'none',
+            actionTime: 9,
+            signalHeading: 0,
+            watch: live.home?.keeper.pos ?? null,
+          })}
+        />
+      )}
+      {place === 'green' && rivals.length === 2 && (
+        <>
+          <KeeperModel
+            palette={VICTOR_PALETTE}
+            view={() => ({
+              pos: { x: -8, z: 16 },
+              heading: Math.PI,
+              speed: 0,
+              action: 'none',
+              actionTime: 9,
+              signalHeading: 0,
+              watch: null,
+            })}
+          />
+          <DogModel dog={rivals[0]!.dog} view={() => still({ x: -8.9, z: 16.2 }, Math.PI)} />
+          <KeeperModel
+            palette={BILLY_PALETTE}
+            view={() => ({
+              pos: { x: 9, z: 16 },
+              heading: Math.PI,
+              speed: 0,
+              action: 'none',
+              actionTime: 9,
+              signalHeading: 0,
+              watch: null,
+            })}
+          />
+          <DogModel
+            dog={rivals[1]!.dog}
+            view={() => still({ x: 9.9, z: 16.2 }, Math.PI * 0.9, 'down')}
+          />
+        </>
+      )}
+      {place === 'shelter' &&
+        game.shelter.map((d, i) =>
+          i === useApp.getState().shelterPick ? null : (
+            <DogModel
+              key={d.id}
+              dog={d}
+              view={() => still({ x: -10 + i * 10, z: -19 }, 0, i % 2 ? 'down' : 'sit')}
+            />
+          ),
+        )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The scene
+// ---------------------------------------------------------------------------
+
 export function Scene() {
-  const runId = useGame((s) => s.runId);
-  const activeDog: Dog = useGame((s) => s.activeDog());
-  const session = live.field;
-  const lesson = live.lesson;
-  const wind = session ? windAt(session.wind, 0) : { heading: Math.PI, dir: { x: 0, z: -1 } };
+  const runId = useApp((s) => s.runId);
+  const screen = useApp((s) => s.screen);
+  const game = useApp((s) => s.game);
+  const place = placeOf(screen);
+  const field = useMemo(() => fieldFor(place), [place]);
+
+  const current: Dog | null = useMemo(() => {
+    if (!game) return null;
+    if (screen.kind === 'shelter') return game.shelter[useApp.getState().shelterPick] ?? null;
+    return activeDog(game);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.activeDogId, game?.shelter.length, screen.kind, runId]);
+
+  const wind = live.field
+    ? windAt(live.field.wind, 0)
+    : live.search
+      ? windAt(live.search.wind, 0)
+      : { heading: Math.PI * 1.1 };
+  const strength = live.field?.wind.strength ?? live.search?.wind.strength ?? 0.3;
 
   return (
     <>
       <Runner />
       <CameraRig />
       <Sky />
-      <Lighting focus={() => live.field?.keeper.pos ?? live.lesson?.keeper.pos ?? FIELD.line} />
-      <WindClock heading={wind.heading} strength={session?.wind.strength ?? 0.3} />
-      <Ground field={FIELD} />
-      <Grass field={FIELD} />
-      <Hedges field={FIELD} />
-      <Trees field={FIELD} />
-      <Kennel />
-      {FLAG_SPOTS.map((f, i) => (
-        <WindFlag
-          key={i}
-          x={f.x}
-          z={f.z}
-          heading={wind.heading}
-          strength={session?.wind.strength ?? 0.3}
-        />
-      ))}
+      <Lighting
+        focus={() =>
+          live.home?.keeper.pos ??
+          live.field?.keeper.pos ??
+          live.search?.keeper.pos ??
+          live.lesson?.keeper.pos ?? { x: 0, z: 70 }
+        }
+      />
+      <WindClock heading={wind.heading} strength={strength} />
+      <group key={place}>
+        <Ground field={field} />
+        <Grass field={field} />
+        {place === 'home' && (
+          <>
+            <Hedges field={field} />
+            <Trees field={field} />
+            <Kennel />
+            <Yard
+              kennelName={game?.kennelName ?? ''}
+              bowlFilled={!!game?.bowlFilled}
+              gardenRestored={!!game && hasFlag(game, 'restored:scentGarden')}
+            />
+            <WindFlag x={-24} z={8} heading={wind.heading} strength={strength} />
+            <WindFlag x={30} z={-40} heading={wind.heading} strength={strength} />
+          </>
+        )}
+        {place === 'orchard' && (
+          <>
+            <Orchard field={field} />
+            <WindFlag x={30} z={6} heading={wind.heading} strength={strength} />
+          </>
+        )}
+        {place === 'green' && (
+          <>
+            <VillageGreen field={field} />
+            <WindFlag x={-30} z={10} heading={wind.heading} strength={strength} />
+          </>
+        )}
+        {place === 'shelter' && <Shelter field={field} />}
+      </group>
       <Items />
+      <FallFlags />
+      <AimLine />
       <DogBeacon />
+      <GoalBeacon />
       <KeeperModel view={keeperView} />
-      {session && (
-        <group key={`f${runId}`}>
-          <DogModel dog={activeDog} view={() => fieldDogView(live.field ?? session)} />
-          <Throwers session={session} />
-          <BlindStakes session={session} />
-        </group>
-      )}
-      {lesson && (
-        <group key={`l${runId}`}>
-          <DogModel dog={activeDog} view={() => lessonDogView(live.lesson ?? lesson)} />
-          <LessonProps lesson={lesson} />
-        </group>
-      )}
+      <Bystanders place={place} />
+      <group key={`run-${runId}`}>
+        {current && dogView() && (
+          <DogModel dog={current} view={() => dogView() ?? still({ x: 0, z: 0 }, 0)} />
+        )}
+        {live.field && <Throwers session={live.field} />}
+        {live.field && <BlindStakes session={live.field} />}
+        {live.search && <SearchMarkers session={live.search} />}
+        {live.lesson && <LessonProps lesson={live.lesson} />}
+      </group>
     </>
   );
 }

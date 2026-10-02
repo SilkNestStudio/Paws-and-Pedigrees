@@ -911,7 +911,7 @@ function updateTell(s: RetrieveSession): void {
         ears: 'back',
         tail: 'neutral',
         noseDown: false,
-        text: 'Running out to the mark',
+        text: s.setup.free ? 'Chasing the ball' : 'Running out to the mark',
       };
       break;
     case 'line':

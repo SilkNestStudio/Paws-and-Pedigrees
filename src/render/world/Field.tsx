@@ -23,6 +23,13 @@ export function WindClock({ heading, strength }: { heading: number; strength: nu
   return null;
 }
 
+const GROUND: Record<FieldData['style'], { inside: string; outside: string; yard: string }> = {
+  training: { inside: '#7fa64e', outside: '#6f8f45', yard: '#86a855' },
+  orchard: { inside: '#78a04a', outside: '#6a8c42', yard: '#78a04a' },
+  green: { inside: '#86b052', outside: '#78a04a', yard: '#86b052' },
+  shelter: { inside: '#8aa85a', outside: '#7d9a4f', yard: '#8aa85a' },
+};
+
 export function Ground({ field }: { field: FieldData }) {
   const geometry = useMemo(() => {
     const size = 300;
@@ -40,11 +47,12 @@ export function Ground({ field }: { field: FieldData }) {
       const inField = x > field.minX && x < field.maxX && z > field.minZ && z < field.maxZ;
       const n = scatter(Math.floor(x * 0.5), Math.floor(z * 0.5));
       const cover = coverAt(field, { x, z });
-      // Mown stripes in the field, rougher meadow outside it, a gravel yard by the kennel.
-      const stripe = inField ? (Math.floor((x + 200) / 6) % 2 === 0 ? 0.03 : -0.02) : 0;
-      if (z > 46 && Math.abs(x) < 30) base.set('#b7a98c');
-      else if (!inField) base.set('#6f8f45');
-      else base.set('#7fa64e');
+      const palette = GROUND[field.style];
+      // Mown stripes on the training field and green; rougher meadow outside.
+      const mown = field.style === 'training' || field.style === 'green';
+      const stripe = inField && mown ? (Math.floor((x + 200) / 6) % 2 === 0 ? 0.03 : -0.02) : 0;
+      const yard = field.style === 'training' && z > 43 && Math.abs(x) < 41;
+      base.set(yard ? palette.yard : inField ? palette.inside : palette.outside);
       base.offsetHSL(n * 0.02 - 0.01, 0, stripe + (n - 0.5) * 0.05);
       if (cover > 0) base.lerp(new THREE.Color('#8d8a43'), cover * 0.7);
       colours[i * 3] = base.r;
@@ -136,7 +144,8 @@ export function Grass({ field }: { field: FieldData }) {
     );
     for (let i = 0; i < shortCount; i++) {
       const x = field.minX - 20 + scatter(i, 1) * (field.maxX - field.minX + 40);
-      const z = field.minZ - 20 + scatter(i, 2) * (field.maxZ - field.minZ + 28);
+      const extra = field.style === 'training' ? 44 : 8;
+      const z = field.minZ - 20 + scatter(i, 2) * (field.maxZ - field.minZ + 20 + extra);
       p.set(x, heightAt(x, z), z);
       q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), scatter(i, 3) * Math.PI);
       const size = 0.65 + scatter(i, 4) * 0.5;
