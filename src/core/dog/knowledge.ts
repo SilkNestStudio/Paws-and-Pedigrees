@@ -32,7 +32,17 @@ export function describe(est: Estimate | undefined): string {
   if (!est) return 'Not yet known';
   const mid = (est.lo + est.hi) / 2;
   const word =
-    mid >= 78 ? 'exceptional' : mid >= 64 ? 'strong' : mid >= 52 ? 'good' : mid >= 40 ? 'average' : mid >= 28 ? 'modest' : 'weak';
+    mid >= 78
+      ? 'exceptional'
+      : mid >= 64
+        ? 'strong'
+        : mid >= 52
+          ? 'good'
+          : mid >= 40
+            ? 'average'
+            : mid >= 28
+              ? 'modest'
+              : 'weak';
   return est.hi - est.lo > 34 ? `Maybe ${word}` : word[0]!.toUpperCase() + word.slice(1);
 }
 
@@ -42,7 +52,12 @@ export const isKnown = (est: Estimate | undefined): boolean => !!est && est.hi -
  * Narrows the keeper's knowledge with what they just saw. Returns any
  * aptitude that has just become clear enough to put into words.
  */
-export function observe(rng: Rng, dog: Dog, knowledge: DogKnowledge, observations: Observation[]): Discovery[] {
+export function observe(
+  rng: Rng,
+  dog: Dog,
+  knowledge: DogKnowledge,
+  observations: Observation[],
+): Discovery[] {
   const discoveries: Discovery[] = [];
   for (const { aptitude: which, precision } of observations) {
     const truth = aptitude(dog, which);

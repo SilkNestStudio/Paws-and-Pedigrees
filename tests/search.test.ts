@@ -35,12 +35,20 @@ function sensibleHandler(s: SearchSession): void {
   // Move the search around the area if nothing turns up for a while.
   if (s.phase === 'searching' && s.dog.mode === 'hunt' && s.dog.huntTime > 25) {
     const a = s.time * 0.37;
-    searchHere(s, { x: s.setup.hintCenter.x + Math.cos(a) * 8, z: s.setup.hintCenter.z + Math.sin(a) * 8 });
+    searchHere(s, {
+      x: s.setup.hintCenter.x + Math.cos(a) * 8,
+      z: s.setup.hintCenter.z + Math.sin(a) * 8,
+    });
   }
 }
 
 function play(nose: number, focus: number, indicate: number, seed: number) {
-  const s = createSearchSession(testDog({ nose, focus }, { indicate }, seed), SETUP, createOrchard(), seed);
+  const s = createSearchSession(
+    testDog({ nose, focus }, { indicate }, seed),
+    SETUP,
+    createOrchard(),
+    seed,
+  );
   for (let i = 0; i < 240 / FIXED_DT && s.phase !== 'complete'; i++) {
     stepSearch(s, FIXED_DT);
     sensibleHandler(s);
@@ -72,7 +80,9 @@ describe('scent search', () => {
       let n = 0;
       for (let seed = 1; seed <= 12; seed++) {
         const s = play(60, focus, indicate, seed);
-        n += s.events.filter((e) => e.text.includes('An indication') || e.text.includes('Maybe something')).length;
+        n += s.events.filter(
+          (e) => e.text.includes('An indication') || e.text.includes('Maybe something'),
+        ).length;
       }
       return n;
     };

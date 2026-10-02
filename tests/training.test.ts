@@ -102,6 +102,13 @@ describe('marker training', () => {
     expect(t.skill).toBeGreaterThan(0.2);
   });
 
+  it('the scent box lesson teaches a clear indication', () => {
+    const before = 0.1;
+    const t = session('indicate', trainer('indicate', 0.1, shaping), before);
+    expect(t.skill).toBeGreaterThan(before + 0.1);
+    expect(t.results.some((r) => r.verdict === 'perfect' || r.verdict === 'shaping')).toBe(true);
+  });
+
   it('gentle tosses let even a keen, unsteady dog learn to stay', () => {
     const t = session('stay', trainer('stay', 0.1, shaping), 0.05);
     expect(t.skill).toBeGreaterThan(0.2);

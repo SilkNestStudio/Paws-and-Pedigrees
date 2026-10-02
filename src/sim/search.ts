@@ -1,4 +1,13 @@
-import { add, clamp01, distance, fromHeading, headingOf, scale, sub, type Vec2 } from '../core/math';
+import {
+  add,
+  clamp01,
+  distance,
+  fromHeading,
+  headingOf,
+  scale,
+  sub,
+  type Vec2,
+} from '../core/math';
 import { chance, createRng, gaussian, random, type Rng } from '../core/rng';
 import { aptitude, type Dog } from '../core/dog/dog';
 import {
@@ -84,9 +93,20 @@ export interface SearchSession {
 /** How far from you (m) your dog will keep searching before drifting back. */
 export const LEASH = 50;
 
-const DISTRACTIONS = ['rabbit scrape', 'picnic spot', 'fox trail', 'pheasant feathers', 'mole hill'];
+const DISTRACTIONS = [
+  'rabbit scrape',
+  'picnic spot',
+  'fox trail',
+  'pheasant feathers',
+  'mole hill',
+];
 
-export function createSearchSession(dog: Dog, setup: SearchSetup, field: Field, seed: number): SearchSession {
+export function createSearchSession(
+  dog: Dog,
+  setup: SearchSetup,
+  field: Field,
+  seed: number,
+): SearchSession {
   const rng = createRng(seed);
   const params = dogParams(dog);
   const keeper = createKeeper(field.line);
@@ -99,12 +119,19 @@ export function createSearchSession(dog: Dog, setup: SearchSetup, field: Field, 
       const a = random(rng) * Math.PI * 2;
       const r = Math.sqrt(random(rng)) * radius;
       const p = { x: center.x + Math.cos(a) * r, z: center.z + Math.sin(a) * r };
-      if (field.trees.every((t) => distance(t.pos, p) > t.radius + 1.5) && p.z < field.line.z - 8) return p;
+      if (field.trees.every((t) => distance(t.pos, p) > t.radius + 1.5) && p.z < field.line.z - 8)
+        return p;
     }
     return { ...center };
   };
   const hides: Hide[] = [
-    { id: 0, pos: placeIn(setup.hintCenter, setup.hintRadius * 0.85), kind: 'target', label: setup.itemName, checked: false },
+    {
+      id: 0,
+      pos: placeIn(setup.hintCenter, setup.hintRadius * 0.85),
+      kind: 'target',
+      label: setup.itemName,
+      checked: false,
+    },
   ];
   const count = 4;
   for (let i = 0; i < count; i++) {
@@ -122,7 +149,11 @@ export function createSearchSession(dog: Dog, setup: SearchSetup, field: Field, 
     time: 0,
     rng,
     field,
-    wind: { heading: (setup.windDeg * Math.PI) / 180, strength: setup.windStrength, phase: random(rng) * 10 },
+    wind: {
+      heading: (setup.windDeg * Math.PI) / 180,
+      strength: setup.windStrength,
+      phase: random(rng) * 10,
+    },
     setup,
     dogName: dog.name,
     pronoun: dog.sex === 'female' ? 'she' : 'he',
@@ -135,7 +166,15 @@ export function createSearchSession(dog: Dog, setup: SearchSetup, field: Field, 
     searchCenter: null,
     phase: 'ready',
     alert: null,
-    stats: { falseTrusted: 0, leftTrue: 0, directions: 0, scentDistances: [], startedAt: null, finishedAt: null, trace: [] },
+    stats: {
+      falseTrusted: 0,
+      leftTrue: 0,
+      directions: 0,
+      scentDistances: [],
+      startedAt: null,
+      finishedAt: null,
+      trace: [],
+    },
     events: [],
     traceTimer: 0,
     start: { ...field.line },
@@ -245,7 +284,12 @@ export function stepSearch(s: SearchSession, dt: number): void {
         brake(dog, params, dt);
         dog.pose = keeper.stillTime > 0.6 ? 'sit' : 'stand';
       }
-      dog.tell = { ears: 'neutral', tail: 'wag', noseDown: false, text: 'Beside you, waiting for "Search!"' };
+      dog.tell = {
+        ears: 'neutral',
+        tail: 'wag',
+        noseDown: false,
+        text: 'Beside you, waiting for "Search!"',
+      };
       break;
     }
     case 'run':
@@ -273,7 +317,12 @@ export function stepSearch(s: SearchSession, dt: number): void {
       break;
     case 'return':
       dog.pose = 'stand';
-      dog.tell = { ears: 'neutral', tail: 'wag', noseDown: false, text: `Bringing back ${s.setup.itemName}` };
+      dog.tell = {
+        ears: 'neutral',
+        tail: 'wag',
+        noseDown: false,
+        text: `Bringing back ${s.setup.itemName}`,
+      };
       if (steerToward(dog, params, field, keeper.pos, params.trot * 1.5, dt, 1.4)) {
         s.phase = 'complete';
         s.stats.finishedAt = s.time;
@@ -309,7 +358,10 @@ function quarter(s: SearchSession, dt: number): void {
   const progress = ((dog.huntLeg % 6) / 5) * 2 - 1;
   const waypoint = add(
     dog.huntCenter,
-    add(scale(across, side * dog.huntRadius * 0.85), scale(upwind, progress * dog.huntRadius * 0.7)),
+    add(
+      scale(across, side * dog.huntRadius * 0.85),
+      scale(upwind, progress * dog.huntRadius * 0.7),
+    ),
   );
   if (steerToward(dog, params, field, waypoint, params.trot * 1.15, dt, 1.2)) dog.huntLeg++;
   dog.pose = 'stand';
@@ -318,7 +370,9 @@ function quarter(s: SearchSession, dt: number): void {
     ears: 'neutral',
     tail: longTime ? 'low' : 'wag',
     noseDown: true,
-    text: longTime ? 'Searching, but nothing here. Try another area?' : 'Quartering the area, nose down',
+    text: longTime
+      ? 'Searching, but nothing here. Try another area?'
+      : 'Quartering the area, nose down',
   };
 }
 
@@ -330,7 +384,10 @@ function sniff(s: SearchSession): void {
     if (hide.checked) continue;
     // A lost item gives off only a faint scent; animal smells are fresh and strong.
     const faint = hide.kind === 'target' ? 0.6 : 1;
-    const strength = scentStrength(nose, hide.pos, s.wind, s.time) * faint * (1 - coverAt(s.field, hide.pos) * 0.15);
+    const strength =
+      scentStrength(nose, hide.pos, s.wind, s.time) *
+      faint *
+      (1 - coverAt(s.field, hide.pos) * 0.15);
     const threshold = params.scentThreshold * speedPenalty;
     // Right on top of it, any dog notices.
     const underNose = distance(nose, hide.pos) < 1.4;
@@ -356,14 +413,32 @@ function workScent(s: SearchSession, dt: number): void {
   const weave = Math.sin(dog.modeTime * 3.4) * Math.min(0.55, d / 20);
   // A real find is worked carefully; an exciting smell makes the dog quick and bouncy.
   const eager = hide.kind === 'distraction';
-  steerDog(dog, params, field, headingOf(sub(hide.pos, dog.pos)) + weave, params.trot * (eager ? 1.4 : 0.95), dt);
+  steerDog(
+    dog,
+    params,
+    field,
+    headingOf(sub(hide.pos, dog.pos)) + weave,
+    params.trot * (eager ? 1.4 : 0.95),
+    dt,
+  );
   dog.pose = 'stand';
   dog.tell = eager
-    ? { ears: 'forward', tail: 'high', noseDown: true, text: 'Nose down, tail whirling: excited by something' }
-    : { ears: 'forward', tail: 'neutral', noseDown: true, text: 'Nose down, slow and focused: working a scent' };
+    ? {
+        ears: 'forward',
+        tail: 'high',
+        noseDown: true,
+        text: 'Nose down, tail whirling: excited by something',
+      }
+    : {
+        ears: 'forward',
+        tail: 'neutral',
+        noseDown: true,
+        text: 'Nose down, slow and focused: working a scent',
+      };
 
   const nose = add(dog.pos, fromHeading(dog.heading, 0.5));
-  if (scentStrength(nose, hide.pos, s.wind, s.time) < params.scentThreshold * 0.55 && d > 2.5) dog.scentLost += dt;
+  if (scentStrength(nose, hide.pos, s.wind, s.time) < params.scentThreshold * 0.55 && d > 2.5)
+    dog.scentLost += dt;
   else dog.scentLost = 0;
   if (dog.scentLost > 1.6) {
     log(s, `${s.dogName} lost the scent as the breeze shifted.`, 'info');
@@ -408,10 +483,20 @@ function indicate(s: SearchSession): void {
   dog.heading = headingOf(sub(hide.pos, dog.pos)) || dog.heading;
   if (alert.clear) {
     dog.pose = 'sit';
-    dog.tell = { ears: 'forward', tail: 'neutral', noseDown: false, text: 'Sitting, staring at one spot. "It\'s here."' };
+    dog.tell = {
+      ears: 'forward',
+      tail: 'neutral',
+      noseDown: false,
+      text: 'Sitting, staring at one spot. "It\'s here."',
+    };
   } else {
     dog.pose = 'crouch';
-    dog.tell = { ears: 'neutral', tail: 'wag', noseDown: true, text: 'Pawing and sniffing at a spot, glancing at you' };
+    dog.tell = {
+      ears: 'neutral',
+      tail: 'wag',
+      noseDown: true,
+      text: 'Pawing and sniffing at a spot, glancing at you',
+    };
     // A weak indication doesn't last: the dog drifts off if you don't respond.
     if (s.time - alert.since > 5) {
       log(s, `${s.dogName} gave up on that spot.`, 'info');
@@ -447,18 +532,44 @@ export function buildSearchReport(s: SearchSession): SearchReport {
       tone: 'warn',
     });
   }
-  if (s.stats.leftTrue > 0) notes.push({ text: `${s.dogName} was right ${s.stats.leftTrue} time${s.stats.leftTrue > 1 ? 's' : ''} you walked away.`, tone: 'info' });
+  if (s.stats.leftTrue > 0)
+    notes.push({
+      text: `${s.dogName} was right ${s.stats.leftTrue} time${s.stats.leftTrue > 1 ? 's' : ''} you walked away.`,
+      tone: 'info',
+    });
   const best = s.stats.scentDistances.length ? Math.max(...s.stats.scentDistances) : 0;
-  if (best >= 12) notes.push({ text: `Picked up the scent from ${Math.round(best)} m downwind. A good nose.`, tone: 'good' });
-  else if (best > 0) notes.push({ text: `Only caught the scent close in (${Math.round(best)} m). Search downwind of where it might be.`, tone: 'info' });
-  if (s.stats.directions <= 2 && done) notes.push({ text: 'Found with very little direction. A confident search.', tone: 'good' });
+  if (best >= 12)
+    notes.push({
+      text: `Picked up the scent from ${Math.round(best)} m downwind. A good nose.`,
+      tone: 'good',
+    });
+  else if (best > 0)
+    notes.push({
+      text: `Only caught the scent close in (${Math.round(best)} m). Search downwind of where it might be.`,
+      tone: 'info',
+    });
+  if (s.stats.directions <= 2 && done)
+    notes.push({ text: 'Found with very little direction. A confident search.', tone: 'good' });
   score = done ? Math.max(0, Math.round(score)) : 0;
-  const grade = !done ? 'Not completed' : score >= 85 ? 'Excellent' : score >= 70 ? 'Very good' : score >= 55 ? 'Good' : 'Pass';
+  const grade = !done
+    ? 'Not completed'
+    : score >= 85
+      ? 'Excellent'
+      : score >= 70
+        ? 'Very good'
+        : score >= 55
+          ? 'Good'
+          : 'Pass';
   return { score, grade, seconds, notes };
 }
 
 /** Random search setup inside an area, for jobs. */
-export function randomSearchSetup(rng: Rng, title: string, itemName: string, area: { center: Vec2; radius: number }): SearchSetup {
+export function randomSearchSetup(
+  rng: Rng,
+  title: string,
+  itemName: string,
+  area: { center: Vec2; radius: number },
+): SearchSetup {
   return {
     title,
     itemName,

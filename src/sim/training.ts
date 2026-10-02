@@ -22,7 +22,7 @@ import { createTrainingField, type Field } from './field';
  * This is deliberately a different game from the field work that uses these
  * skills: here you judge and time; out there you handle.
  */
-export type Lesson = 'sit' | 'stay' | 'stop' | 'cast';
+export type Lesson = 'sit' | 'stay' | 'stop' | 'cast' | 'indicate';
 
 /** Extra choice some cues take: which pile to point at, or how big a throw to make. */
 export type CueChoice = 'left' | 'right' | 'back' | 'gentle' | 'full';
@@ -65,6 +65,8 @@ export interface LessonScene {
   /** Lesson-specific objects for the renderer. */
   ball: { pos: Vec2; y: number; visible: boolean };
   piles: { id: 'left' | 'right' | 'back'; pos: Vec2 }[];
+  /** Scent boxes for the indicate lesson; `hot` holds the scent this time. */
+  boxes: { pos: Vec2; hot: boolean }[];
   mound: Vec2 | null;
 }
 
@@ -103,6 +105,8 @@ export interface TrainingSession {
   window: number;
   lastCast: 'left' | 'right' | 'back' | null;
   lastThrowGentle: boolean;
+  /** Route through the scent boxes for the current indicate attempt. */
+  path: Vec2[];
 }
 
 export const LESSONS: Record<
@@ -133,6 +137,18 @@ export const LESSONS: Record<
     how: 'Point to a pile. Press Yes! the moment your dog commits to the right one. Never reward the wrong pile.',
     cueLabel: 'Point',
   },
+  indicate: {
+    title: 'Search and indicate',
+    summary: 'Four scent boxes, one holding the scent. Teach a clear sit at the find.',
+    how: 'Press "Find it". Your dog checks the boxes. Press Yes! the moment it sits at the box with the orange tag. Never reward a sit at an empty box.',
+    cueLabel: 'Find it',
+  },
+};
+
+const INDICATE_RESPONSES: Record<string, ResponseDef> = {
+  correct: { id: 'correct', label: 'Sits at the right box', quality: 1 },
+  linger: { id: 'linger', label: "Sniffs the right box but doesn't sit", quality: 0.4 },
+  false: { id: 'false', label: 'Sits at an empty box', quality: 0 },
 };
 
 const SIT_RESPONSES: Record<string, ResponseDef> = {
@@ -182,9 +198,11 @@ export function createTrainingSession(
   const dogStart =
     lesson === 'sit'
       ? add(HOME, { x: 0, z: -1.6 })
-      : lesson === 'cast'
-        ? { x: 0, z: -6 }
-        : add(HOME, { x: -0.9, z: 0.1 });
+      : lesson === 'indicate'
+        ? add(HOME, { x: 0, z: -3 })
+        : lesson === 'cast'
+          ? { x: 0, z: -6 }
+          : add(HOME, { x: -0.9, z: 0.1 });
   const agent = createDog(dogStart, params);
   agent.heading = lesson === 'sit' || lesson === 'cast' ? 0 : Math.PI;
   agent.pose = lesson === 'sit' ? 'stand' : 'sit';
@@ -227,6 +245,8 @@ export function createTrainingSession(
             ]
           : [],
       mound: lesson === 'cast' ? { x: 0, z: -6 } : null,
+      boxes:
+        lesson === 'indicate' ? [-6, -2, 2, 6].map((x) => ({ pos: { x, z: 1 }, hot: false })) : [],
     },
     ballVel: null,
     ballLandsAt: 0,
@@ -236,6 +256,7 @@ export function createTrainingSession(
     window: 0.4 + (keeperLevel - 1) * 0.05,
     lastCast: null,
     lastThrowGentle: false,
+    path: [],
   };
 }
 
@@ -291,6 +312,9 @@ export function giveCue(t: TrainingSession, choice?: CueChoice): void {
       break;
     case 'cast':
       cueCast(t, choice === 'left' || choice === 'right' ? choice : 'back');
+      break;
+    case 'indicate':
+      cueFind(t);
       break;
   }
 }
@@ -358,6 +382,34 @@ function whistleDuringRun(t: TrainingSession): void {
           ? STOP_RESPONSES.glance!
           : STOP_RESPONSES.ignore!;
   t.pendingResponse = { at: t.time + 0.15 + (1 - t.skill) * 0.35, def, target: null };
+}
+
+/**
+ * "Find it!" A box is chosen to hold the scent (the player can see which).
+ * The dog works along the boxes and sits at the one it believes is right.
+ */
+function cueFind(t: TrainingSession): void {
+  keeperAct(t.keeper, 'send', Math.PI);
+  const boxes = t.scene.boxes;
+  const hot = Math.floor(random(t.rng) * boxes.length);
+  boxes.forEach((b, i) => (b.hot = i === hot));
+  const roll = responseRoll(t) + t.params.scentThreshold * -0.4 + 0.1;
+  const def =
+    roll > 0.45
+      ? INDICATE_RESPONSES.correct!
+      : roll > 0.2
+        ? INDICATE_RESPONSES.linger!
+        : INDICATE_RESPONSES.false!;
+  const empty = boxes.map((_, i) => i).filter((i) => i !== hot);
+  const stopAt = def.id === 'false' ? empty[Math.floor(random(t.rng) * empty.length)]! : hot;
+  // Work along the row from the nearer end until reaching the chosen box.
+  const leftToRight = random(t.rng) < 0.5;
+  const order = boxes.map((_, i) => i);
+  if (!leftToRight) order.reverse();
+  const visit = order.slice(0, order.indexOf(stopAt) + 1);
+  t.path = visit.map((i) => ({ x: boxes[i]!.pos.x, z: boxes[i]!.pos.z + 0.9 }));
+  t.pendingResponse = { at: t.time + 0.3, def, target: t.path[t.path.length - 1]! };
+  t.phase = 'waiting';
 }
 
 function cueCast(t: TrainingSession, pile: 'left' | 'right' | 'back'): void {
@@ -532,6 +584,9 @@ export function stepTraining(t: TrainingSession, dt: number): void {
     case 'cast':
       animateCast(t, dt);
       break;
+    case 'indicate':
+      animateIndicate(t);
+      break;
   }
 
   // An unmarked response ends on its own; self-rewards cost a little.
@@ -604,6 +659,105 @@ function startResponse(t: TrainingSession, def: ResponseDef, target: Vec2 | null
   if (t.lesson === 'cast') {
     t.current.completeAt = t.time + (def.id === 'stay' ? 1.2 : 0.75);
     t.current.releaseAt = t.current.completeAt + 1.4;
+  }
+  if (t.lesson === 'indicate') {
+    const travel = pathTime(t.dog.pos, t.path);
+    t.current.completeAt = t.time + travel + (def.id === 'linger' ? 0.3 : 0.45);
+    t.current.releaseAt = t.current.completeAt + (def.id === 'linger' ? 1.2 : hold);
+  }
+}
+
+const SNIFF_SPEED = 1.8;
+const SNIFF_PAUSE = 0.6;
+
+/** Seconds to walk the box route, pausing to sniff at each box before the last. */
+function pathTime(from: Vec2, path: Vec2[]): number {
+  let total = 0;
+  let at = from;
+  path.forEach((p, i) => {
+    total += distance(at, p) / SNIFF_SPEED + (i < path.length - 1 ? SNIFF_PAUSE : 0);
+    at = p;
+  });
+  return total;
+}
+
+/** Where the dog is along the box route `elapsed` seconds after starting. */
+function pathPosition(
+  from: Vec2,
+  path: Vec2[],
+  elapsed: number,
+): { pos: Vec2; sniffing: boolean; done: boolean } {
+  let at = from;
+  let left = elapsed;
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i]!;
+    const leg = distance(at, p) / SNIFF_SPEED;
+    if (left < leg) {
+      const k = left / leg;
+      return {
+        pos: { x: at.x + (p.x - at.x) * k, z: at.z + (p.z - at.z) * k },
+        sniffing: false,
+        done: false,
+      };
+    }
+    left -= leg;
+    if (i < path.length - 1) {
+      if (left < SNIFF_PAUSE) return { pos: p, sniffing: true, done: false };
+      left -= SNIFF_PAUSE;
+    }
+    at = p;
+  }
+  return { pos: at, sniffing: true, done: true };
+}
+
+function animateIndicate(t: TrainingSession): void {
+  const { dog } = t;
+  const r = t.current;
+  if (!r || t.phase !== 'responding') {
+    if (t.phase !== 'resetting') {
+      dog.pose = 'sit';
+      dog.heading = Math.PI;
+      dog.tell = { ears: 'forward', tail: 'wag', noseDown: false, text: 'Waiting for "Find it!"' };
+    }
+    return;
+  }
+  const start = t.homePos;
+  const { pos, sniffing, done } = pathPosition(start, t.path, t.time - r.onset);
+  const prev = dog.pos;
+  dog.pos = pos;
+  if (distance(prev, pos) > 0.001) dog.heading = headingOf(sub(pos, prev));
+  const boxAhead = { x: pos.x, z: pos.z - 0.9 };
+  if (!done) {
+    dog.pose = 'stand';
+    dog.speed = sniffing ? 0 : SNIFF_SPEED;
+    dog.lookAt = boxAhead;
+    dog.tell = {
+      ears: 'forward',
+      tail: 'wag',
+      noseDown: true,
+      text: sniffing ? 'Sniffing a box…' : 'Working along the boxes',
+    };
+    return;
+  }
+  dog.speed = 0;
+  dog.heading = Math.PI;
+  dog.lookAt = boxAhead;
+  if (r.def.id === 'linger') {
+    dog.pose = 'stand';
+    dog.tell = {
+      ears: 'forward',
+      tail: 'wag',
+      noseDown: true,
+      text: 'Sniffing hard at this box, not sitting',
+    };
+  } else {
+    dog.pose = t.time > r.releaseAt ? 'stand' : 'sit';
+    dog.tell = {
+      ears: 'forward',
+      tail: 'neutral',
+      noseDown: false,
+      text: 'Sitting at a box, staring at it',
+    };
   }
 }
 

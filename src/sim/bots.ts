@@ -1,7 +1,22 @@
 import { add, distance, fromHeading, headingOf, normalize, sub } from '../core/math';
 import { random, type Rng } from '../core/rng';
-import { blowWhistle, callForThrows, castDog, sendDog, stepSession, FIXED_DT, type RetrieveSession } from './retrieve';
-import { doubtAlert, searchHere, setSearchKeeperInput, stepSearch, trustAlert, type SearchSession } from './search';
+import {
+  blowWhistle,
+  callForThrows,
+  castDog,
+  sendDog,
+  stepSession,
+  FIXED_DT,
+  type RetrieveSession,
+} from './retrieve';
+import {
+  doubtAlert,
+  searchHere,
+  setSearchKeeperInput,
+  stepSearch,
+  trustAlert,
+  type SearchSession,
+} from './search';
 import { windAt } from './scent';
 
 /**
@@ -12,7 +27,12 @@ import { windAt } from './scent';
  */
 
 /** Plays a retrieve set-up to the end and returns the finished session. */
-export function playRetrieve(s: RetrieveSession, skill: number, rng: Rng, maxSeconds = 240): RetrieveSession {
+export function playRetrieve(
+  s: RetrieveSession,
+  skill: number,
+  rng: Rng,
+  maxSeconds = 240,
+): RetrieveSession {
   const reaction = 1.6 - skill * 1.2;
   let nextDecision = 0;
   for (let i = 0; i < maxSeconds / FIXED_DT && s.phase !== 'complete'; i++) {
@@ -47,7 +67,13 @@ function decideRetrieve(s: RetrieveSession, skill: number, rng: Rng): void {
     const { dir } = windAt(s.wind, s.time);
     const offset = skill > 0.5 ? fromHeading(headingOf(dir), 4) : { x: 0, z: 0 };
     const aimError = (1 - skill) * 10;
-    castDog(s, add(add(wanted.pos, offset), { x: (random(rng) - 0.5) * aimError, z: (random(rng) - 0.5) * aimError }));
+    castDog(
+      s,
+      add(add(wanted.pos, offset), {
+        x: (random(rng) - 0.5) * aimError,
+        z: (random(rng) - 0.5) * aimError,
+      }),
+    );
     return;
   }
   if (dog.mode === 'line' || dog.mode === 'hunt' || dog.mode === 'run') {
@@ -58,12 +84,18 @@ function decideRetrieve(s: RetrieveSession, skill: number, rng: Rng): void {
     const len = Math.hypot(line.x, line.z) || 1;
     const offLine = dog.mode === 'line' ? Math.abs(off.x * line.z - off.z * line.x) / len : 0;
     const tolerance = 4 + (1 - skill) * 10;
-    if ((offLine > tolerance || offTarget > tolerance + 4) && random(rng) < 0.3 + skill * 0.7) blowWhistle(s);
+    if ((offLine > tolerance || offTarget > tolerance + 4) && random(rng) < 0.3 + skill * 0.7)
+      blowWhistle(s);
   }
 }
 
 /** Plays a search to the end. Better handlers read indications correctly more often. */
-export function playSearch(s: SearchSession, skill: number, rng: Rng, maxSeconds = 240): SearchSession {
+export function playSearch(
+  s: SearchSession,
+  skill: number,
+  rng: Rng,
+  maxSeconds = 240,
+): SearchSession {
   let nextMove = 0;
   for (let i = 0; i < maxSeconds / FIXED_DT && s.phase !== 'complete'; i++) {
     // Walk out toward the search area, staying a little behind the dog.
@@ -79,11 +111,19 @@ export function playSearch(s: SearchSession, skill: number, rng: Rng, maxSeconds
       if (real === readsCorrectly) trustAlert(s);
       else doubtAlert(s);
     }
-    if (s.phase === 'searching' && s.dog.mode === 'hunt' && s.time > nextMove && s.dog.huntTime > 30 - skill * 12) {
+    if (
+      s.phase === 'searching' &&
+      s.dog.mode === 'hunt' &&
+      s.time > nextMove &&
+      s.dog.huntTime > 30 - skill * 12
+    ) {
       nextMove = s.time + 8;
       const a = random(rng) * Math.PI * 2;
       const r = s.setup.hintRadius * 0.6;
-      searchHere(s, { x: s.setup.hintCenter.x + Math.cos(a) * r, z: s.setup.hintCenter.z + Math.sin(a) * r });
+      searchHere(s, {
+        x: s.setup.hintCenter.x + Math.cos(a) * r,
+        z: s.setup.hintCenter.z + Math.sin(a) * r,
+      });
     }
   }
   return s;

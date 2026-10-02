@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { addFlag, newGame, update, type GameState } from '../src/game/state';
 import { objective, progressStory } from '../src/game/story';
-import { buy, canStartActivity, dogAte, fillBowl, finishActivity, petDog, restore, sleep } from '../src/game/rules';
+import {
+  buy,
+  canStartActivity,
+  dogAte,
+  fillBowl,
+  finishActivity,
+  petDog,
+  restore,
+  sleep,
+} from '../src/game/rules';
 import { boardForDay } from '../src/game/jobs';
 import { createRng } from '../src/core/rng';
 import { observe } from '../src/core/dog/knowledge';
@@ -62,7 +71,13 @@ describe('the first week', () => {
       expect(fillBowl(d)).toBe(false); // already full
       d.dogs[0]!.energy = 100;
       d.block = 'morning';
-      finishActivity(d, { kind: 'mark', title: 'First mark', score: 70, grade: 'Good', observe: 'mark' });
+      finishActivity(d, {
+        kind: 'mark',
+        title: 'First mark',
+        score: 70,
+        grade: 'Good',
+        observe: 'mark',
+      });
     });
     expect(s.food).toBe(start - 1);
     expect(s.block).toBe('afternoon');
@@ -96,7 +111,14 @@ describe('the first week', () => {
     s = update(s, (d) => {
       d.jobs = boardForDay(d.seed, 2, []);
       const job = d.jobs[0]!;
-      finishActivity(d, { kind: 'search', title: job.title, score: 80, grade: 'Good', pay: job.pay, jobId: job.id });
+      finishActivity(d, {
+        kind: 'search',
+        title: job.title,
+        score: 80,
+        grade: 'Good',
+        pay: job.pay,
+        jobId: job.id,
+      });
     });
     expect(s.jobsDone.length).toBe(1);
     expect(s.jobs.length).toBe(1);

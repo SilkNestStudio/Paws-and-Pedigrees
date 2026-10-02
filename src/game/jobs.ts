@@ -31,9 +31,9 @@ interface JobTemplate {
 /** Mara's lost keys: the first job, which teaches scent search. */
 export const FIRST_JOB: JobTemplate = {
   id: 'mara-keys',
-  title: 'Mara\'s lost keys',
+  title: "Mara's lost keys",
   client: 'Mara Whitlow',
-  blurb: 'Mara dropped her keys somewhere in her orchard. Your dog\'s nose can find them.',
+  blurb: "Mara dropped her keys somewhere in her orchard. Your dog's nose can find them.",
   kind: 'search',
   place: 'orchard',
   pay: 25,
@@ -51,9 +51,9 @@ const TEMPLATES: JobTemplate[] = [
   },
   {
     id: 'ellis-knife',
-    title: 'Ellis\'s pocket knife',
+    title: "Ellis's pocket knife",
     client: 'Ellis Brand',
-    blurb: 'My grandfather\'s pocket knife fell out somewhere between the apple rows.',
+    blurb: "My grandfather's pocket knife fell out somewhere between the apple rows.",
     kind: 'search',
     place: 'orchard',
     pay: 30,
@@ -69,9 +69,10 @@ const TEMPLATES: JobTemplate[] = [
   },
   {
     id: 'keeper-marks',
-    title: 'Gamekeeper\'s practice',
+    title: "Gamekeeper's practice",
     client: 'Tom Garrow',
-    blurb: 'Bring your dog to Grandpa\'s field; I\'ll throw a couple of marks to test my new launcher.',
+    blurb:
+      "Bring your dog to Grandpa's field; I'll throw a couple of marks to test my new launcher.",
     kind: 'mark',
     place: 'field',
     pay: 28,

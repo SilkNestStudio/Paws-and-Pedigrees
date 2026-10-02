@@ -34,9 +34,27 @@ export interface ShopItem {
 }
 
 export const SHOP: ShopItem[] = [
-  { id: 'food', name: 'Bag of kibble', cost: 24, description: 'Eight meals. Your dog eats one each time you fill the bowl.', once: false },
-  { id: 'brush', name: 'Grooming brush', cost: 12, description: 'A daily brush builds your bond faster than petting alone.', once: true },
-  { id: 'longline', name: 'Long training line', cost: 18, description: 'Lessons go further: your dog stays interested for longer.', once: true },
+  {
+    id: 'food',
+    name: 'Bag of kibble',
+    cost: 24,
+    description: 'Eight meals. Your dog eats one each time you fill the bowl.',
+    once: false,
+  },
+  {
+    id: 'brush',
+    name: 'Grooming brush',
+    cost: 12,
+    description: 'A daily brush builds your bond faster than petting alone.',
+    once: true,
+  },
+  {
+    id: 'longline',
+    name: 'Long training line',
+    cost: 18,
+    description: 'Lessons go further: your dog stays interested for longer.',
+    once: true,
+  },
 ];
 
 export const FOOD_PER_BAG = 8;
@@ -52,10 +70,11 @@ export interface Restoration {
 export const RESTORATIONS: Restoration[] = [
   {
     id: 'scentGarden',
-    name: 'Grandpa\'s scent garden',
+    name: "Grandpa's scent garden",
     cost: 90,
     description: 'An overgrown corner with old scent boxes. Clear it and set the boxes out again.',
-    unlocks: 'The "Search and indicate" lesson, which teaches your dog to sit and point out a find instead of guessing.',
+    unlocks:
+      'The "Search and indicate" lesson, which teaches your dog to sit and point out a find instead of guessing.',
   },
 ];
 
@@ -87,14 +106,20 @@ const TAKES_TIME: Record<ActivityKind, boolean> = {
 export const isHungry = (dog: Dog) => dog.fullness < 30;
 export const isTired = (dog: Dog) => dog.energy < 25;
 
-export function canStartActivity(state: GameState, kind: ActivityKind): { ok: true } | { ok: false; reason: string } {
+export function canStartActivity(
+  state: GameState,
+  kind: ActivityKind,
+): { ok: true } | { ok: false; reason: string } {
   const dog = activeDog(state);
   if (!dog) return { ok: false, reason: 'You need a dog first.' };
   if (TAKES_TIME[kind] && state.block === 'night') {
-    return { ok: false, reason: 'It\'s dark. Time for bed; the day starts fresh tomorrow.' };
+    return { ok: false, reason: "It's dark. Time for bed; the day starts fresh tomorrow." };
   }
   if (dog.energy < ACTIVITY_ENERGY[kind]) {
-    return { ok: false, reason: `${dog.name} is worn out. Let ${dog.sex === 'female' ? 'her' : 'him'} rest until tomorrow.` };
+    return {
+      ok: false,
+      reason: `${dog.name} is worn out. Let ${dog.sex === 'female' ? 'her' : 'him'} rest until tomorrow.`,
+    };
   }
   return { ok: true };
 }
@@ -150,12 +175,15 @@ export function sleep(state: GameState): string[] {
     dog.fullness = clamp(dog.fullness - 25, 0, 100);
     const rest = dog.fullness >= 30 ? 70 : 40;
     dog.energy = clamp(dog.energy + rest, 0, 100);
-    if (dog.fullness < 30) messages.push(`${dog.name} woke up hungry. Keep the bowl filled and the pantry stocked.`);
+    if (dog.fullness < 30)
+      messages.push(`${dog.name} woke up hungry. Keep the bowl filled and the pantry stocked.`);
   }
   state.day += 1;
   state.block = 'morning';
-  state.jobs = boardForDay(state.seed, state.day, state.jobsDone).filter((j) => !state.jobsDone.includes(j.id));
-  if (state.day === FUN_DAY) messages.push('It\'s Sunday: the Village Fun Day is this afternoon!');
+  state.jobs = boardForDay(state.seed, state.day, state.jobsDone).filter(
+    (j) => !state.jobsDone.includes(j.id),
+  );
+  if (state.day === FUN_DAY) messages.push("It's Sunday: the Village Fun Day is this afternoon!");
   messages.unshift(`${dayName(state.day)} morning.`);
   return messages;
 }
@@ -174,12 +202,20 @@ export function restAtHome(state: GameState): void {
 export function buy(state: GameState, itemId: string): { ok: boolean; message: string } {
   const item = SHOP.find((i) => i.id === itemId);
   if (!item) return { ok: false, message: 'Not for sale.' };
-  if (item.once && hasFlag(state, `own:${item.id}`)) return { ok: false, message: 'You already have one.' };
-  if (state.money < item.cost) return { ok: false, message: `You need $${item.cost}. Jobs on the noticeboard pay.` };
+  if (item.once && hasFlag(state, `own:${item.id}`))
+    return { ok: false, message: 'You already have one.' };
+  if (state.money < item.cost)
+    return { ok: false, message: `You need $${item.cost}. Jobs on the noticeboard pay.` };
   state.money -= item.cost;
   if (item.id === 'food') state.food += FOOD_PER_BAG;
   else addFlag(state, `own:${item.id}`);
-  return { ok: true, message: item.id === 'food' ? `Bought ${FOOD_PER_BAG} meals.` : `Bought the ${item.name.toLowerCase()}.` };
+  return {
+    ok: true,
+    message:
+      item.id === 'food'
+        ? `Bought ${FOOD_PER_BAG} meals.`
+        : `Bought the ${item.name.toLowerCase()}.`,
+  };
 }
 
 export function restore(state: GameState, id: string): { ok: boolean; message: string } {
@@ -239,5 +275,10 @@ export function finishActivity(state: GameState, outcome: ActivityOutcome): Disc
 
   if (!outcome.observe) return [];
   state.knowledge[dog.id] ??= {};
-  return observe(eventRng(state, `${outcome.title}-${state.results.length}`), dog, state.knowledge[dog.id]!, ACTIVITY_OBSERVATIONS[outcome.observe]!);
+  return observe(
+    eventRng(state, `${outcome.title}-${state.results.length}`),
+    dog,
+    state.knowledge[dog.id]!,
+    ACTIVITY_OBSERVATIONS[outcome.observe]!,
+  );
 }

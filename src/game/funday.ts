@@ -23,7 +23,7 @@ export const ROUNDS: { id: RoundId; title: string; skill: string }[] = [
 
 export const funDaySearch = (seed: number): SearchSetup => ({
   title: 'Round 2: The search',
-  itemName: 'the judge\'s glove',
+  itemName: "the judge's glove",
   hintCenter: { x: -12, z: -38 },
   hintRadius: 18,
   windDeg: 10 + (seed % 60),
@@ -52,11 +52,27 @@ export function createRivals(seed: number): Rival[] {
   const duchess = withFounder(rng, 'Duchess', 'labrador', 0.45);
   duchess.origin = 'purchased';
   duchess.sex = 'female';
-  duchess.skills = { sit: 0.95, stay: 0.9, recall: 0.9, stop: 0.85, cast: 0.8, deliver: 0.9, indicate: 0.7 };
+  duchess.skills = {
+    sit: 0.95,
+    stay: 0.9,
+    recall: 0.9,
+    stop: 0.85,
+    cast: 0.8,
+    deliver: 0.9,
+    indicate: 0.7,
+  };
   duchess.bond = 70;
   const pickles = withFounder(rng, 'Pickles', 'beagle', -0.2);
   pickles.sex = 'male';
-  pickles.skills = { sit: 0.6, stay: 0.25, recall: 0.45, stop: 0.15, cast: 0.1, deliver: 0.4, indicate: 0.1 };
+  pickles.skills = {
+    sit: 0.6,
+    stay: 0.25,
+    recall: 0.45,
+    stop: 0.15,
+    cast: 0.1,
+    deliver: 0.4,
+    indicate: 0.1,
+  };
   pickles.bond = 60;
   return [
     { kennel: 'Sterling Kennels', handler: 'Victor Sterling', dog: duchess, skill: 0.85 },
@@ -77,10 +93,28 @@ export function rivalRound(rival: Rival, round: RoundId, seed: number): number {
 }
 
 /** Final standings once the player has their three round scores. */
-export function standings(kennelName: string, dog: Dog, playerRounds: number[], rivals: Rival[], rivalRounds: number[][]): FunDayRecord {
+export function standings(
+  kennelName: string,
+  dog: Dog,
+  playerRounds: number[],
+  rivals: Rival[],
+  rivalRounds: number[][],
+): FunDayRecord {
   const entries: FunDayEntry[] = [
-    { kennel: kennelName, dog: dog.name, rounds: playerRounds, total: sum(playerRounds), player: true },
-    ...rivals.map((r, i) => ({ kennel: r.kennel, dog: r.dog.name, rounds: rivalRounds[i]!, total: sum(rivalRounds[i]!), player: false })),
+    {
+      kennel: kennelName,
+      dog: dog.name,
+      rounds: playerRounds,
+      total: sum(playerRounds),
+      player: true,
+    },
+    ...rivals.map((r, i) => ({
+      kennel: r.kennel,
+      dog: r.dog.name,
+      rounds: rivalRounds[i]!,
+      total: sum(rivalRounds[i]!),
+      player: false,
+    })),
   ].sort((a, b) => b.total - a.total);
   // The round where the player did best compared with the field.
   let best = 0;

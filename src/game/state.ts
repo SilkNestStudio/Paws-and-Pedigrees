@@ -9,7 +9,15 @@ import type { Job } from './jobs';
  */
 export type Block = 'morning' | 'afternoon' | 'evening' | 'night';
 export const BLOCKS: Block[] = ['morning', 'afternoon', 'evening', 'night'];
-export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+export const DAY_NAMES = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
 export const FUN_DAY = 7;
 
 export type StoryStep =

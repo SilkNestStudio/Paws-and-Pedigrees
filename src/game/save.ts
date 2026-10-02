@@ -20,7 +20,13 @@ function open(): Promise<IDBDatabase> {
 
 function isValid(data: unknown): data is GameState {
   const s = data as GameState;
-  return !!s && s.version === 1 && Array.isArray(s.dogs) && typeof s.day === 'number' && typeof s.story === 'string';
+  return (
+    !!s &&
+    s.version === 1 &&
+    Array.isArray(s.dogs) &&
+    typeof s.day === 'number' &&
+    typeof s.story === 'string'
+  );
 }
 
 export async function loadGame(): Promise<GameState | null> {

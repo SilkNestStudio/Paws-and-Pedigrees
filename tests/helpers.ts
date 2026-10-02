@@ -15,7 +15,16 @@ export function testDog(
   for (const [key, score] of Object.entries(aptitudes) as [Aptitude, number][]) {
     dog.genome.traits[key] = { g: (score - 50) / 15, e: 0 };
   }
-  dog.skills = { sit: 0.6, stay: 0.5, recall: 0.6, stop: 0, cast: 0, deliver: 0.6, indicate: 0, ...skills };
+  dog.skills = {
+    sit: 0.6,
+    stay: 0.5,
+    recall: 0.6,
+    stop: 0,
+    cast: 0,
+    deliver: 0.6,
+    indicate: 0,
+    ...skills,
+  };
   dog.bond = 40;
   return dog;
 }

@@ -38,12 +38,12 @@ export function objective(state: GameState): Objective {
   const f = (flag: string) => hasFlag(state, flag);
   switch (state.story) {
     case 'letter':
-      return { title: 'Grandpa\'s letter', steps: [], target: null };
+      return { title: "Grandpa's letter", steps: [], target: null };
     case 'explore': {
       const steps = [
-        { text: 'Read Grandpa\'s ledger in the office', done: f('saw:office') },
+        { text: "Read Grandpa's ledger in the office", done: f('saw:office') },
         { text: 'Look at the empty kennel runs', done: f('saw:runs') },
-        { text: 'Check what\'s left in the pantry', done: f('saw:pantry') },
+        { text: "Check what's left in the pantry", done: f('saw:pantry') },
         { text: 'Give the kennel your own name at the gate sign', done: state.kennelName !== '' },
         { text: 'Take the van to Larchwood Rescue', done: false },
       ];
@@ -56,13 +56,16 @@ export function objective(state: GameState): Objective {
             : state.kennelName === ''
               ? 'gateSign'
               : 'van';
-      return { title: 'Look around Grandpa\'s kennel', steps, target: next };
+      return { title: "Look around Grandpa's kennel", steps, target: next };
     }
     case 'toShelter':
       return {
         title: 'Choose your first dog',
         steps: [
-          { text: 'Meet all three dogs: throw the ball and watch how each one plays', done: f('met:all') },
+          {
+            text: 'Meet all three dogs: throw the ball and watch how each one plays',
+            done: f('met:all'),
+          },
           { text: 'Choose the dog you want to start with', done: false },
         ],
         target: null,
@@ -80,7 +83,9 @@ export function objective(state: GameState): Objective {
     case 'firstLesson':
       return {
         title: 'Teach a first lesson',
-        steps: [{ text: 'Go to the training field gate and choose "Sit on cue"', done: f('lesson:sit') }],
+        steps: [
+          { text: 'Go to the training field gate and choose "Sit on cue"', done: f('lesson:sit') },
+        ],
         target: 'fieldGate',
       };
     case 'firstNight':
@@ -97,8 +102,13 @@ export function objective(state: GameState): Objective {
       };
     case 'firstJob':
       return {
-        title: 'Find Mara\'s keys',
-        steps: [{ text: 'Take the van to Mara\'s orchard and search with your dog', done: state.jobsDone.includes('mara-keys') }],
+        title: "Find Mara's keys",
+        steps: [
+          {
+            text: "Take the van to Mara's orchard and search with your dog",
+            done: state.jobsDone.includes('mara-keys'),
+          },
+        ],
         target: 'van',
       };
     case 'firstMark':
@@ -111,13 +121,19 @@ export function objective(state: GameState): Objective {
       const days = FUN_DAY - state.day;
       const did = (activity: string) => state.results.some((r) => r.activity === activity);
       return {
-        title: days > 0 ? `Get ready for the Fun Day (${days === 1 ? 'tomorrow' : `in ${days} days`})` : 'The Fun Day is today',
+        title:
+          days > 0
+            ? `Get ready for the Fun Day (${days === 1 ? 'tomorrow' : `in ${days} days`})`
+            : 'The Fun Day is today',
         steps: [
           { text: 'Practise marks in the field', done: did('mark') },
           { text: 'Practise a blind in the field', done: did('blind') },
           { text: 'Do a search job from the noticeboard', done: state.jobsDone.length >= 2 },
           { text: 'Keep the pantry stocked (village shop)', done: state.food >= 3 },
-          { text: 'Optional: restore Grandpa\'s scent garden', done: hasFlag(state, 'restored:scentGarden') },
+          {
+            text: "Optional: restore Grandpa's scent garden",
+            done: hasFlag(state, 'restored:scentGarden'),
+          },
         ],
         target: state.food < 2 ? 'van' : 'noticeboard',
       };
@@ -133,7 +149,7 @@ export function objective(state: GameState): Objective {
         title: 'Keep building the kennel',
         steps: [
           { text: 'Train, take jobs and save up', done: false },
-          { text: 'Restore Grandpa\'s scent garden', done: hasFlag(state, 'restored:scentGarden') },
+          { text: "Restore Grandpa's scent garden", done: hasFlag(state, 'restored:scentGarden') },
         ],
         target: null,
       };
@@ -157,7 +173,8 @@ export function progressStory(state: GameState): StoryStep {
         if (state.day >= 2) state.story = 'meetMara';
         break;
       case 'firstLesson':
-        if (f('lesson:sit') || state.results.some((r) => r.activity === 'lesson')) state.story = 'firstNight';
+        if (f('lesson:sit') || state.results.some((r) => r.activity === 'lesson'))
+          state.story = 'firstNight';
         if (state.day >= 2) state.story = 'meetMara';
         break;
       case 'firstNight':
@@ -194,7 +211,7 @@ export const LETTER_PAGES = [
     image: '/story/homecoming/grandpa.jpg',
     caption: 'Grandpa, and the dogs he loved.',
     text: [
-      'If you\'re reading this, the kennel is yours now.',
+      "If you're reading this, the kennel is yours now.",
       'I spent forty years out here with the dogs. Some of them were champions. All of them were family. I never minded which was which.',
     ],
   },
@@ -203,14 +220,14 @@ export const LETTER_PAGES = [
     caption: 'The kennel in its best years.',
     text: [
       'There was a time this place won the Hollowmere Cup more often than anyone. People came from three counties for one of our pups.',
-      'That was a long while ago. The runs are empty now, and the fences need work. I let it slip when I got old. I\'m sorry for that.',
+      "That was a long while ago. The runs are empty now, and the fences need work. I let it slip when I got old. I'm sorry for that.",
     ],
   },
   {
     image: '/story/homecoming/inheritance.jpg',
     caption: 'The keys, the ledger, and a new beginning.',
     text: [
-      'I\'ve left you the keys, my ledger, a little money and not much else. Don\'t buy a fancy dog. Go to Larchwood Rescue and find one that needs you.',
+      "I've left you the keys, my ledger, a little money and not much else. Don't buy a fancy dog. Go to Larchwood Rescue and find one that needs you.",
       'Train it well, treat it kindly, and see where it takes you. The rest will follow. With love, Grandpa.',
     ],
   },
@@ -218,28 +235,77 @@ export const LETTER_PAGES = [
 
 export const LINES: Record<string, (state: GameState) => Line[]> = {
   ledger: () => [
-    { speaker: 'Grandpa', text: 'From the ledger: "A dog tells you everything if you watch. Ears, tail, nose. Learn to read them before you learn to command them."' },
-    { speaker: 'Grandpa', text: '"Feed them before you ask anything of them. A hungry dog listens to its stomach, not to you."' },
+    {
+      speaker: 'Grandpa',
+      text: 'From the ledger: "A dog tells you everything if you watch. Ears, tail, nose. Learn to read them before you learn to command them."',
+    },
+    {
+      speaker: 'Grandpa',
+      text: '"Feed them before you ask anything of them. A hungry dog listens to its stomach, not to you."',
+    },
   ],
-  runs: () => [{ speaker: 'You', text: 'Six runs, all empty. Grandpa\'s old dogs\' names are still painted above the doors.' }],
-  pantry: (s) => [{ speaker: 'You', text: `A few bags of kibble left: ${s.food} meals. That won't last long. The village shop sells more.` }],
+  runs: () => [
+    {
+      speaker: 'You',
+      text: "Six runs, all empty. Grandpa's old dogs' names are still painted above the doors.",
+    },
+  ],
+  pantry: (s) => [
+    {
+      speaker: 'You',
+      text: `A few bags of kibble left: ${s.food} meals. That won't last long. The village shop sells more.`,
+    },
+  ],
   maraHello: (s) => [
-    { speaker: 'Mara', text: `You must be the grandchild! I'm Mara, from the orchard over the lane. Your grandpa and I trained dogs together for thirty years.` },
-    { speaker: 'Mara', text: `And this must be ${dogName(s)}. Good choice. Rescue dogs have a way of surprising you.` },
-    { speaker: 'Mara', text: 'Two things. On Sunday the village holds its Fun Day: a friendly little competition. Marks, a search, a blind. You should enter.' },
-    { speaker: 'Mara', text: 'And I need a favour. I\'ve lost my keys somewhere in the orchard. Bring your dog over in the van and let that nose earn its supper. I\'ll pay you.' },
+    {
+      speaker: 'Mara',
+      text: `You must be the grandchild! I'm Mara, from the orchard over the lane. Your grandpa and I trained dogs together for thirty years.`,
+    },
+    {
+      speaker: 'Mara',
+      text: `And this must be ${dogName(s)}. Good choice. Rescue dogs have a way of surprising you.`,
+    },
+    {
+      speaker: 'Mara',
+      text: 'Two things. On Sunday the village holds its Fun Day: a friendly little competition. Marks, a search, a blind. You should enter.',
+    },
+    {
+      speaker: 'Mara',
+      text: "And I need a favour. I've lost my keys somewhere in the orchard. Bring your dog over in the van and let that nose earn its supper. I'll pay you.",
+    },
   ],
   maraAfterKeys: (s) => [
-    { speaker: 'Mara', text: `My keys! ${dogName(s)} found them. Here's $25, and you've earned it.` },
-    { speaker: 'Mara', text: 'People pin jobs on the noticeboard by your gate. Lost things, help with dogs. It\'s how your grandpa kept the lights on in lean years.' },
-    { speaker: 'Mara', text: 'Next, try your field. Grandpa\'s old throwers still come by. Start with a single mark and watch where it lands.' },
+    {
+      speaker: 'Mara',
+      text: `My keys! ${dogName(s)} found them. Here's $25, and you've earned it.`,
+    },
+    {
+      speaker: 'Mara',
+      text: "People pin jobs on the noticeboard by your gate. Lost things, help with dogs. It's how your grandpa kept the lights on in lean years.",
+    },
+    {
+      speaker: 'Mara',
+      text: "Next, try your field. Grandpa's old throwers still come by. Start with a single mark and watch where it lands.",
+    },
   ],
   funDayIntro: () => [
-    { speaker: 'Mara', text: 'Welcome to the Fun Day! Three rounds: a mark, a search and a blind. Points from each round add up.' },
-    { speaker: 'Mara', text: 'You\'re up against Victor Sterling of Sterling Kennels. He bought half the good dogs in the county after your grandpa stopped competing. And young Billy Ashby with Pickles.' },
-    { speaker: 'Mara', text: 'Don\'t worry about winning. Watch what your dog is good at. That\'s what today is for.' },
+    {
+      speaker: 'Mara',
+      text: 'Welcome to the Fun Day! Three rounds: a mark, a search and a blind. Points from each round add up.',
+    },
+    {
+      speaker: 'Mara',
+      text: "You're up against Victor Sterling of Sterling Kennels. He bought half the good dogs in the county after your grandpa stopped competing. And young Billy Ashby with Pickles.",
+    },
+    {
+      speaker: 'Mara',
+      text: "Don't worry about winning. Watch what your dog is good at. That's what today is for.",
+    },
   ],
   dayStartHint: (s) => [
-    { speaker: 'Mara', text: `${dayName(s.day)}. Remember: each part of the day fits one main job, lesson or practice. Use them well, and keep ${dogName(s)} fed.` },
+    {
+      speaker: 'Mara',
+      text: `${dayName(s.day)}. Remember: each part of the day fits one main job, lesson or practice. Use them well, and keep ${dogName(s)} fed.`,
+    },
   ],
 };

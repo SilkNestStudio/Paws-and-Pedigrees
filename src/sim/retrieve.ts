@@ -237,7 +237,10 @@ const isAtSide = (dog: DogAgent) => dog.mode === 'sit' || dog.mode === 'heel';
  * What a send toward `point` would do: go for a fall the dog saw, or run out
  * to that spot and search there. The renderer uses this to draw the aim line.
  */
-export function aimTarget(s: RetrieveSession, point: Vec2): { kind: 'mark'; item: Item } | { kind: 'spot'; point: Vec2 } {
+export function aimTarget(
+  s: RetrieveSession,
+  point: Vec2,
+): { kind: 'mark'; item: Item } | { kind: 'spot'; point: Vec2 } {
   const marks = s.items.filter((i) => i.state === 'lying' && i.memory && i.kind !== 'blind');
   let best: Item | null = null;
   let bestDistance = Infinity;
@@ -248,7 +251,8 @@ export function aimTarget(s: RetrieveSession, point: Vec2): { kind: 'mark'; item
       best = item;
     }
   }
-  if (best && bestDistance < Math.max(9, distance(s.keeper.pos, best.pos) * 0.22)) return { kind: 'mark', item: best };
+  if (best && bestDistance < Math.max(9, distance(s.keeper.pos, best.pos) * 0.22))
+    return { kind: 'mark', item: best };
   return { kind: 'spot', point: { ...point } };
 }
 

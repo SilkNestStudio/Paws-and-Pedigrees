@@ -27,7 +27,7 @@ def studio(scene=None, ground=True, bg=(0.62, 0.66, 0.70), ground_color=(0.55, 0
     world.use_nodes = True
     bgn = world.node_tree.nodes['Background']
     bgn.inputs[0].default_value = (*bg, 1)
-    bgn.inputs[1].default_value = 0.55
+    bgn.inputs[1].default_value = 0.35
     if ground:
         bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, 0))
         g = bpy.context.object
@@ -39,9 +39,9 @@ def studio(scene=None, ground=True, bg=(0.62, 0.66, 0.70), ground_color=(0.55, 0
         p.inputs['Roughness'].default_value = 0.95
         g.data.materials.append(m)
     lights = []
-    for loc, power, size, color in [((2.5, -3.0, 4.0), 900, 4.0, (1.0, 0.96, 0.9)),
-                                    ((-3.5, -1.0, 2.5), 350, 4.0, (0.85, 0.9, 1.0)),
-                                    ((0.5, 4.0, 3.0), 600, 3.0, (1.0, 1.0, 1.0))]:
+    for loc, power, size, color in [((2.5, -3.0, 4.0), 380, 4.0, (1.0, 0.96, 0.9)),
+                                    ((-3.5, -1.0, 2.5), 140, 4.0, (0.85, 0.9, 1.0)),
+                                    ((0.5, 4.0, 3.0), 260, 3.0, (1.0, 1.0, 1.0))]:
         bpy.ops.object.light_add(type='AREA', location=loc)
         light = bpy.context.object
         light.data.energy = power
@@ -85,7 +85,10 @@ def setup_render(res=(640, 520), samples=48, engine='CYCLES'):
     scene.render.image_settings.file_format = 'PNG'
     scene.render.film_transparent = False
     scene.view_settings.view_transform = 'AgX'
-    scene.view_settings.look = 'None'
+    try:
+        scene.view_settings.look = 'AgX - Medium High Contrast'
+    except TypeError:
+        pass
 
 
 def render(path):
