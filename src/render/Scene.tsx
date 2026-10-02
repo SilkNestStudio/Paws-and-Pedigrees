@@ -807,7 +807,8 @@ const still = (pos: Vec2, heading: number, pose: DogView['pose'] = 'sit'): DogVi
 function Bystanders({ place }: { place: Place }) {
   const game = useApp((s) => s.game);
   const screen = useApp((s) => s.screen);
-  const rivals = useMemo(() => (game ? createRivals(game.seed) : []), [game?.seed]);
+  const seed = game?.seed;
+  const rivals = useMemo(() => (seed !== undefined ? createRivals(seed) : []), [seed]);
   if (!game) return null;
   const maraHere =
     (place === 'home' && game.story === 'meetMara') ||

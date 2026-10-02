@@ -280,7 +280,7 @@ export function homeDogAte(): void {
   toast(`${name} cleaned the bowl.`, 'good');
 }
 
-export function useSpot(spot: SpotId): void {
+export function activateSpot(spot: SpotId): void {
   const g = game();
   switch (spot) {
     case 'office':

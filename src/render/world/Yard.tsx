@@ -302,8 +302,9 @@ function YardFence() {
   );
 }
 
+const FLOWER_COLOURS = ['#e8a0b4', '#f4d35e', '#ffffff', '#b8a1e3', '#f08a5d'];
+
 function Flowers() {
-  const colours = ['#e8a0b4', '#f4d35e', '#ffffff', '#b8a1e3', '#f08a5d'];
   const items = useMemo(
     () =>
       Array.from({ length: 120 }, (_, i) => {
@@ -313,7 +314,7 @@ function Flowers() {
         return {
           x: base.x + (scatter(i, 11) - 0.5) * (bed === 2 ? 4 : 10),
           z: base.z + (scatter(i, 12) - 0.5) * 1.2,
-          c: colours[i % colours.length]!,
+          c: FLOWER_COLOURS[i % FLOWER_COLOURS.length]!,
         };
       }),
     [],

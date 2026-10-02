@@ -14,7 +14,7 @@ import { giveCue, mark, type CueChoice } from '../sim/training';
 import { callDog, greetDog } from '../sim/home';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
 import { live, useApp } from './store';
-import { MARA_POS, petDog, talkToMara, useSpot } from './flow';
+import { MARA_POS, petDog, talkToMara, activateSpot } from './flow';
 
 /**
  * Everything the player can do with keys, buttons or taps, routed to
@@ -116,7 +116,7 @@ export function interact(): void {
     return;
   }
   if (h.nearSpot) {
-    useSpot(h.nearSpot);
+    activateSpot(h.nearSpot);
     return;
   }
   if (h.nearDog && activeDog(g)) pat();
