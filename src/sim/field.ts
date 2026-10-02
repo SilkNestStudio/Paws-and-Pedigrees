@@ -18,7 +18,10 @@ export interface Tree {
   radius: number;
 }
 
+export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter';
+
 export interface Field {
+  style: FieldStyle;
   minX: number;
   maxX: number;
   minZ: number;
@@ -30,6 +33,7 @@ export interface Field {
 
 export function createTrainingField(): Field {
   return {
+    style: 'training',
     minX: -62,
     maxX: 62,
     minZ: -95,
@@ -52,6 +56,74 @@ export function createTrainingField(): Field {
       { pos: { x: -42, z: -42 }, radius: 1.5 },
       { pos: { x: 8, z: -84 }, radius: 1.4 },
     ],
+  };
+}
+
+/**
+ * Mara's orchard: rows of apple trees running north, long grass between some
+ * rows, a hedge along the far side. Used for search jobs and orchard blinds.
+ */
+export function createOrchard(): Field {
+  const trees: Tree[] = [];
+  for (let row = -4; row <= 4; row++) {
+    for (let k = 0; k < 8; k++) {
+      const x = row * 9 + (k % 2) * 0.8;
+      const z = -6 - k * 8;
+      if (row === 0 && k < 3) continue; // the lane up the middle
+      trees.push({ pos: { x, z }, radius: 0.9 });
+    }
+  }
+  return {
+    style: 'orchard',
+    minX: -44,
+    maxX: 44,
+    minZ: -72,
+    maxZ: 14,
+    line: { x: 0, z: 8 },
+    cover: [
+      { center: { x: -22, z: -30 }, radius: 7, density: 0.6 },
+      { center: { x: 20, z: -18 }, radius: 6, density: 0.55 },
+      { center: { x: 8, z: -50 }, radius: 8, density: 0.65 },
+      { center: { x: -30, z: -58 }, radius: 6, density: 0.6 },
+      { center: { x: 34, z: -48 }, radius: 6, density: 0.6 },
+    ],
+    trees,
+  };
+}
+
+/** The village green for the Fun Day: open grass, a few rough patches, bunting round the edge. */
+export function createVillageGreen(): Field {
+  return {
+    style: 'green',
+    minX: -48,
+    maxX: 48,
+    minZ: -70,
+    maxZ: 22,
+    line: { x: 0, z: 12 },
+    cover: [
+      { center: { x: -18, z: -22 }, radius: 6, density: 0.6 },
+      { center: { x: 16, z: -36 }, radius: 7, density: 0.65 },
+      { center: { x: -10, z: -52 }, radius: 6, density: 0.6 },
+    ],
+    trees: [
+      { pos: { x: -38, z: -10 }, radius: 1.4 },
+      { pos: { x: 36, z: -14 }, radius: 1.5 },
+      { pos: { x: 30, z: -58 }, radius: 1.4 },
+    ],
+  };
+}
+
+/** The exercise yard at Larchwood Rescue, where you meet the dogs. */
+export function createShelterYard(): Field {
+  return {
+    style: 'shelter',
+    minX: -16,
+    maxX: 16,
+    minZ: -22,
+    maxZ: 8,
+    line: { x: 0, z: 3 },
+    cover: [],
+    trees: [{ pos: { x: -11, z: -16 }, radius: 1.2 }],
   };
 }
 

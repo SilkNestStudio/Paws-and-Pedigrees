@@ -14,7 +14,8 @@ export type DogMode =
   | 'return'
   | 'deliver'
   | 'stopped' // sat on the stop whistle, waiting for direction
-  | 'popped'; // stopped on its own to look to the keeper for help
+  | 'popped' // stopped on its own to look to the keeper for help
+  | 'indicate'; // search work: sitting and staring at what it thinks is the find
 
 export type Pose = 'stand' | 'sit' | 'down' | 'crouch';
 

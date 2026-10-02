@@ -128,3 +128,26 @@ export function setupById(id: string): RetrieveSetup {
   if (!found) throw new Error(`Unknown retrieve set-up: ${id}`);
   return found;
 }
+
+/** Fun Day rounds on the village green (keeper's line at z = 12). */
+export const FUN_DAY_MARK: RetrieveSetup = {
+  id: 'funday-mark',
+  title: 'Round 1: The mark',
+  summary: 'One mark thrown across the green. Steady dog, clean retrieve, quick delivery.',
+  focus: 'Marking and steadiness',
+  marks: [{ from: { x: 16, z: -18 }, landing: { x: 5, z: -27 } }],
+  blinds: [],
+  windDeg: 15,
+  windStrength: 0.35,
+};
+
+export const FUN_DAY_BLIND: RetrieveSetup = {
+  id: 'funday-blind',
+  title: 'Round 3: The blind',
+  summary: 'A hidden dummy beyond the rough grass, with a breeze across the line.',
+  focus: 'Handling',
+  marks: [],
+  blinds: [{ x: 13, z: -44 }],
+  windDeg: 250,
+  windStrength: 0.5,
+};

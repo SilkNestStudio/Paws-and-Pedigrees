@@ -33,22 +33,38 @@ export interface DogParams {
   bond: number; // 0-1
 }
 
+/**
+ * A tired dog runs slower and tires sooner; a hungry one listens less and
+ * gives up sooner. Care shows up directly in the work.
+ */
+export function conditionEffects(dog: Dog) {
+  const energy = dog.energy ?? 100;
+  const fullness = dog.fullness ?? 100;
+  return {
+    speed: energy < 25 ? 0.88 : 1,
+    stamina: energy < 25 ? 0.7 : energy < 50 ? 0.85 : 1,
+    attention: fullness < 30 ? -0.1 : 0,
+    patience: fullness < 30 ? 0.8 : 1,
+  };
+}
+
 export function dogParams(dog: Dog): DogParams {
   const a = (k: Parameters<typeof aptitude>[1]) => aptitude(dog, k);
   const skills = dog.skills;
+  const c = conditionEffects(dog);
   return {
-    gallop: 6.2 + a('speed') * 0.05,
+    gallop: (6.2 + a('speed') * 0.05) * c.speed,
     trot: 3 + a('speed') * 0.012,
     walk: 1.5,
     accel: 5 + a('power') * 0.06,
     turnRate: 2.2 + a('agility') * 0.035,
-    staminaMax: 25 + a('stamina') * 0.6,
+    staminaMax: (25 + a('stamina') * 0.6) * c.stamina,
     scentThreshold: 0.555 - a('nose') * 0.0047,
-    huntPatience: 6 + a('drive') * 0.14,
+    huntPatience: (6 + a('drive') * 0.14) * c.patience,
     carry: 14 + a('drive') * 0.3 + skills.cast * 30,
     markError: 0.03 + (100 - a('focus')) * 0.0011,
     steadiness: clamp01(skills.stay * 0.7 + a('focus') * 0.002 + (100 - a('drive')) * 0.002),
-    biddability: a('biddability') / 100,
+    biddability: clamp01(a('biddability') / 100 + c.attention),
     confidence: a('confidence') / 100,
     softMouth: a('mouth') / 100,
     learning: 0.6 + a('biddability') * 0.005 + a('focus') * 0.003,

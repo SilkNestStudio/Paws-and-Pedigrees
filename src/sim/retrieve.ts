@@ -114,9 +114,9 @@ export function createRetrieveSession(
   dog: Dog,
   setup: RetrieveSetup,
   seed: number,
+  field: Field = createTrainingField(),
 ): RetrieveSession {
   const rng = createRng(seed);
-  const field = createTrainingField();
   const params = dogParams(dog);
   const keeper = createKeeper(field.line);
   const agent = createDog(add(field.line, { x: -0.9, z: 0.2 }), params);
@@ -234,42 +234,53 @@ export function callForThrows(s: RetrieveSession): void {
 const isAtSide = (dog: DogAgent) => dog.mode === 'sit' || dog.mode === 'heel';
 
 /**
- * Sends the dog. With remembered marks out, it goes for the one closest to
- * where you point; otherwise it takes a line in the direction you point.
+ * What a send toward `point` would do: go for a fall the dog saw, or run out
+ * to that spot and search there. The renderer uses this to draw the aim line.
+ */
+export function aimTarget(s: RetrieveSession, point: Vec2): { kind: 'mark'; item: Item } | { kind: 'spot'; point: Vec2 } {
+  const marks = s.items.filter((i) => i.state === 'lying' && i.memory && i.kind !== 'blind');
+  let best: Item | null = null;
+  let bestDistance = Infinity;
+  for (const item of marks) {
+    const d = distance(item.pos, point);
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = item;
+    }
+  }
+  if (best && bestDistance < Math.max(9, distance(s.keeper.pos, best.pos) * 0.22)) return { kind: 'mark', item: best };
+  return { kind: 'spot', point: { ...point } };
+}
+
+/**
+ * Sends the dog. Click near a fall it watched and it goes for that fall;
+ * click anywhere else and it runs out to that spot and searches there.
+ * Less trained dogs drift off line on the way, which you can see and correct.
  */
 export function sendDog(s: RetrieveSession, aim: Vec2): void {
   const { dog, keeper } = s;
   if (!isAtSide(dog) || s.phase === 'complete') return;
   if (s.stats.startedAt === null) s.stats.startedAt = s.time;
   if (s.phase === 'ready') s.phase = 'working';
-  const aimHeading = headingOf(sub(aim, keeper.pos));
+  const target = aimTarget(s, aim);
+  dog.droppedOnce = false;
+  const aimHeading = headingOf(sub(target.kind === 'mark' ? target.item.pos : aim, keeper.pos));
   keeperAct(keeper, 'send', aimHeading);
 
-  const remembered = s.items.filter((i) => i.state === 'lying' && i.memory);
-  let best: Item | null = null;
-  let bestAngle = Math.PI;
-  for (const item of remembered) {
-    const angle = Math.abs(wrapAngle(headingOf(sub(item.memory!, keeper.pos)) - aimHeading));
-    if (angle < bestAngle) {
-      bestAngle = angle;
-      best = item;
-    }
-  }
-
-  if (best && bestAngle < 0.5) {
-    dog.goalItem = best.id;
-    dog.target = { ...best.memory! };
+  if (target.kind === 'mark') {
+    dog.goalItem = target.item.id;
+    dog.target = { ...target.item.memory! };
     setMode(dog, 'run');
     log(s, `${s.dogName} is away to the mark.`);
   } else {
-    // Lining up for a blind: the less trained the dog, the less exact the line.
-    const sd = (1 - s.params.skills.cast * 0.6 - s.params.biddability * 0.3) * 0.2;
+    // Lining up: the less trained the dog, the less exact the line.
+    const sd = (1 - s.params.skills.cast * 0.6 - s.params.biddability * 0.3) * 0.16;
     dog.lineHeading = aimHeading + gaussian(s.rng) * Math.max(0.03, sd);
-    dog.carryLeft = s.params.carry;
+    dog.carryLeft = Math.max(4, distance(dog.pos, aim));
     dog.goalItem = null;
     s.lineFrom = { ...dog.pos };
     setMode(dog, 'line');
-    log(s, `${s.dogName} is away on the line.`);
+    log(s, `${s.dogName} is away.`);
   }
   dog.breakPressure = 0;
 }
@@ -382,7 +393,7 @@ export function castDog(s: RetrieveSession, toward: Vec2): void {
   }
 
   dog.lineHeading = heading;
-  dog.carryLeft = params.carry * (isBack ? 1 : 0.65);
+  dog.carryLeft = Math.max(4, distance(dog.pos, toward));
   dog.goalItem = null;
   setMode(dog, 'line');
 }
@@ -800,7 +811,6 @@ function pickUp(s: RetrieveSession): void {
   }
   item.state = 'carried';
   dog.carrying = item.id;
-  dog.droppedOnce = false;
   const outstandingBlind = s.items.some((i) => i.kind === 'blind' && i.state === 'lying');
   if (item.kind !== 'blind' && dog.goalItem === null && outstandingBlind && item.kind === 'mark') {
     s.stats.wrongItem = true;

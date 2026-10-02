@@ -1,6 +1,7 @@
 import { distance } from '../core/math';
 import type { Cue } from '../core/dog/dog';
 import type { RetrieveSession } from './retrieve';
+import { speedPoints } from './scent';
 
 /**
  * The judge's card after a retrieve: a score, a grade, plain-language notes
@@ -20,15 +21,15 @@ export function buildReport(s: RetrieveSession): RetrieveReport {
   const seconds =
     st.finishedAt !== null && st.startedAt !== null ? st.finishedAt - st.startedAt : 0;
   const notes: RetrieveReport['notes'] = [];
-  let score = 100;
+  // 70 for finishing, up to 30 for speed, minus faults.
 
   const items = s.items.filter((i) => i.kind !== 'ball');
   const blinds = items.filter((i) => i.kind === 'blind');
-  const par = items.reduce((sum, i) => sum + distance(s.field.line, i.landing) / 4.5 + 8, 0);
-  if (seconds > par) score -= Math.min(25, (seconds - par) * 0.5);
+  const par = items.reduce((sum, i) => sum + distance(s.field.line, i.landing) / 5.5 + 5, 0);
+  let score = 70 + speedPoints(seconds, par);
 
   if (st.broke) {
-    score -= 45;
+    score -= 40;
     notes.push({ text: `Broke before being sent. Steadiness lessons will help.`, tone: 'warn' });
   }
   if (st.wrongItem) {

@@ -46,5 +46,13 @@ export function scentStrength(p: Vec2, source: Vec2, wind: Wind, time: number): 
   return Math.max(near, plume);
 }
 
+/**
+ * Points for speed in a scored exercise: full 30 at 60% of par time, 20 at
+ * par, nothing at 1.8 times par. Shared by retrieves and searches.
+ */
+export function speedPoints(seconds: number, par: number): number {
+  return 30 * Math.min(1, Math.max(0, (1.8 * par - seconds) / (1.2 * par)));
+}
+
 /** Lowest scent strength this dog notices. Nose 99 is roughly 0.09, nose 1 roughly 0.55. */
 export const detectionThreshold = (nose: number): number => 0.555 - nose * 0.0047;

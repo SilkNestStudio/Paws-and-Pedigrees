@@ -9,7 +9,7 @@ import { chance, int, pick, range, weighted, type Rng } from '../rng';
  * Learned cues. Each has a reliability from 0 (unknown) to 1 (rock solid).
  * Skills are trained, never inherited.
  */
-export const CUES = ['sit', 'stay', 'recall', 'stop', 'cast', 'deliver'] as const;
+export const CUES = ['sit', 'stay', 'recall', 'stop', 'cast', 'deliver', 'indicate'] as const;
 export type Cue = (typeof CUES)[number];
 
 export const CUE_LABELS: Record<Cue, { name: string; meaning: string }> = {
@@ -19,6 +19,7 @@ export const CUE_LABELS: Record<Cue, { name: string; meaning: string }> = {
   stop: { name: 'Stop whistle', meaning: 'Stops and sits at a distance on one blast' },
   cast: { name: 'Directions', meaning: 'Goes left, right or back when you signal' },
   deliver: { name: 'Delivery', meaning: 'Brings items all the way to your hand' },
+  indicate: { name: 'Indicate', meaning: 'Sits and stares at a find instead of guessing' },
 };
 
 export type Sex = 'female' | 'male';
@@ -42,6 +43,10 @@ export interface Dog {
   skills: Record<Cue, number>;
   /** Partnership with the keeper, 0-100. */
   bond: number;
+  /** 0-100. Drops through the day; a filled bowl tops it up. */
+  fullness: number;
+  /** 0-100. Work uses it; rest and a night's sleep restore it. */
+  energy: number;
 }
 
 /** A dog's aptitude on the 1-99 scale (50 = average dog). */
@@ -177,8 +182,11 @@ export function generateRescue(rng: Rng, name?: string): Dog {
       stop: 0,
       cast: 0,
       deliver: range(rng, 0.2, 0.45),
+      indicate: 0,
     },
     bond: int(rng, 10, 20),
+    fullness: 60,
+    energy: 90,
   };
 }
 

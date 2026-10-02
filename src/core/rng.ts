@@ -45,6 +45,16 @@ export function gaussian(rng: Rng): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
+/** A shuffled copy of the items (Fisher-Yates). */
+export function shuffle<T>(rng: Rng, items: readonly T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random(rng) * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
 /** Picks a key from a table of relative weights. */
 export function weighted<K extends string>(rng: Rng, weights: Partial<Record<K, number>>): K {
   const entries = Object.entries(weights) as [K, number][];
