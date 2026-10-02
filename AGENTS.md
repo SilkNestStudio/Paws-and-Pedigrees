@@ -1,6 +1,6 @@
 # Project context for coding sessions
 
-**Current build:** `npm run dev`, `npm test`, `npm run build`. Phase 1 test guide: [docs/PHASE1_FIELD_TEST.md](docs/PHASE1_FIELD_TEST.md). Keep rules and simulations in `src/core` and `src/sim` free of React and three.js. Write normally formatted code (Prettier, 100 columns).
+**Current build:** `npm run dev`, `npm test`, `npm run build`. Current playable slice: [docs/FIRST_WEEK.md](docs/FIRST_WEEK.md). Keep rules and simulations in `src/core` and `src/sim` free of React and three.js. Write normally formatted code (Prettier, 100 columns).
 
 **October 1, 2026: full redesign approved.** Read the first section of [docs/GAME_VISION.md](docs/GAME_VISION.md) before anything else. The new game is built fresh on the `rebuild` branch, mechanics first, with playtest gates between phases. The `prototype-archive` branch holds everything from before the rebuild. Only the story is fixed; the bullets below describe earlier prototypes and are kept as history. Where they conflict with the approved redesign, the redesign wins. Key confirmed rules: player skill must visibly change outcomes (no click-and-wait play); no dog deaths; dogs age by season, not by day; build for future in-game purchases with fair free and premium leagues; keep costs low.
 
