@@ -33,7 +33,6 @@ import { Orchard, Shelter, VillageGreen } from './world/Places';
 import { Lighting, Sky } from './world/Atmosphere';
 import { heightAt } from './world/terrain';
 
-
 /** Where the pointer is on the ground (desktop), for the aim line. */
 const aim: { point: Vec2 | null } = { point: null };
 

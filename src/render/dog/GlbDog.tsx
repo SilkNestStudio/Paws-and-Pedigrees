@@ -25,16 +25,7 @@ useGLTF.preload(DOG_URL);
 const CLIP_SPEED = { Walk: 0.32, Trot: 1.07, Gallop: 2.75 } as const;
 const FADE = 0.3;
 
-type ClipName =
-  | 'Idle'
-  | 'Walk'
-  | 'Trot'
-  | 'Gallop'
-  | 'Sniff'
-  | 'Sit'
-  | 'Down'
-  | 'Crouch'
-  | 'Eat';
+type ClipName = 'Idle' | 'Walk' | 'Trot' | 'Gallop' | 'Sniff' | 'Sit' | 'Down' | 'Crouch' | 'Eat';
 
 function partForBone(name: string): Part {
   if (name.startsWith('ear')) return 'ear';
@@ -63,6 +54,15 @@ function prepareGeometries(scene: THREE.Object3D): void {
 
   const body = meshes.find((m) => m.name === 'DogBody') ?? meshes[0]!;
   const bones = body.skeleton.bones.map((b) => b.name);
+
+  // Real rest-pose positions in metres, through the skeleton. (Compressed
+  // models store vertices in a packed, scaled form, so raw positions won't do.)
+  scene.updateMatrixWorld(true);
+  const restOf = new Map<THREE.BufferGeometry, Float32Array>();
+  for (const mesh of meshes) {
+    if (restOf.has(mesh.geometry)) continue;
+    restOf.set(mesh.geometry, skinnedRest(mesh));
+  }
   const dominant = (geo: THREE.BufferGeometry, i: number) => {
     const idx = geo.getAttribute('skinIndex') as THREE.BufferAttribute;
     const w = geo.getAttribute('skinWeight') as THREE.BufferAttribute;
@@ -72,7 +72,8 @@ function prepareGeometries(scene: THREE.Object3D): void {
   };
 
   // Measure the body from its own vertices so the masks fit the model.
-  const pos = body.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const bodyRest = restOf.get(body.geometry)!;
+  const count = bodyRest.length / 3;
   const v = new THREE.Vector3();
   let chestMin = Infinity;
   let chestMax = -Infinity;
@@ -84,8 +85,8 @@ function prepareGeometries(scene: THREE.Object3D): void {
   let headMaxY = -Infinity;
   let shoulderY = 0;
   let shoulderN = 0;
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i);
+  for (let i = 0; i < count; i++) {
+    v.fromArray(bodyRest, i * 3);
     const bone = dominant(body.geometry, i);
     if (bone === 'spine_03' || bone === 'spine_02') {
       chestMin = Math.min(chestMin, v.y);
@@ -119,20 +120,36 @@ function prepareGeometries(scene: THREE.Object3D): void {
     const geo = mesh.geometry;
     if (done.has(geo)) continue;
     done.add(geo);
-    const p = geo.getAttribute('position') as THREE.BufferAttribute;
-    const mask = new Float32Array(p.count * 4);
-    for (let i = 0; i < p.count; i++) {
-      v.fromBufferAttribute(p, i);
+    const rest = restOf.get(geo)!;
+    const n = rest.length / 3;
+    const mask = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      v.fromArray(rest, i * 3);
       let kind = partForBone(dominant(geo, i));
-      if (kind === 'skull' && v.z > head.z + dims.skull * 0.55 && v.y < head.y + dims.skull * 0.15) kind = 'muzzle';
+      if (kind === 'skull' && v.z > head.z + dims.skull * 0.55 && v.y < head.y + dims.skull * 0.15)
+        kind = 'muzzle';
       if (mesh.name === 'Beard') kind = 'muzzle';
       if (mesh.name === 'Fluff_Chest' || mesh.name === 'Fluff_Neck') kind = 'ruff';
       coatMask(v, kind, dims, head, out);
       mask.set(out, i * 4);
     }
-    geo.setAttribute('aRest', p);
+    geo.setAttribute('aRest', new THREE.BufferAttribute(rest, 3));
     geo.setAttribute('aMask', new THREE.BufferAttribute(mask, 4));
   }
+}
+
+/** Each vertex's position in the rest pose, computed through its bones. */
+function skinnedRest(mesh: THREE.SkinnedMesh): Float32Array {
+  const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const out = new Float32Array(pos.count * 3);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    mesh.applyBoneTransform(i, v);
+    v.applyMatrix4(mesh.matrixWorld);
+    v.toArray(out, i * 3);
+  }
+  return out;
 }
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
@@ -165,7 +182,10 @@ interface Rig {
   dispose: () => void;
 }
 
-function buildRig(gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }, dog: Dog): Rig {
+function buildRig(
+  gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip[] },
+  dog: Dog,
+): Rig {
   prepareGeometries(gltf.scene);
   const body = bodyOf(dog);
   const coat = coatOf(dog);
@@ -174,7 +194,8 @@ function buildRig(gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip
   const disposables: { dispose(): void }[] = [material];
   const morphs = morphsFor(body);
 
-  const earKind = body.earErect > 0.66 ? 'Ear_Prick' : body.earErect < 0.33 ? 'Ear_Drop' : 'Ear_Semi';
+  const earKind =
+    body.earErect > 0.66 ? 'Ear_Prick' : body.earErect < 0.33 ? 'Ear_Drop' : 'Ear_Semi';
   const long = coat.length === 'long';
   root.traverse((o) => {
     const mesh = o as THREE.SkinnedMesh;
@@ -196,7 +217,8 @@ function buildRig(gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip
       disposables.push(m);
     }
     if (mesh.name.startsWith('Ear_')) mesh.visible = mesh.name === earKind;
-    if (mesh.name.startsWith('Fluff_')) mesh.visible = long && (mesh.name !== 'Fluff_Ears' || earKind === 'Ear_Drop');
+    if (mesh.name.startsWith('Fluff_'))
+      mesh.visible = long && (mesh.name !== 'Fluff_Ears' || earKind === 'Ear_Drop');
     if (mesh.name === 'Beard') mesh.visible = coat.furnishings;
     if (mesh.morphTargetDictionary && mesh.morphTargetInfluences) {
       for (const [key, index] of Object.entries(mesh.morphTargetDictionary)) {
@@ -213,37 +235,51 @@ function buildRig(gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip
   // Move joints to match the morphed proportions. The body's own height
   // change (spine_01) is already in the morphs, so it is not applied again.
   const rigNode = root.getObjectByName('DogRig') ?? root;
-  const raw = (rigNode.userData.dogMorphBoneOffsets ?? root.userData.dogMorphBoneOffsets) as string | undefined;
+  const raw = (rigNode.userData.dogMorphBoneOffsets ?? root.userData.dogMorphBoneOffsets) as
+    string | undefined;
   if (raw) {
     const table = JSON.parse(raw) as Record<string, Record<string, [number, number, number]>>;
     for (const [morph, offsets] of Object.entries(table)) {
       const w = morphs[morph] ?? 0;
       if (!w) continue;
       for (const [boneName, [x, y, z]] of Object.entries(offsets)) {
-        if (boneName !== 'spine_01') bones[boneName]?.position.add(new THREE.Vector3(x, y, z).multiplyScalar(w));
+        if (boneName !== 'spine_01')
+          bones[boneName]?.position.add(new THREE.Vector3(x, y, z).multiplyScalar(w));
       }
     }
   }
 
   // Mouth attachment for carried items: just under the nose, in head space.
   root.updateMatrixWorld(true);
-  const nose = root.getObjectByName('Nose') as THREE.Mesh | undefined;
+  const nose = root.getObjectByName('Nose') as THREE.SkinnedMesh | undefined;
   const mouth = new THREE.Object3D();
   const headBone = bones.head ?? root;
-  if (nose) {
-    nose.geometry.computeBoundingBox();
-    const p = nose.geometry.boundingBox!.getCenter(new THREE.Vector3()).add(new THREE.Vector3(0, -0.07, -0.06));
-    mouth.position.copy(headBone.worldToLocal(p));
+  if (nose?.isSkinnedMesh) {
+    const rest = skinnedRest(nose);
+    const centre = new THREE.Vector3();
+    for (let i = 0; i < rest.length; i += 3)
+      centre.add(new THREE.Vector3(rest[i], rest[i + 1], rest[i + 2]));
+    centre.divideScalar(rest.length / 3).add(new THREE.Vector3(0, -0.07, -0.06));
+    mouth.position.copy(headBone.worldToLocal(centre));
   }
   headBone.add(mouth);
   const dummy = new THREE.Group();
-  const d1 = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.16, 4, 10), new THREE.MeshStandardMaterial({ color: '#f1ead6', roughness: 0.8 }));
+  const d1 = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.035, 0.16, 4, 10),
+    new THREE.MeshStandardMaterial({ color: '#f1ead6', roughness: 0.8 }),
+  );
   d1.rotation.z = Math.PI / 2;
-  const d2 = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.037, 0.035, 10), new THREE.MeshStandardMaterial({ color: '#d5612f' }));
+  const d2 = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.037, 0.037, 0.035, 10),
+    new THREE.MeshStandardMaterial({ color: '#d5612f' }),
+  );
   d2.rotation.z = Math.PI / 2;
   dummy.add(d1, d2);
   dummy.visible = false;
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 10), new THREE.MeshStandardMaterial({ color: '#f0b429', roughness: 0.6 }));
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(0.045, 14, 10),
+    new THREE.MeshStandardMaterial({ color: '#f0b429', roughness: 0.6 }),
+  );
   ball.visible = false;
   mouth.add(dummy, ball);
   disposables.push(d1.geometry, d2.geometry, ball.geometry);
@@ -276,7 +312,10 @@ function buildRig(gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip
 }
 
 export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
-  const gltf = useGLTF(DOG_URL) as unknown as { scene: THREE.Object3D; animations: THREE.AnimationClip[] };
+  const gltf = useGLTF(DOG_URL) as unknown as {
+    scene: THREE.Object3D;
+    animations: THREE.AnimationClip[];
+  };
   // Rebuild only when the genes change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rig = useMemo(() => buildRig(gltf, dog), [gltf, dog.genome]);
@@ -322,7 +361,13 @@ export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
       const rel = v.speed / size;
       clip = rel < 1.3 ? 'Walk' : rel < 4.2 ? 'Trot' : 'Gallop';
       const base = CLIP_SPEED[clip as keyof typeof CLIP_SPEED];
-      timeScale = Math.min(2.6, Math.max(0.6, v.speed / (base * size * (clip === 'Walk' ? 3.5 : clip === 'Trot' ? 2.2 : 1.4))));
+      timeScale = Math.min(
+        2.6,
+        Math.max(
+          0.6,
+          v.speed / (base * size * (clip === 'Walk' ? 3.5 : clip === 'Trot' ? 2.2 : 1.4)),
+        ),
+      );
     }
     if (clip !== s.clip) {
       const next = actions[clip];
@@ -342,7 +387,10 @@ export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
 
     let yaw = 0;
     if (v.lookAt) {
-      yaw = Math.max(-1, Math.min(1, wrapAngle(Math.atan2(v.lookAt.x - v.pos.x, v.lookAt.z - v.pos.z) - v.heading)));
+      yaw = Math.max(
+        -1,
+        Math.min(1, wrapAngle(Math.atan2(v.lookAt.x - v.pos.x, v.lookAt.z - v.pos.z) - v.heading)),
+      );
     }
     s.yaw += (yaw - s.yaw) * damp(5, dt);
     bones.neck_02?.rotateZ(s.yaw * 0.45);

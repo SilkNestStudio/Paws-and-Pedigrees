@@ -553,7 +553,7 @@ export function startLesson(lesson: Lesson): void {
 }
 
 const SEARCH_AREAS: Record<string, { item: string; center: Vec2; radius: number }> = {
-  'mara-keys': { item: "Mara's keys", center: { x: -12, z: -28 }, radius: 14 },
+  'mara-keys': { item: "Mara's keys", center: { x: -10, z: -24 }, radius: 10 },
   'hollins-glove': { item: 'the glove', center: { x: 16, z: -22 }, radius: 16 },
   'ellis-knife': { item: 'the pocket knife', center: { x: -20, z: -46 }, radius: 16 },
   'pip-rabbit': { item: 'the toy rabbit', center: { x: 12, z: -50 }, radius: 14 },
@@ -563,7 +563,10 @@ export function startJob(job: Job): void {
   const rng = createRng(job.seed);
   if (job.kind === 'search') {
     const area = SEARCH_AREAS[job.id] ?? { item: 'it', center: { x: 0, z: -30 }, radius: 16 };
-    startSearch(randomSearchSetup(rng, job.title, area.item, area), { job, place: 'orchard' });
+    const setup = randomSearchSetup(rng, job.title, area.item, area);
+    // Mara's keys is the first search: a breeze toward you makes it forgiving.
+    if (job.id === 'mara-keys') Object.assign(setup, { windDeg: 10, windStrength: 0.5 });
+    startSearch(setup, { job, place: 'orchard' });
   } else if (job.kind === 'blind') {
     const x = -30 + random(rng) * 60;
     const setup: RetrieveSetup = {
@@ -717,6 +720,11 @@ export function abandonActivity(): void {
   const screen = get().screen;
   useApp.setState({ panel: null, result: null });
   if (screen.kind === 'shelter') return;
+  // Ending a lesson early keeps whatever the dog learned so far.
+  if (screen.kind === 'lesson') {
+    finishLessonActivity();
+    return;
+  }
   if ((screen.kind === 'retrieve' || screen.kind === 'search') && screen.round) {
     finishRound(screen.round, 0, [{ text: 'Retired from the round.', tone: 'warn' }]);
     return;

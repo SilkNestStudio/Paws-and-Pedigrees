@@ -247,7 +247,7 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
       </button>
       {inActivity && (
         <button className="icon-button" onClick={abandonActivity}>
-          Leave
+          {screen.kind === 'lesson' ? 'Finish' : 'Leave'}
         </button>
       )}
       {(snap.field || snap.search) && (

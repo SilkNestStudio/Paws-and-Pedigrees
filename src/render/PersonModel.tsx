@@ -30,11 +30,61 @@ export interface Look {
 }
 
 export const LOOKS = {
-  keeper: { skin: '#e9bf9d', hair: '#6b4630', hairStyle: 'short', jacket: '#5f7d55', shirt: '#eae4d6', trousers: '#b7a37f', boots: '#6e4a30', cap: '#a8916b', coat: false },
-  mara: { skin: '#efc8ab', hair: '#cfcfcf', hairStyle: 'long', jacket: '#5d8cc4', shirt: '#f1ede4', trousers: '#6c6e72', boots: '#6e4a30', cap: null, coat: false },
-  victor: { skin: '#c99872', hair: '#2b2622', hairStyle: 'short', jacket: '#28385a', shirt: '#e7e7ea', trousers: '#3a3c42', boots: '#22201e', cap: null, coat: false },
-  billy: { skin: '#f0caa8', hair: '#c8823c', hairStyle: 'short', jacket: '#d9622b', shirt: '#f4d35e', trousers: '#4a5a8a', boots: '#5a3c26', cap: '#f4d35e', coat: false },
-  helper: { skin: '#e2b896', hair: '#5a4130', hairStyle: 'short', jacket: '#7b8a6a', shirt: '#eae4d6', trousers: '#5d6670', boots: '#3b2a20', cap: '#d9622b', coat: true },
+  keeper: {
+    skin: '#e9bf9d',
+    hair: '#6b4630',
+    hairStyle: 'short',
+    jacket: '#5f7d55',
+    shirt: '#eae4d6',
+    trousers: '#b7a37f',
+    boots: '#6e4a30',
+    cap: '#a8916b',
+    coat: false,
+  },
+  mara: {
+    skin: '#efc8ab',
+    hair: '#cfcfcf',
+    hairStyle: 'long',
+    jacket: '#5d8cc4',
+    shirt: '#f1ede4',
+    trousers: '#6c6e72',
+    boots: '#6e4a30',
+    cap: null,
+    coat: false,
+  },
+  victor: {
+    skin: '#c99872',
+    hair: '#2b2622',
+    hairStyle: 'short',
+    jacket: '#28385a',
+    shirt: '#e7e7ea',
+    trousers: '#3a3c42',
+    boots: '#22201e',
+    cap: null,
+    coat: false,
+  },
+  billy: {
+    skin: '#f0caa8',
+    hair: '#c8823c',
+    hairStyle: 'short',
+    jacket: '#d9622b',
+    shirt: '#f4d35e',
+    trousers: '#4a5a8a',
+    boots: '#5a3c26',
+    cap: '#f4d35e',
+    coat: false,
+  },
+  helper: {
+    skin: '#e2b896',
+    hair: '#5a4130',
+    hairStyle: 'short',
+    jacket: '#7b8a6a',
+    shirt: '#eae4d6',
+    trousers: '#5d6670',
+    boots: '#3b2a20',
+    cap: '#d9622b',
+    coat: true,
+  },
 } satisfies Record<string, Look>;
 
 /** Colours for the simple stand-in while the model loads. */
@@ -44,7 +94,19 @@ const fallbackPalette = (look: Look): Palette => ({
   cap: look.cap ?? look.hair,
 });
 
-type Clip = 'Idle' | 'Walk' | 'Run' | 'Whistle' | 'CastLeft' | 'CastRight' | 'CastBack' | 'Send' | 'Throw' | 'Call' | 'Point' | 'Clap';
+type Clip =
+  | 'Idle'
+  | 'Walk'
+  | 'Run'
+  | 'Whistle'
+  | 'CastLeft'
+  | 'CastRight'
+  | 'CastBack'
+  | 'Send'
+  | 'Throw'
+  | 'Call'
+  | 'Point'
+  | 'Clap';
 
 const ACTION_CLIP: Partial<Record<KeeperView['action'], Clip>> = {
   whistle: 'Whistle',
@@ -56,7 +118,10 @@ const ACTION_CLIP: Partial<Record<KeeperView['action'], Clip>> = {
   mark: 'Clap',
 };
 
-function buildPerson(gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }, look: Look) {
+function buildPerson(
+  gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip[] },
+  look: Look,
+) {
   const root = cloneSkinned(gltf.scene);
   const colours: Record<string, string> = {
     Skin: look.skin,
@@ -100,10 +165,18 @@ function buildPerson(gltf: { scene: THREE.Object3D; animations: THREE.AnimationC
 }
 
 function GlbPerson({ view, look }: { view: () => KeeperView; look: Look }) {
-  const gltf = useGLTF(PERSON_URL) as unknown as { scene: THREE.Object3D; animations: THREE.AnimationClip[] };
+  const gltf = useGLTF(PERSON_URL) as unknown as {
+    scene: THREE.Object3D;
+    animations: THREE.AnimationClip[];
+  };
   const rig = useMemo(() => buildPerson(gltf, look), [gltf, look]);
   useEffect(() => () => rig.dispose(), [rig]);
-  const state = useRef({ heading: 0, base: 'Idle' as Clip, action: null as Clip | null, actionStarted: -1 });
+  const state = useRef({
+    heading: 0,
+    base: 'Idle' as Clip,
+    action: null as Clip | null,
+    actionStarted: -1,
+  });
 
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.05);
@@ -124,7 +197,13 @@ function GlbPerson({ view, look }: { view: () => KeeperView; look: Look }) {
       s.base = base;
     }
     const baseAction = actions[base];
-    if (baseAction) baseAction.timeScale = base === 'Walk' ? Math.min(3, Math.max(0.7, v.speed / 0.875 / 1.6)) : base === 'Run' ? Math.min(2, Math.max(0.7, v.speed / 3.25)) : 1;
+    if (baseAction)
+      baseAction.timeScale =
+        base === 'Walk'
+          ? Math.min(3, Math.max(0.7, v.speed / 0.875 / 1.6))
+          : base === 'Run'
+            ? Math.min(2, Math.max(0.7, v.speed / 3.25))
+            : 1;
 
     // Handler actions play over the top, then fade back.
     let wanted: Clip | null = null;
@@ -156,7 +235,13 @@ function GlbPerson({ view, look }: { view: () => KeeperView; look: Look }) {
 }
 
 /** A person, with the simple code-built figure standing in while the model loads. */
-export function PersonModel({ view, look = LOOKS.keeper }: { view: () => KeeperView; look?: Look }) {
+export function PersonModel({
+  view,
+  look = LOOKS.keeper,
+}: {
+  view: () => KeeperView;
+  look?: Look;
+}) {
   const palette = useMemo(() => fallbackPalette(look), [look]);
   return (
     <Suspense fallback={<KeeperModel view={view} palette={palette} />}>

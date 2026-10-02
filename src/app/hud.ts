@@ -152,6 +152,9 @@ function searchHint(s: SearchSession): string {
     case 'complete':
       return 'Found!';
     default:
+      if (s.stats.startedAt !== null && s.time - s.stats.startedAt > 60 && s.time % 20 < 10) {
+        return 'Tip: scent drifts downwind, the way the wind arrow points. Search on that side of the circle.';
+      }
       return s.dog.huntTime > s.params.huntPatience * 2.5
         ? 'Nothing here. Tap or click somewhere else in the circle.'
         : `Watch ${name}'s tail and nose. Tap or click elsewhere to move the search.`;

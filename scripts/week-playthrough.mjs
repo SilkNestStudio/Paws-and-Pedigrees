@@ -164,7 +164,7 @@ await page
   .click();
 await wait(1000);
 await closeIntro();
-for (let rep = 0; rep < 30; rep++) {
+for (let rep = 0; rep < 60; rep++) {
   const s = await app();
   if (s.panel === 'result') break;
   await page.keyboard.press('KeyF');
@@ -225,7 +225,7 @@ for (let i = 0; i < 20; i++) {
 await page.evaluate(([x, z]) => window.__tap({ x, z }), [hint.x, hint.z]);
 await wait(3000);
 await shot('searching');
-for (let t = 0; t < 240; t++) {
+for (let t = 0; t < 480; t++) {
   const s = await page.evaluate(() => {
     const se = window.__game.live.search;
     return se ? { phase: se.phase, clear: se.alert?.clear ?? null, hunt: se.dog.huntTime } : null;
