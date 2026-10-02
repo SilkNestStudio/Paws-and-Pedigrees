@@ -54,7 +54,7 @@ Menu → Tester tools: +$200 and food, skip a day, adopt instantly, delete the s
 
 ## Known limitations
 
-- Characters are still the simple code-built models while the Blender versions are integrated.
+- Characters are Blender-made but still procedural art: no blinking or facial expressions yet, and some foot sliding at unusual speeds. A hired artist could replace the base models later without changing the game.
 - One week only. The season calendar, aging, more dogs, competitions beyond the Fun Day and breeding come later.
 - Saves are local to the browser (IndexedDB database `paws-rebuild`).
 
