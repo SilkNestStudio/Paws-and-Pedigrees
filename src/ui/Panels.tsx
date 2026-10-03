@@ -13,7 +13,7 @@ import {
 } from '../game/rules';
 import { ageText, FIRST_TRIAL_DAY, nextTrialDay } from '../game/calendar';
 import { QUALIFY, TRIAL_RULES, trialLevel } from '../game/events';
-import { FREE_PLAY, RETRIEVE_SETUPS } from '../sim/exercises';
+import { FREE_PLAY, RETRIEVE_SETUPS, WATER_SETUPS } from '../sim/exercises';
 import { LESSONS, type Lesson } from '../sim/training';
 import { useApp } from '../app/store';
 import {
@@ -44,6 +44,7 @@ import {
   resetGame,
   restEvening,
   restoreGarden,
+  restoreThing,
   showIntro,
   startFieldWork,
   startJob,
@@ -528,7 +529,11 @@ function FieldGate({ game }: { game: GameState }) {
       )}
       {tab === 'field' && (
         <div className="list">
-          {[FREE_PLAY, ...RETRIEVE_SETUPS].map((s) => {
+          {[
+            FREE_PLAY,
+            ...RETRIEVE_SETUPS,
+            ...(hasFlag(game, 'restored:duckPond') ? WATER_SETUPS : []),
+          ].map((s) => {
             const b = best(s.title);
             const highlight = game.story === 'firstMark' && s.id === 'first-mark';
             return (
@@ -549,6 +554,7 @@ function FieldGate({ game }: { game: GameState }) {
               </div>
             );
           })}
+          {!hasFlag(game, 'restored:duckPond') && <PondRow game={game} />}
         </div>
       )}
       <div className="button-row">
@@ -560,6 +566,28 @@ function FieldGate({ game }: { game: GameState }) {
         </button>
         <Close />
       </div>
+    </div>
+  );
+}
+
+/** The silted pond at the far side of the field, waiting to be restored. */
+function PondRow({ game }: { game: GameState }) {
+  const r = RESTORATIONS.find((x) => x.id === 'duckPond')!;
+  return (
+    <div className="row muted">
+      <div className="grow">
+        <div className="title">Water work (locked)</div>
+        <div className="sub">
+          {r.description} <b>Unlocks:</b> {r.unlocks}
+        </div>
+      </div>
+      <button
+        className="button secondary"
+        disabled={game.money < r.cost}
+        onClick={() => restoreThing('duckPond')}
+      >
+        Restore for ${r.cost}
+      </button>
     </div>
   );
 }

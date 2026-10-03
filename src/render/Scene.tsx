@@ -28,13 +28,14 @@ import { type DogView } from './dog/DogModel';
 import { AnyDog } from './dog/AnyDog';
 import { type KeeperView } from './KeeperModel';
 import { LOOKS, PersonModel } from './PersonModel';
-import { Ground, Grass, Hedges, Trees, WindClock, WindFlag } from './world/Field';
+import { Ground, Grass, Hedges, Ponds, Trees, WindClock, WindFlag } from './world/Field';
 import { Kennel } from './world/Kennel';
 import { Yard } from './world/Yard';
 import { Orchard, Shelter, VillageGreen, VillageGreenExtras } from './world/Places';
 import { GreenWorld, HomeWorld, OrchardWorld, ShelterWorld, TrialWorld } from './world/PropWorld';
 import { Lighting, Sky } from './world/Atmosphere';
-import { heightAt } from './world/terrain';
+import { heightAt, waterLevel } from './world/terrain';
+import { inWater } from '../sim/field';
 
 /** Where the pointer is on the ground (desktop), for the aim line. */
 const aim: { point: Vec2 | null } = { point: null };
@@ -321,6 +322,43 @@ function CameraRig() {
 // ---------------------------------------------------------------------------
 // Props and markers
 // ---------------------------------------------------------------------------
+
+/** Rings spreading on the water round a swimming dog. */
+function SwimRipple() {
+  const rings = useMemo(
+    () =>
+      Array.from({ length: 3 }, () => {
+        const m = new THREE.Mesh(
+          new THREE.RingGeometry(0.55, 0.68, 32),
+          new THREE.MeshBasicMaterial({ color: '#e8f4f6', transparent: true, depthWrite: false }),
+        );
+        m.rotation.x = -Math.PI / 2;
+        m.visible = false;
+        return m;
+      }),
+    [],
+  );
+  useFrame((state) => {
+    const s = live.field;
+    const swimming = !!s && s.dog.swimming && inWater(s.field, s.dog.pos);
+    const pond = s?.field.ponds?.[0];
+    rings.forEach((ring, i) => {
+      ring.visible = swimming && !!pond;
+      if (!ring.visible || !s || !pond) return;
+      const t = (state.clock.elapsedTime * 0.8 + i / rings.length) % 1;
+      ring.position.set(s.dog.pos.x, waterLevel(pond) + 0.05, s.dog.pos.z);
+      ring.scale.setScalar(1 + t * 2.4);
+      (ring.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - t);
+    });
+  });
+  return (
+    <>
+      {rings.map((r, i) => (
+        <primitive key={i} object={r} />
+      ))}
+    </>
+  );
+}
 
 /** Dummies and balls; a fixed pool of meshes driven each frame. */
 function Items() {
@@ -718,14 +756,17 @@ function dogView(): DogView | null {
   if (live.field) {
     const s = live.field;
     const carried = s.dog.carrying !== null ? s.items[s.dog.carrying] : undefined;
+    const pond = s.dog.swimming ? s.field.ponds?.find(() => true) : undefined;
     return {
       pos: s.dog.pos,
       heading: s.dog.heading,
       speed: s.dog.speed,
-      pose: s.dog.pose,
+      pose: s.dog.swimming ? 'stand' : s.dog.pose,
       tell: s.dog.tell,
       lookAt: s.dog.lookAt,
       carrying: carried ? (carried.kind === 'ball' ? 'ball' : 'dummy') : null,
+      // Swimming: only head and back above the surface.
+      groundY: pond ? waterLevel(pond) - 0.5 : undefined,
     };
   }
   if (live.search) {
@@ -885,7 +926,9 @@ export function Scene() {
   const screen = useApp((s) => s.screen);
   const game = useApp((s) => s.game);
   const place = placeOf(screen);
-  const field = useMemo(() => fieldFor(place), [place]);
+  const pondRestored = !!game && hasFlag(game, 'restored:duckPond');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const field = useMemo(() => fieldFor(place), [place, pondRestored]);
 
   const current: Dog | null = useMemo(() => {
     if (!game) return null;
@@ -918,6 +961,7 @@ export function Scene() {
       <group key={place}>
         <Ground field={field} />
         <Grass field={field} />
+        <Ponds field={field} />
         {place === 'home' && (
           <>
             <Suspense
@@ -978,6 +1022,7 @@ export function Scene() {
         )}
       </group>
       <Items />
+      <SwimRipple />
       <FallFlags />
       <TargetBeacons />
       <TargetTracker />

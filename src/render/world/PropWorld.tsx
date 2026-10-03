@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import type { Field } from '../../sim/field';
+import { pondShore, type Field } from '../../sim/field';
 import { heightAt, scatter } from './terrain';
 import { along, Prop, Props, type Placement, type PropName } from './Props';
 import { borderTrees } from './Field';
@@ -51,6 +51,22 @@ function FieldHedges({ field }: { field: Field }) {
     [field],
   );
   return <Props name="HedgeSection" items={items} />;
+}
+
+/** Reeds round the far side of each pond. */
+function PondReeds({ field }: { field: Field }) {
+  const items = useMemo(
+    () =>
+      (field.ponds ?? []).flatMap((pond, p) =>
+        Array.from({ length: 16 }, (_, i) => {
+          const a = Math.PI * 0.55 + (i / 15) * Math.PI * 0.9 + (scatter(i, p) - 0.5) * 0.2;
+          const at = pondShore(pond, a, 0.3 + scatter(i, 9) * 0.8);
+          return { x: at.x, z: at.z, rot: scatter(i, 4) * 6.28, scale: 0.9 + scatter(i, 5) * 0.6 };
+        }),
+      ),
+    [field],
+  );
+  return <Props name="TallGrassClump" items={items} shadows={false} />;
 }
 
 /** Grandpa's place: the farmhouse, kennel block, yard and the training field around it. */
@@ -174,6 +190,7 @@ export function HomeWorld({
     <>
       <FieldHedges field={field} />
       <FieldTrees field={field} />
+      <PondReeds field={field} />
       <Paths />
       <Prop name="Farmhouse" at={{ x: -16, z: 62, rot: Math.PI + 0.08 }} />
       <Prop name="KennelBlock" at={{ x: 14, z: 60, rot: Math.PI }} signs={plates} />
@@ -355,6 +372,7 @@ export function TrialWorld({ field }: { field: Field }) {
       <Props name="FenceSection" items={rope} />
       <Props name="HedgeSection" items={hedge} />
       <FieldTrees field={field} kinds={['TreeOak', 'TreeOak2', 'TreePine']} />
+      <PondReeds field={field} />
       <mesh position={[0, heightAt(0, 24) + 3.4, 24]}>
         <planeGeometry args={[6.5, 1.6]} />
         <meshStandardMaterial map={banner} side={THREE.DoubleSide} />

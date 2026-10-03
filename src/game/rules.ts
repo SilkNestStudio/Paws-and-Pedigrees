@@ -86,6 +86,15 @@ export const RESTORATIONS: Restoration[] = [
     unlocks:
       'The "Search and indicate" lesson, which teaches your dog to sit and point out a find instead of guessing.',
   },
+  {
+    id: 'duckPond',
+    name: "Grandpa's duck pond",
+    cost: 150,
+    description:
+      'A silted-up hollow full of reeds at the far side of the training field. Dredge it and the spring will fill it again.',
+    unlocks:
+      'Water work in your field: a mark into the pond, a mark across it, and a water blind. Open-level trials at Larkspur include a water blind.',
+  },
 ];
 
 // ---------------------------------------------------------------------------

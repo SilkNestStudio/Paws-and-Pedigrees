@@ -1,4 +1,4 @@
-import { distance, normalize, sub, type Vec2 } from '../core/math';
+import { add, distance, normalize, scale, sub, type Vec2 } from '../core/math';
 
 /**
  * Grandpa's training field. The keeper's starting "line" is near the south
@@ -18,6 +18,13 @@ export interface Tree {
   radius: number;
 }
 
+/** Open water: an ellipse the dog must swim, or run round by the bank. */
+export interface Pond {
+  center: Vec2;
+  rx: number;
+  rz: number;
+}
+
 export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter' | 'trial';
 
 export interface Field {
@@ -29,10 +36,14 @@ export interface Field {
   line: Vec2;
   cover: CoverPatch[];
   trees: Tree[];
+  ponds?: Pond[];
 }
 
-export function createTrainingField(): Field {
-  return {
+/** Grandpa's duck pond, once it has been dredged and refilled. */
+export const DUCK_POND: Pond = { center: { x: -40, z: -28 }, rx: 9, rz: 7 };
+
+export function createTrainingField(opts: { pond?: boolean } = {}): Field {
+  const field: Field = {
     style: 'training',
     minX: -62,
     maxX: 62,
@@ -57,6 +68,13 @@ export function createTrainingField(): Field {
       { pos: { x: 8, z: -84 }, radius: 1.4 },
     ],
   };
+  if (opts.pond) {
+    // The reed bed becomes open water with a fringe of reeds on the far side.
+    field.cover = field.cover.filter((c) => !(c.center.x === -44 && c.center.z === -22));
+    field.cover.push({ center: { x: -40, z: -37 }, radius: 3.5, density: 0.55 });
+    field.ponds = [DUCK_POND];
+  }
+  return field;
 }
 
 /**
@@ -136,11 +154,15 @@ export function createTrialGround(): Field {
     trees: [
       { pos: { x: -40, z: -18 }, radius: 1.5 },
       { pos: { x: 38, z: -12 }, radius: 1.4 },
-      { pos: { x: 42, z: -48 }, radius: 1.6 },
+      { pos: { x: 47, z: -54 }, radius: 1.6 },
       { pos: { x: -30, z: -70 }, radius: 1.5 },
     ],
+    ponds: [LARKSPUR_LAKE],
   };
 }
+
+/** The lake at Larkspur, used for water rounds from Open level. */
+export const LARKSPUR_LAKE: Pond = { center: { x: 40, z: -36 }, rx: 9, rz: 7 };
 
 /** The exercise yard at Larchwood Rescue, where you meet the dogs. */
 export function createShelterYard(): Field {
@@ -198,3 +220,81 @@ export function resolveTrees(field: Field, p: Vec2, bodyRadius: number): Vec2 {
   }
   return out;
 }
+
+/** Normalised distance from a pond's centre: under 1 is in the water. */
+const ellipse = (pond: Pond, p: Vec2): number =>
+  Math.hypot((p.x - pond.center.x) / pond.rx, (p.z - pond.center.z) / pond.rz);
+
+/** Depth in metres-ish: 0 on dry land, growing past the water's edge. */
+export function waterAt(field: Field, p: Vec2): number {
+  let best = 0;
+  for (const pond of field.ponds ?? []) {
+    const e = ellipse(pond, p);
+    if (e < 1) best = Math.max(best, (1 - e) * Math.min(pond.rx, pond.rz));
+  }
+  return best;
+}
+
+export const inWater = (field: Field, p: Vec2): boolean => waterAt(field, p) > 0.4;
+
+/** The first pond on a straight path, where the path meets it, and whether it ends in it. */
+export function waterCrossing(
+  field: Field,
+  from: Vec2,
+  to: Vec2,
+): { pond: Pond; entry: Vec2; distToEntry: number; endsInWater: boolean } | null {
+  const length = distance(from, to);
+  if (length < 0.5) return null;
+  const dir = normalize(sub(to, from));
+  for (const pond of field.ponds ?? []) {
+    for (let d = 0; d <= length; d += 0.5) {
+      const p = add(from, scale(dir, d));
+      if (ellipse(pond, p) < 1) {
+        return { pond, entry: p, distToEntry: d, endsInWater: ellipse(pond, to) < 1 };
+      }
+    }
+  }
+  return null;
+}
+
+/** Metres of water along a straight path, for par times. */
+export function waterLength(field: Field, from: Vec2, to: Vec2): number {
+  const length = distance(from, to);
+  const dir = normalize(sub(to, from));
+  let wet = 0;
+  for (let d = 0; d < length; d += 0.5) if (inWater(field, add(from, scale(dir, d)))) wet += 0.5;
+  return wet;
+}
+
+/** A point beyond the end of a pond, for running round it by the bank. */
+export function bankWaypoint(pond: Pond, from: Vec2, to: Vec2): Vec2 {
+  const dir = normalize(sub(to, from));
+  const perp = { x: -dir.z, z: dir.x };
+  const reach = 1 / Math.hypot(perp.x / pond.rx, perp.z / pond.rz) + 3.5;
+  const a = add(pond.center, scale(perp, reach));
+  const b = add(pond.center, scale(perp, -reach));
+  const via = (w: Vec2) => distance(from, w) + distance(w, to);
+  return via(a) <= via(b) ? a : b;
+}
+
+/** Keeps a walker (the keeper) on dry land. */
+export function resolvePonds(field: Field, p: Vec2, radius: number): Vec2 {
+  let out = p;
+  for (const pond of field.ponds ?? []) {
+    const grown = { center: pond.center, rx: pond.rx + radius, rz: pond.rz + radius };
+    const e = ellipse(grown, out);
+    if (e < 1 && e > 1e-6) {
+      const k = 1 / e;
+      out = {
+        x: pond.center.x + (out.x - pond.center.x) * k,
+        z: pond.center.z + (out.z - pond.center.z) * k,
+      };
+    }
+  }
+  return out;
+}
+
+export const pondShore = (pond: Pond, angle: number, extra = 0): Vec2 => ({
+  x: pond.center.x + Math.sin(angle) * (pond.rx + extra),
+  z: pond.center.z + Math.cos(angle) * (pond.rz + extra),
+});

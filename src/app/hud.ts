@@ -113,6 +113,11 @@ function fieldHint(s: RetrieveSession, shelter: boolean): string {
       ? `${name} is quivering. Press "Sit" to steady!`
       : 'Watch the fall…';
   if (s.phase === 'complete') return 'Done!';
+  if (d.detour)
+    return `${name} is running round the bank! Whistle (Space) now, then click across the water.`;
+  if (d.balk > 0) return `${name} is hesitating at the water. Give it a moment.`;
+  if (d.swimming && (d.mode === 'stopped' || d.mode === 'popped'))
+    return `${name} is treading water. Click where to swim next.`;
   switch (d.mode) {
     case 'sit':
     case 'heel': {

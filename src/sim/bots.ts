@@ -76,6 +76,11 @@ function decideRetrieve(s: RetrieveSession, skill: number, rng: Rng): void {
     );
     return;
   }
+  // A dog heading round the bank: good handlers stop it and send it back in.
+  if (dog.detour && random(rng) < 0.15 + skill * 0.85) {
+    blowWhistle(s);
+    return;
+  }
   if (dog.mode === 'line' || dog.mode === 'hunt' || dog.mode === 'run') {
     const offTarget = dog.mode === 'hunt' ? distance(dog.huntCenter, wanted.pos) : 0;
     const from = s.lineFrom ?? s.field.line;

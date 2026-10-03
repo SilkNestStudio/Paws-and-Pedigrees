@@ -1,6 +1,6 @@
 import { clamp, distance, fromHeading, headingOf, sub, turnToward, type Vec2 } from '../core/math';
 import type { DogParams } from './dogParams';
-import { clampToField, coverAt, resolveTrees, type Field } from './field';
+import { clampToField, coverAt, resolveTrees, type Field, inWater, resolvePonds } from './field';
 
 /** What the dog is doing. Each mode has its own behaviour in the session step. */
 export type DogMode =
@@ -62,6 +62,18 @@ export interface DogAgent {
   stopDelay: number;
   droppedOnce: boolean;
   tell: Tell;
+  /** In the water and swimming. */
+  swimming: boolean;
+  /** A point on the bank the dog is running to, avoiding the water. */
+  detour: Vec2 | null;
+  /** Where the dog meant to go before it chose the bank. */
+  detourGoal: Vec2 | null;
+  /** The dog has already made up its mind about the water on this run. */
+  waterChecked: boolean;
+  /** Seconds left hesitating at the water's edge. */
+  balk: number;
+  /** The last cast pointed through the water: a trained dog trusts it. */
+  castIntoWater: boolean;
 }
 
 export interface KeeperAgent {
@@ -118,6 +130,12 @@ export function createDog(pos: Vec2, params: DogParams): DogAgent {
     stopDelay: 0,
     droppedOnce: false,
     tell: { ears: 'neutral', tail: 'wag', noseDown: false, text: 'Sitting beside you' },
+    swimming: false,
+    detour: null,
+    detourGoal: null,
+    waterChecked: false,
+    balk: 0,
+    castIntoWater: false,
   };
 }
 
@@ -161,7 +179,11 @@ export function stepKeeper(keeper: KeeperAgent, field: Field, dt: number): void 
   const move = fromHeading(keeper.heading, keeper.speed * dt * (keeper.backing ? -1 : 1));
   keeper.pos = clampToField(
     field,
-    resolveTrees(field, { x: keeper.pos.x + move.x, z: keeper.pos.z + move.z }, 0.4),
+    resolvePonds(
+      field,
+      resolveTrees(field, { x: keeper.pos.x + move.x, z: keeper.pos.z + move.z }, 0.4),
+      0.4,
+    ),
   );
   if (keeper.action !== 'none') {
     keeper.actionTime += dt;
@@ -194,14 +216,15 @@ export function steerDog(
   const tired = dog.stamina < params.staminaMax * 0.2;
   const cover = coverAt(field, dog.pos);
   const coverSlow = 1 - cover * 0.45 * (1 - params.confidence * 0.5);
-  const cap = params.gallop * (tired ? 0.75 : 1) * coverSlow;
+  dog.swimming = inWater(field, dog.pos);
+  const cap = dog.swimming ? params.swim : params.gallop * (tired ? 0.75 : 1) * coverSlow;
   const wanted = Math.min(desiredSpeed, cap);
 
   dog.speed += clamp(wanted - dog.speed, -params.accel * 1.6 * dt, params.accel * dt);
   dog.speed = Math.max(0, dog.speed);
 
   const slowness = 1 - Math.min(1, dog.speed / params.gallop);
-  const turn = params.turnRate * (1 + 2.2 * slowness) * dt;
+  const turn = params.turnRate * (1 + 2.2 * slowness) * dt * (dog.swimming ? 0.5 : 1);
   dog.heading = turnToward(dog.heading, desiredHeading, turn);
 
   const step = fromHeading(dog.heading, dog.speed * dt);

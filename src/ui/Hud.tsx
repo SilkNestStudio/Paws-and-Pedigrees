@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { coatOf } from '../core/dog/dog';
 import { wrapAngle } from '../core/math';
 import { activeDog, dayName } from '../game/state';
@@ -313,7 +313,9 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
       : screen.kind === 'shelter'
         ? 'shelter'
         : 'home';
-  const field = fieldFor(place);
+  const game = useApp((s) => s.game);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const field = useMemo(() => fieldFor(place), [place, game?.flags.length]);
   const w = field.maxX - field.minX;
   const h = field.maxZ - field.minZ;
   const f = snap.field;
@@ -347,6 +349,9 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
             fill="#b6ad5c"
             opacity={0.85}
           />
+        ))}
+        {(field.ponds ?? []).map((p, i) => (
+          <ellipse key={i} cx={p.center.x} cy={p.center.z} rx={p.rx} ry={p.rz} fill="#5b93a3" />
         ))}
         {field.trees.map((t, i) => (
           <circle key={i} cx={t.pos.x} cy={t.pos.z} r={2.2} fill="#3f6a33" />

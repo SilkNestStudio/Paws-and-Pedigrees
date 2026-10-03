@@ -27,6 +27,10 @@ export interface DogParams {
   biddability: number; // 0-1
   confidence: number; // 0-1
   softMouth: number; // 0-1
+  /** Swimming speed, m/s: far slower than running, so the bank is tempting. */
+  swim: number;
+  /** 0-1 love of water: entering without fuss and swimming straight. */
+  waterLove: number;
   /** How quickly the dog takes in a lesson, ~0.6-1.4. */
   learning: number;
   skills: Dog['skills'];
@@ -67,6 +71,8 @@ export function dogParams(dog: Dog): DogParams {
     biddability: clamp01(a('biddability') / 100 + c.attention),
     confidence: a('confidence') / 100,
     softMouth: a('mouth') / 100,
+    swim: 1.2 + a('water') * 0.02,
+    waterLove: a('water') / 100,
     learning: 0.6 + a('biddability') * 0.005 + a('focus') * 0.003,
     skills,
     bond: dog.bond / 100,

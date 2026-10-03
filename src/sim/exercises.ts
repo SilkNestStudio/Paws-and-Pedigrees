@@ -29,6 +29,10 @@ export interface RetrieveSetup {
   windStrength: number;
   /** Free play has no set-up; the keeper throws a ball. */
   free?: boolean;
+  /** Where the keeper and dog start, if not at the field's usual line. */
+  start?: Vec2;
+  /** Needs water (the restored pond at home). */
+  water?: boolean;
 }
 
 export const FREE_PLAY: RetrieveSetup = {
@@ -122,9 +126,54 @@ export const RETRIEVE_SETUPS: RetrieveSetup[] = [
   },
 ];
 
+/**
+ * Water work at Grandpa's duck pond (only once it is restored). The keeper
+ * stands on the near bank; the pond lies between the dog and the work.
+ */
+export const WATER_SETUPS: RetrieveSetup[] = [
+  {
+    id: 'water-into',
+    title: 'Into the pond',
+    summary: 'A dummy thrown into the middle of the pond. The only way to it is to swim.',
+    focus: 'Confidence in water',
+    marks: [{ from: { x: -54, z: -26 }, landing: { x: -41, z: -28 } }],
+    blinds: [],
+    windDeg: 20,
+    windStrength: 0.3,
+    start: { x: -29, z: -13 },
+    water: true,
+  },
+  {
+    id: 'water-across',
+    title: 'Across the pond',
+    summary:
+      'A mark on the far bank. Many dogs try to run round instead of swimming straight: stop them and send them back in.',
+    focus: 'Taking the water, not the bank',
+    marks: [{ from: { x: -52, z: -44 }, landing: { x: -43, z: -40 } }],
+    blinds: [],
+    windDeg: 340,
+    windStrength: 0.35,
+    start: { x: -29, z: -13 },
+    water: true,
+  },
+  {
+    id: 'water-blind',
+    title: 'Water blind',
+    summary:
+      'A hidden dummy on the far bank, past the reeds. Line, whistle and cast your dog across the water.',
+    focus: 'Handling across water',
+    marks: [],
+    blinds: [{ x: -38, z: -41 }],
+    windDeg: 90,
+    windStrength: 0.45,
+    start: { x: -28, z: -13 },
+    water: true,
+  },
+];
+
 export function setupById(id: string): RetrieveSetup {
   if (id === FREE_PLAY.id) return FREE_PLAY;
-  const found = RETRIEVE_SETUPS.find((s) => s.id === id);
+  const found = [...RETRIEVE_SETUPS, ...WATER_SETUPS].find((s) => s.id === id);
   if (!found) throw new Error(`Unknown retrieve set-up: ${id}`);
   return found;
 }

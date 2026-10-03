@@ -27,7 +27,7 @@ import {
   type KeeperAgent,
 } from './agents';
 import { dogParams, type DogParams } from './dogParams';
-import { coverAt, createTrainingField, type Field } from './field';
+import { bankWaypoint, coverAt, createTrainingField, waterCrossing, type Field } from './field';
 import type { RetrieveSetup } from './exercises';
 import { scentStrength, windAt, type Wind } from './scent';
 
@@ -72,6 +72,10 @@ export interface RetrieveStats {
   wrongItem: boolean;
   drops: number;
   pops: number;
+  /** Times the dog ran round the bank rather than swim. */
+  bankRuns: number;
+  /** Seconds spent hesitating at the water's edge. */
+  waterBalk: number;
   /** Closest distance at which the dog first picked up the scent of what it found. */
   scentDistances: number[];
   /** Sum of distance off the ideal blind line, sampled along the way. */
@@ -102,6 +106,8 @@ export interface RetrieveSession {
   throwSchedule: { at: number; item: number }[];
   /** Start point and blind for measuring the line. */
   lineFrom: Vec2 | null;
+  /** Where the keeper and dog start (the set-up's own start, or the field's line). */
+  start: Vec2;
   stats: RetrieveStats;
   events: SessionEvent[];
   traceTimer: number;
@@ -118,8 +124,9 @@ export function createRetrieveSession(
 ): RetrieveSession {
   const rng = createRng(seed);
   const params = dogParams(dog);
-  const keeper = createKeeper(field.line);
-  const agent = createDog(add(field.line, { x: -0.9, z: 0.2 }), params);
+  const start = setup.start ?? field.line;
+  const keeper = createKeeper(start);
+  const agent = createDog(add(start, { x: -0.9, z: 0.2 }), params);
   const items: Item[] = [];
   const throwers: Thrower[] = [];
 
@@ -152,6 +159,7 @@ export function createRetrieveSession(
     phase: setup.free ? 'working' : 'ready',
     throwSchedule: [],
     lineFrom: null,
+    start: { ...start },
     stats: {
       whistles: 0,
       ignoredWhistles: 0,
@@ -162,6 +170,8 @@ export function createRetrieveSession(
       wrongItem: false,
       drops: 0,
       pops: 0,
+      bankRuns: 0,
+      waterBalk: 0,
       scentDistances: [],
       lineError: 0,
       lineSamples: 0,
@@ -268,6 +278,7 @@ export function sendDog(s: RetrieveSession, aim: Vec2): void {
   if (s.phase === 'ready') s.phase = 'working';
   const target = aimTarget(s, aim);
   dog.droppedOnce = false;
+  resetWater(dog, false);
   const aimHeading = headingOf(sub(target.kind === 'mark' ? target.item.pos : aim, keeper.pos));
   keeperAct(keeper, 'send', aimHeading);
 
@@ -399,7 +410,16 @@ export function castDog(s: RetrieveSession, toward: Vec2): void {
   dog.lineHeading = heading;
   dog.carryLeft = Math.max(4, distance(dog.pos, toward));
   dog.goalItem = null;
+  resetWater(dog, waterCrossing(s.field, dog.pos, toward) !== null);
   setMode(dog, 'line');
+}
+
+function resetWater(dog: DogAgent, castIntoWater: boolean): void {
+  dog.detour = null;
+  dog.detourGoal = null;
+  dog.balk = 0;
+  dog.waterChecked = false;
+  dog.castIntoWater = castIntoWater;
 }
 
 /** "Here!" Calls the dog back. Mostly for when things are going wrong. */
@@ -539,6 +559,8 @@ function stepDog(s: RetrieveSession, dt: number): void {
     if (dog.stopDelay <= 0) {
       dog.stopDelay = 0;
       dog.speed = 0;
+      dog.detour = null;
+      dog.balk = 0;
       setMode(dog, 'stopped');
       log(s, `${s.dogName} stopped and is waiting for a direction.`, 'good');
     }
@@ -551,12 +573,14 @@ function stepDog(s: RetrieveSession, dt: number): void {
       atSide(s, dt);
       break;
     case 'run':
+      if (waterOnTheWay(s, dt)) break;
       if (dog.target && steerToward(dog, params, field, dog.target, params.gallop, dt, 2.2)) {
         startHunt(dog, dog.target, 3);
       }
       checkForScent(s);
       break;
     case 'line':
+      if (waterOnTheWay(s, dt)) break;
       holdLine(s, dt);
       checkForScent(s);
       break;
@@ -661,6 +685,62 @@ function atSide(s: RetrieveSession, dt: number): void {
       log(s, `${s.dogName} broke! Went before being sent.`, 'warn');
     }
   }
+}
+
+/**
+ * Water between the dog and where it is going. A keen water dog goes straight
+ * in; a reluctant one hesitates at the edge, or takes the easy way round by
+ * the bank, which judges mark down. The handler's answer is a stop whistle
+ * and a cast back into the water, which a trained dog trusts.
+ */
+function waterOnTheWay(s: RetrieveSession, dt: number): boolean {
+  const { dog, params, field } = s;
+  if (!field.ponds?.length) return false;
+  if (dog.detour) {
+    const goal = dog.detourGoal ?? dog.target;
+    if (steerToward(dog, params, field, dog.detour, params.gallop, dt, 2.5)) {
+      dog.detour = null;
+      s.stats.bankRuns++;
+      log(s, `${s.dogName} ran round the bank instead of swimming.`, 'warn');
+      if (dog.mode === 'line' && goal) {
+        dog.lineHeading = headingOf(sub(goal, dog.pos));
+        dog.carryLeft = Math.max(4, distance(dog.pos, goal));
+      }
+    }
+    return true;
+  }
+  if (dog.balk > 0) {
+    brake(dog, params, dt);
+    dog.balk -= dt;
+    s.stats.waterBalk += dt;
+    return true;
+  }
+  if (dog.swimming || dog.waterChecked) return false;
+  const goal =
+    dog.mode === 'run' ? dog.target : add(dog.pos, fromHeading(dog.lineHeading, dog.carryLeft));
+  if (!goal) return false;
+  const crossing = waterCrossing(field, dog.pos, goal);
+  if (!crossing || crossing.distToEntry > 3) return false;
+  dog.waterChecked = true;
+  const handled = dog.castIntoWater;
+  const will = clamp01(
+    0.15 +
+      params.waterLove * 0.6 +
+      params.confidence * 0.2 +
+      (handled ? params.skills.cast * 0.45 + params.biddability * 0.2 : 0),
+  );
+  if (crossing.endsInWater || random(s.rng) < will) {
+    const hesitation = (0.8 - will) * 5 * random(s.rng);
+    if (hesitation > 0.5) {
+      dog.balk = hesitation;
+      log(s, `${s.dogName} hesitates at the water's edge.`, 'info');
+      return true;
+    }
+    return false;
+  }
+  dog.detour = bankWaypoint(crossing.pond, dog.pos, goal);
+  dog.detourGoal = { ...goal };
+  return true;
 }
 
 function startHunt(dog: DogAgent, center: Vec2, radius: number): void {
@@ -884,6 +964,33 @@ function updateTell(s: RetrieveSession): void {
   const { dog } = s;
   const pressure = dog.breakPressure;
   if (dog.stopDelay > 0) return;
+  if (dog.detour) {
+    dog.tell = {
+      ears: 'back',
+      tail: 'low',
+      noseDown: false,
+      text: 'Veering along the bank, avoiding the water',
+    };
+    return;
+  }
+  if (dog.balk > 0) {
+    dog.tell = {
+      ears: 'flick',
+      tail: 'low',
+      noseDown: false,
+      text: "Hesitating at the water's edge",
+    };
+    return;
+  }
+  if (dog.swimming && dog.mode !== 'stopped' && dog.mode !== 'popped') {
+    dog.tell = {
+      ears: 'back',
+      tail: 'neutral',
+      noseDown: false,
+      text: dog.carrying !== null ? 'Swimming back with it' : 'Swimming out',
+    };
+    return;
+  }
   switch (dog.mode) {
     case 'sit':
     case 'heel':

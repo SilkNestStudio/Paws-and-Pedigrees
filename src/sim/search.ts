@@ -514,7 +514,7 @@ function indicate(s: SearchSession): void {
 
 export interface SearchReport {
   score: number;
-  grade: 'Excellent' | 'Very good' | 'Good' | 'Pass' | 'Not completed';
+  grade: 'Excellent' | 'Very good' | 'Good' | 'Pass' | 'Untidy' | 'Not completed';
   seconds: number;
   notes: { text: string; tone: 'good' | 'info' | 'warn' }[];
 }
@@ -559,7 +559,9 @@ export function buildSearchReport(s: SearchSession): SearchReport {
         ? 'Very good'
         : score >= 55
           ? 'Good'
-          : 'Pass';
+          : score >= 30
+            ? 'Pass'
+            : 'Untidy';
   return { score, grade, seconds, notes };
 }
 

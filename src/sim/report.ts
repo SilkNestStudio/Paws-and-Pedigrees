@@ -1,3 +1,4 @@
+import { waterLength } from './field';
 import { distance } from '../core/math';
 import type { Cue } from '../core/dog/dog';
 import type { RetrieveSession } from './retrieve';
@@ -9,7 +10,7 @@ import { speedPoints } from './scent';
  */
 export interface RetrieveReport {
   score: number;
-  grade: 'Excellent' | 'Very good' | 'Good' | 'Pass' | 'Not completed';
+  grade: 'Excellent' | 'Very good' | 'Good' | 'Pass' | 'Untidy' | 'Not completed';
   seconds: number;
   notes: { text: string; tone: 'good' | 'info' | 'warn' }[];
   suggestion: { kind: 'lesson'; lesson: Cue; text: string } | { kind: 'setup'; text: string };
@@ -25,12 +26,31 @@ export function buildReport(s: RetrieveSession): RetrieveReport {
 
   const items = s.items.filter((i) => i.kind !== 'ball');
   const blinds = items.filter((i) => i.kind === 'blind');
-  const par = items.reduce((sum, i) => sum + distance(s.field.line, i.landing) / 5.5 + 5, 0);
+  // Par time: running pace on land, swimming pace across water.
+  const par = items.reduce((sum, i) => {
+    const wet = waterLength(s.field, s.start, i.landing);
+    const dry = distance(s.start, i.landing) - wet;
+    return sum + dry / 5.5 + wet / 2.2 + 5;
+  }, 0);
   let score = 70 + speedPoints(seconds, par);
 
   if (st.broke) {
     score -= 40;
     notes.push({ text: `Broke before being sent. Steadiness lessons will help.`, tone: 'warn' });
+  }
+  if (st.bankRuns > 0) {
+    score -= 25 * st.bankRuns; // a serious fault in a water test
+    notes.push({
+      text: `Ran round the bank instead of swimming${st.bankRuns > 1 ? ` (${st.bankRuns} times)` : ''}. Judges want a dog that takes the water: stop it as it veers and cast it back in.`,
+      tone: 'warn',
+    });
+  }
+  if (st.waterBalk > 1.5) {
+    score -= Math.min(20, Math.round(st.waterBalk * 3));
+    notes.push({
+      text: `Hesitated ${Math.round(st.waterBalk)} s at the water's edge. Confidence grows with easy water work.`,
+      tone: 'info',
+    });
   }
   if (st.wrongItem) {
     score -= 25;
@@ -109,7 +129,9 @@ export function buildReport(s: RetrieveSession): RetrieveReport {
         ? 'Very good'
         : score >= 55
           ? 'Good'
-          : 'Pass';
+          : score >= 30
+            ? 'Pass'
+            : 'Untidy';
 
   if (complete && notes.every((n) => n.tone !== 'warn') && score >= 80) {
     notes.unshift({ text: `A clean, confident piece of work from ${name}.`, tone: 'good' });
@@ -124,7 +146,7 @@ export function buildReport(s: RetrieveSession): RetrieveReport {
     };
   else if (st.ignoredWhistles >= 2)
     suggestion = { kind: 'lesson', lesson: 'stop', text: 'Train the stop whistle.' };
-  else if (st.refusals >= 1)
+  else if (st.refusals >= 1 || st.bankRuns >= 1)
     suggestion = { kind: 'lesson', lesson: 'cast', text: 'Practise the directions drill.' };
   else
     suggestion = { kind: 'setup', text: complete ? 'Ready for a harder set-up.' : 'Try it again.' };

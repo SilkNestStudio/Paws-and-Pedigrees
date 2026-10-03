@@ -2,8 +2,8 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Field as FieldData } from '../../sim/field';
-import { coverAt } from '../../sim/field';
-import { heightAt, scatter } from './terrain';
+import { coverAt, waterAt } from '../../sim/field';
+import { heightAt, scatter, waterLevel } from './terrain';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
@@ -35,11 +35,14 @@ const groundCache = new Map<string, THREE.BufferGeometry>();
 const grassCache = new Map<string, { short: THREE.InstancedMesh; tall: THREE.InstancedMesh }>();
 
 /** The ground for a place, built once and kept, so travelling back is instant. */
+/** Places look different once water is restored, so it is part of the cache key. */
+const placeKey = (field: FieldData) => `${field.style}${field.ponds?.length ? '+water' : ''}`;
+
 export function groundGeometry(field: FieldData): THREE.BufferGeometry {
-  const cached = groundCache.get(field.style);
+  const cached = groundCache.get(placeKey(field));
   if (cached) return cached;
   const built = buildGround(field);
-  groundCache.set(field.style, built);
+  groundCache.set(placeKey(field), built);
   return built;
 }
 
@@ -64,7 +67,8 @@ function buildGround(field: FieldData): THREE.BufferGeometry {
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
-    pos.setY(i, heightAt(x, z));
+    const wet = waterAt(field, { x, z });
+    pos.setY(i, heightAt(x, z) - Math.min(1.2, wet * 0.5));
     const inField = x > field.minX && x < field.maxX && z > field.minZ && z < field.maxZ;
     const n = scatter(Math.floor(x * 0.5), Math.floor(z * 0.5));
     const cover = coverAt(field, { x, z });
@@ -76,6 +80,9 @@ function buildGround(field: FieldData): THREE.BufferGeometry {
     base.set(yard ? palette.yard : inField ? palette.inside : palette.outside);
     base.offsetHSL(n * 0.02 - 0.01, 0, stripe + (n - 0.5) * 0.05);
     if (cover > 0) base.lerp(new THREE.Color('#8d8a43'), cover * 0.7);
+    // A muddy shore, and dark silt under the water.
+    const shore = shoreAt(field, { x, z });
+    if (shore > 0) base.lerp(new THREE.Color('#6d5f43'), shore * 0.75);
     colours[i * 3] = base.r;
     colours[i * 3 + 1] = base.g;
     colours[i * 3 + 2] = base.b;
@@ -145,10 +152,10 @@ function swayMaterial(tint: string): THREE.MeshLambertMaterial {
 
 /** Grass for a place, built once and kept. */
 export function grassMeshes(field: FieldData) {
-  const cached = grassCache.get(field.style);
+  const cached = grassCache.get(placeKey(field));
   if (cached) return cached;
   const built = buildGrass(field);
-  grassCache.set(field.style, built);
+  grassCache.set(placeKey(field), built);
   return built;
 }
 
@@ -174,6 +181,10 @@ function buildGrass(field: FieldData) {
     const x = field.minX - 20 + scatter(i, 1) * (field.maxX - field.minX + 40);
     const extra = field.style === 'training' ? 44 : 8;
     const z = field.minZ - 20 + scatter(i, 2) * (field.maxZ - field.minZ + 20 + extra);
+    if (shoreAt(field, { x, z }) > 0.5) {
+      shortMesh.setMatrixAt(i, matrix.makeScale(0, 0, 0));
+      continue;
+    }
     p.set(x, heightAt(x, z), z);
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), scatter(i, 3) * Math.PI);
     const size = 0.65 + scatter(i, 4) * 0.5;
@@ -359,6 +370,47 @@ export function Hedges({ field }: { field: FieldData }) {
         >
           <boxGeometry args={[p.w, p.h, p.d]} />
           <meshStandardMaterial color={i % 3 === 0 ? '#4c6f34' : '#557a39'} roughness={0.95} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+/** 0-1: how muddy the ground is, from the water's edge to a metre or two out. */
+function shoreAt(field: FieldData, p: { x: number; z: number }): number {
+  let best = 0;
+  for (const pond of field.ponds ?? []) {
+    const e = Math.hypot((p.x - pond.center.x) / pond.rx, (p.z - pond.center.z) / pond.rz);
+    best = Math.max(best, 1 - Math.min(1, Math.max(0, (e - 0.95) / 0.22)));
+  }
+  return best;
+}
+
+/** Open water: a flat surface over the muddy basin. */
+export function Ponds({ field }: { field: FieldData }) {
+  const material = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#4d7f8a',
+        roughness: 0.12,
+        metalness: 0.15,
+        transparent: true,
+        opacity: 0.9,
+      }),
+    [],
+  );
+  return (
+    <>
+      {(field.ponds ?? []).map((pond, i) => (
+        <mesh
+          key={i}
+          position={[pond.center.x, waterLevel(pond) + 0.03, pond.center.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[pond.rx, pond.rz, 1]}
+          material={material}
+          receiveShadow
+        >
+          <circleGeometry args={[1.02, 48]} />
         </mesh>
       ))}
     </>

@@ -121,8 +121,10 @@ export function fieldFor(place: Place): Field {
       return createShelterYard();
     case 'trial':
       return createTrialGround();
-    default:
-      return createTrainingField();
+    default: {
+      const g = get().game;
+      return createTrainingField({ pond: !!g && hasFlag(g, 'restored:duckPond') });
+    }
   }
 }
 
@@ -221,6 +223,14 @@ const INTROS: Record<string, { title: string; lines: string[] }> = {
       '2. Keep your dog steady. If it starts to quiver, press "Sit".',
       '3. Click or tap on the fall to send your dog. It runs to where it saw it land and hunts with its nose.',
       '4. If it hunts in the wrong place, blow the whistle (Space), then click where you want it to go.',
+    ],
+  },
+  water: {
+    title: 'Water work',
+    lines: [
+      'Dogs swim far slower than they run, so many try to run round the pond by the bank instead of swimming. Judges count that as a serious fault.',
+      'Watch for the dog veering along the edge. Blow the whistle (Space) straight away, then click a point across the water to send it back in.',
+      'Dogs that love water go straight in. Shy ones hesitate at the edge; easy water marks build their confidence.',
     ],
   },
   blind: {
@@ -587,7 +597,7 @@ export function startFieldWork(
     panel: null,
     runId: nextRun(),
   });
-  if (!setup.free) showIntro(kind);
+  if (!setup.free) showIntro(setup.water ? 'water' : kind);
 }
 
 export function startSearch(
@@ -973,9 +983,11 @@ function finishRound(index: number, score: number, notes: ResultView['notes']): 
             ? 'Very good'
             : score >= 55
               ? 'Good'
-              : score > 0
+              : score >= 30
                 ? 'Pass'
-                : 'No score',
+                : score > 0
+                  ? 'Untidy'
+                  : 'No score',
       score,
       seconds: 0,
       notes: [...notes, ...extra],
@@ -1128,12 +1140,16 @@ export function buyItem(id: string): void {
 }
 
 export function restoreGarden(): void {
+  restoreThing('scentGarden');
+}
+
+export function restoreThing(id: string): void {
   let result = { ok: false, message: '' };
   commit((g) => {
-    result = restore(g, 'scentGarden');
+    result = restore(g, id);
   });
   toast(result.message, result.ok ? 'good' : 'warn');
-  if (result.ok) useApp.setState({ panel: null });
+  if (result.ok && id === 'scentGarden') useApp.setState({ panel: null });
 }
 
 // ---------------------------------------------------------------------------
