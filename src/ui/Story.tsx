@@ -1,6 +1,6 @@
 import { LETTER_PAGES } from '../game/story';
 import { useApp } from '../app/store';
-import { advanceDialog, continueGame, finishLetter, startNewGame } from '../app/flow';
+import { advanceDialog, continueGame, finishLetter, go, startNewGame } from '../app/flow';
 
 /** Title screen, Grandpa's letter, and the dialogue box. */
 export function Story() {
@@ -11,7 +11,18 @@ export function Story() {
       {screen.kind === 'title' && <Title />}
       {screen.kind === 'letter' && <Letter page={screen.page} />}
       {dialog && <DialogBox />}
+      <Cover />
     </>
+  );
+}
+
+/** The short fade shown while travelling between places. */
+function Cover() {
+  const cover = useApp((s) => s.cover);
+  return (
+    <div className={`travel-cover ${cover ? 'show' : ''}`} aria-hidden={!cover}>
+      <div className="travel-text">{cover}</div>
+    </div>
   );
 }
 
@@ -28,7 +39,7 @@ function Title() {
         </p>
         <div className="button-row center">
           {game && game.story !== 'letter' && (
-            <button className="button big" onClick={continueGame}>
+            <button className="button big" onClick={() => go('Back to the kennel…', continueGame)}>
               Continue · day {game.day}
             </button>
           )}
@@ -80,14 +91,14 @@ function Letter({ page }: { page: number }) {
               className="button"
               onClick={() =>
                 last
-                  ? finishLetter()
+                  ? go('Arriving at the kennel…', finishLetter)
                   : useApp.setState({ screen: { kind: 'letter', page: page + 1 } })
               }
             >
               {last ? 'Go to the kennel' : 'Continue'}
             </button>
             {!last && (
-              <button className="link" onClick={finishLetter}>
+              <button className="link" onClick={() => go('Arriving at the kennel…', finishLetter)}>
                 Skip
               </button>
             )}

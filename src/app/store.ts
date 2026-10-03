@@ -96,6 +96,8 @@ export interface AppState {
   /** Where the keeper appears when returning home. */
   homeSpawn: SpotId | 'arrive';
   shelterPick: number;
+  /** A short travel fade shown while the next place loads. */
+  cover: string | null;
 }
 
 export const useApp = create<AppState>(() => ({
@@ -110,6 +112,7 @@ export const useApp = create<AppState>(() => ({
   runId: 0,
   homeSpawn: 'arrive',
   shelterPick: 0,
+  cover: null,
 }));
 
 let toastId = 0;

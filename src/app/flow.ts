@@ -78,6 +78,23 @@ const game = (): GameState => {
   return g;
 };
 
+/**
+ * Runs a change of place behind a short fade. The click responds at once
+ * (the fade paints first), then the next place is built while it shows.
+ */
+export function go(label: string, change: () => void): void {
+  if (get().cover) return;
+  useApp.setState({ cover: label });
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        change();
+        setTimeout(() => useApp.setState({ cover: null }), 450);
+      }, 0),
+    ),
+  );
+}
+
 /** Changes the saved game, moves the story on, and saves. */
 export function commit(change: (draft: GameState) => void): GameState {
   const next = update(game(), (draft) => {

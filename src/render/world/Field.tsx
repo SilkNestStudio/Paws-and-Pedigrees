@@ -30,45 +30,58 @@ const GROUND: Record<FieldData['style'], { inside: string; outside: string; yard
   shelter: { inside: '#8aa85a', outside: '#7d9a4f', yard: '#8aa85a' },
 };
 
-export function Ground({ field }: { field: FieldData }) {
-  const geometry = useMemo(() => {
-    const size = 300;
-    const segments = isTouch ? 110 : 170;
-    const g = new THREE.PlaneGeometry(size, size, segments, segments);
-    g.rotateX(-Math.PI / 2);
-    g.translate(0, 0, -30);
-    const pos = g.getAttribute('position') as THREE.BufferAttribute;
-    const colours = new Float32Array(pos.count * 3);
-    const base = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      pos.setY(i, heightAt(x, z));
-      const inField = x > field.minX && x < field.maxX && z > field.minZ && z < field.maxZ;
-      const n = scatter(Math.floor(x * 0.5), Math.floor(z * 0.5));
-      const cover = coverAt(field, { x, z });
-      const palette = GROUND[field.style];
-      // Mown stripes on the training field and green; rougher meadow outside.
-      const mown = field.style === 'training' || field.style === 'green';
-      const stripe = inField && mown ? (Math.floor((x + 200) / 6) % 2 === 0 ? 0.03 : -0.02) : 0;
-      const yard = field.style === 'training' && z > 43 && Math.abs(x) < 41;
-      base.set(yard ? palette.yard : inField ? palette.inside : palette.outside);
-      base.offsetHSL(n * 0.02 - 0.01, 0, stripe + (n - 0.5) * 0.05);
-      if (cover > 0) base.lerp(new THREE.Color('#8d8a43'), cover * 0.7);
-      colours[i * 3] = base.r;
-      colours[i * 3 + 1] = base.g;
-      colours[i * 3 + 2] = base.b;
-    }
-    g.setAttribute('color', new THREE.BufferAttribute(colours, 3));
-    g.computeVertexNormals();
-    return g;
-  }, [field]);
+const groundCache = new Map<string, THREE.BufferGeometry>();
+const grassCache = new Map<string, { short: THREE.InstancedMesh; tall: THREE.InstancedMesh }>();
 
+/** The ground for a place, built once and kept, so travelling back is instant. */
+export function groundGeometry(field: FieldData): THREE.BufferGeometry {
+  const cached = groundCache.get(field.style);
+  if (cached) return cached;
+  const built = buildGround(field);
+  groundCache.set(field.style, built);
+  return built;
+}
+
+export function Ground({ field }: { field: FieldData }) {
+  const geometry = groundGeometry(field);
   return (
-    <mesh geometry={geometry} receiveShadow>
+    <mesh geometry={geometry} receiveShadow dispose={null}>
       <meshStandardMaterial vertexColors roughness={0.95} />
     </mesh>
   );
+}
+
+function buildGround(field: FieldData): THREE.BufferGeometry {
+  const size = 300;
+  const segments = isTouch ? 110 : 170;
+  const g = new THREE.PlaneGeometry(size, size, segments, segments);
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, 0, -30);
+  const pos = g.getAttribute('position') as THREE.BufferAttribute;
+  const colours = new Float32Array(pos.count * 3);
+  const base = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    pos.setY(i, heightAt(x, z));
+    const inField = x > field.minX && x < field.maxX && z > field.minZ && z < field.maxZ;
+    const n = scatter(Math.floor(x * 0.5), Math.floor(z * 0.5));
+    const cover = coverAt(field, { x, z });
+    const palette = GROUND[field.style];
+    // Mown stripes on the training field and green; rougher meadow outside.
+    const mown = field.style === 'training' || field.style === 'green';
+    const stripe = inField && mown ? (Math.floor((x + 200) / 6) % 2 === 0 ? 0.03 : -0.02) : 0;
+    const yard = field.style === 'training' && z > 43 && Math.abs(x) < 41;
+    base.set(yard ? palette.yard : inField ? palette.inside : palette.outside);
+    base.offsetHSL(n * 0.02 - 0.01, 0, stripe + (n - 0.5) * 0.05);
+    if (cover > 0) base.lerp(new THREE.Color('#8d8a43'), cover * 0.7);
+    colours[i * 3] = base.r;
+    colours[i * 3 + 1] = base.g;
+    colours[i * 3 + 2] = base.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+  g.computeVertexNormals();
+  return g;
 }
 
 /** A tuft geometry: five tapered blades leaning out from a common base. */
@@ -129,64 +142,70 @@ function swayMaterial(tint: string): THREE.MeshLambertMaterial {
   return material;
 }
 
+/** Grass for a place, built once and kept. */
+export function grassMeshes(field: FieldData) {
+  const cached = grassCache.get(field.style);
+  if (cached) return cached;
+  const built = buildGrass(field);
+  grassCache.set(field.style, built);
+  return built;
+}
+
 export function Grass({ field }: { field: FieldData }) {
-  const { short, tall } = useMemo(() => {
-    const shortCount = isTouch ? 9000 : 24000;
-    const matrix = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
-    const s = new THREE.Vector3();
-    const p = new THREE.Vector3();
-
-    const shortMesh = new THREE.InstancedMesh(
-      tuftGeometry(0.2),
-      swayMaterial('#ffffff'),
-      shortCount,
-    );
-    for (let i = 0; i < shortCount; i++) {
-      const x = field.minX - 20 + scatter(i, 1) * (field.maxX - field.minX + 40);
-      const extra = field.style === 'training' ? 44 : 8;
-      const z = field.minZ - 20 + scatter(i, 2) * (field.maxZ - field.minZ + 20 + extra);
-      p.set(x, heightAt(x, z), z);
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), scatter(i, 3) * Math.PI);
-      const size = 0.65 + scatter(i, 4) * 0.5;
-      s.set(size, size * (0.8 + scatter(i, 5) * 0.4), size);
-      shortMesh.setMatrixAt(i, matrix.compose(p, q, s));
-    }
-    shortMesh.instanceMatrix.needsUpdate = true;
-
-    // Tall cover inside the patches the simulation knows about.
-    const tallPositions: THREE.Matrix4[] = [];
-    for (const patch of field.cover) {
-      const count = Math.round(patch.radius * patch.radius * (isTouch ? 5 : 11) * patch.density);
-      for (let i = 0; i < count; i++) {
-        const r = Math.sqrt(scatter(i, patch.center.x)) * patch.radius;
-        const a = scatter(i, patch.center.z) * Math.PI * 2;
-        const x = patch.center.x + Math.cos(a) * r;
-        const z = patch.center.z + Math.sin(a) * r;
-        const edge = 1 - r / patch.radius;
-        p.set(x, heightAt(x, z), z);
-        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), scatter(i, 7) * Math.PI);
-        const h = (0.9 + edge * 1.1) * (0.8 + scatter(i, 8) * 0.5);
-        s.set(1.3, h * 2.6, 1.3);
-        tallPositions.push(new THREE.Matrix4().compose(p, q, s));
-      }
-    }
-    const tallMesh = new THREE.InstancedMesh(
-      tuftGeometry(0.5),
-      swayMaterial('#e6d9a0'),
-      tallPositions.length,
-    );
-    tallPositions.forEach((m, i) => tallMesh.setMatrixAt(i, m));
-    tallMesh.instanceMatrix.needsUpdate = true;
-    return { short: shortMesh, tall: tallMesh };
-  }, [field]);
-
+  const { short, tall } = grassMeshes(field);
   return (
     <>
       <primitive object={short} />
       <primitive object={tall} />
     </>
   );
+}
+
+function buildGrass(field: FieldData) {
+  const shortCount = isTouch ? 9000 : 24000;
+  const matrix = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const s = new THREE.Vector3();
+  const p = new THREE.Vector3();
+
+  const shortMesh = new THREE.InstancedMesh(tuftGeometry(0.2), swayMaterial('#ffffff'), shortCount);
+  for (let i = 0; i < shortCount; i++) {
+    const x = field.minX - 20 + scatter(i, 1) * (field.maxX - field.minX + 40);
+    const extra = field.style === 'training' ? 44 : 8;
+    const z = field.minZ - 20 + scatter(i, 2) * (field.maxZ - field.minZ + 20 + extra);
+    p.set(x, heightAt(x, z), z);
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), scatter(i, 3) * Math.PI);
+    const size = 0.65 + scatter(i, 4) * 0.5;
+    s.set(size, size * (0.8 + scatter(i, 5) * 0.4), size);
+    shortMesh.setMatrixAt(i, matrix.compose(p, q, s));
+  }
+  shortMesh.instanceMatrix.needsUpdate = true;
+
+  // Tall cover inside the patches the simulation knows about.
+  const tallPositions: THREE.Matrix4[] = [];
+  for (const patch of field.cover) {
+    const count = Math.round(patch.radius * patch.radius * (isTouch ? 5 : 11) * patch.density);
+    for (let i = 0; i < count; i++) {
+      const r = Math.sqrt(scatter(i, patch.center.x)) * patch.radius;
+      const a = scatter(i, patch.center.z) * Math.PI * 2;
+      const x = patch.center.x + Math.cos(a) * r;
+      const z = patch.center.z + Math.sin(a) * r;
+      const edge = 1 - r / patch.radius;
+      p.set(x, heightAt(x, z), z);
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), scatter(i, 7) * Math.PI);
+      const h = (0.9 + edge * 1.1) * (0.8 + scatter(i, 8) * 0.5);
+      s.set(1.3, h * 2.6, 1.3);
+      tallPositions.push(new THREE.Matrix4().compose(p, q, s));
+    }
+  }
+  const tallMesh = new THREE.InstancedMesh(
+    tuftGeometry(0.5),
+    swayMaterial('#e6d9a0'),
+    tallPositions.length,
+  );
+  tallPositions.forEach((m, i) => tallMesh.setMatrixAt(i, m));
+  tallMesh.instanceMatrix.needsUpdate = true;
+  return { short: shortMesh, tall: tallMesh };
 }
 
 const leafColours = ['#4f7a35', '#5f8a3c', '#6b9443', '#46703a'];
@@ -222,33 +241,36 @@ function Tree({ x, z, scale, seed }: { x: number; z: number; scale: number; seed
   );
 }
 
+/** The ring of trees around a field, outside the hedges. */
+export function borderTrees(field: FieldData): { x: number; z: number; s: number }[] {
+  const out: { x: number; z: number; s: number }[] = [];
+  for (let i = 0; i < 46; i++) {
+    const t = i / 46;
+    const along = scatter(i, 91);
+    if (t < 0.36)
+      out.push({
+        x: field.minX - 6 - along * 10,
+        z: field.maxZ - 10 - (t / 0.36) * 125,
+        s: 0.9 + along * 0.6,
+      });
+    else if (t < 0.72)
+      out.push({
+        x: field.maxX + 6 + along * 10,
+        z: field.maxZ - 10 - ((t - 0.36) / 0.36) * 125,
+        s: 0.9 + along * 0.6,
+      });
+    else
+      out.push({
+        x: field.minX + ((t - 0.72) / 0.28) * (field.maxX - field.minX),
+        z: field.minZ - 6 - along * 12,
+        s: 1 + along * 0.7,
+      });
+  }
+  return out;
+}
+
 export function Trees({ field }: { field: FieldData }) {
-  const border = useMemo(() => {
-    const out: { x: number; z: number; s: number }[] = [];
-    for (let i = 0; i < 46; i++) {
-      const t = i / 46;
-      const along = scatter(i, 91);
-      if (t < 0.36)
-        out.push({
-          x: field.minX - 6 - along * 10,
-          z: field.maxZ - 10 - (t / 0.36) * 125,
-          s: 0.9 + along * 0.6,
-        });
-      else if (t < 0.72)
-        out.push({
-          x: field.maxX + 6 + along * 10,
-          z: field.maxZ - 10 - ((t - 0.36) / 0.36) * 125,
-          s: 0.9 + along * 0.6,
-        });
-      else
-        out.push({
-          x: field.minX + ((t - 0.72) / 0.28) * (field.maxX - field.minX),
-          z: field.minZ - 6 - along * 12,
-          s: 1 + along * 0.7,
-        });
-    }
-    return out;
-  }, [field]);
+  const border = useMemo(() => borderTrees(field), [field]);
 
   return (
     <>

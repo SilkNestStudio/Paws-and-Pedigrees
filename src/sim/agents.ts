@@ -86,6 +86,8 @@ export interface KeeperAgent {
   /** Heading of the last arm signal, for the renderer. */
   signalHeading: number;
   stillTime: number;
+  /** Stepping backwards: move against the heading without turning round. */
+  backing: boolean;
 }
 
 export function createDog(pos: Vec2, params: DogParams): DogAgent {
@@ -130,6 +132,7 @@ export function createKeeper(pos: Vec2): KeeperAgent {
     actionTime: 0,
     signalHeading: Math.PI,
     stillTime: 0,
+    backing: false,
   };
 }
 
@@ -145,15 +148,17 @@ const KEEPER_RUN = 5;
 
 export function stepKeeper(keeper: KeeperAgent, field: Field, dt: number): void {
   const len = Math.hypot(keeper.input.x, keeper.input.z);
-  const target = len > 0.05 ? (keeper.running ? KEEPER_RUN : KEEPER_WALK) * Math.min(1, len) : 0;
+  const top = keeper.backing ? KEEPER_WALK * 0.6 : keeper.running ? KEEPER_RUN : KEEPER_WALK;
+  const target = len > 0.05 ? top * Math.min(1, len) : 0;
   keeper.speed += clamp(target - keeper.speed, -14 * dt, 10 * dt);
   if (len > 0.05) {
-    keeper.heading = turnToward(keeper.heading, headingOf(keeper.input), 9 * dt);
+    if (!keeper.backing)
+      keeper.heading = turnToward(keeper.heading, headingOf(keeper.input), 9 * dt);
     keeper.stillTime = 0;
   } else {
     keeper.stillTime += dt;
   }
-  const move = fromHeading(keeper.heading, keeper.speed * dt);
+  const move = fromHeading(keeper.heading, keeper.speed * dt * (keeper.backing ? -1 : 1));
   keeper.pos = clampToField(
     field,
     resolveTrees(field, { x: keeper.pos.x + move.x, z: keeper.pos.z + move.z }, 0.4),

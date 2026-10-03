@@ -1,24 +1,20 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { damp, distance, wrapAngle, type Vec2 } from '../core/math';
+import { damp, distance, fromHeading, wrapAngle, type Vec2 } from '../core/math';
 import type { Dog } from '../core/dog/dog';
 import { activeDog, hasFlag } from '../game/state';
 import { objective, type Landmark } from '../game/story';
 import { createRivals } from '../game/funday';
-import {
-  FIXED_DT,
-  aimTarget,
-  setKeeperInput,
-  stepSession,
-  type RetrieveSession,
-} from '../sim/retrieve';
-import { setSearchKeeperInput, stepSearch, type SearchSession } from '../sim/search';
+import { FIXED_DT, aimTarget, stepSession, type RetrieveSession } from '../sim/retrieve';
+import { stepSearch, type SearchSession } from '../sim/search';
 import { stepTraining, type TrainingSession } from '../sim/training';
 import { HOME_SOLIDS, HOME_SPOTS, routeAround, setHomeInput, stepHome } from '../sim/home';
 import { windAt } from '../sim/scent';
 import { live, useApp, type Place } from '../app/store';
-import { cameraState, movementVector } from '../app/input';
+import { cameraState } from '../app/input';
+import { driveKeeper, framingReach, steerState } from './steer';
+import { TargetBeacons, TargetTracker } from './Targets';
 import { publish } from '../app/hud';
 import { tapGround, walkTarget } from '../app/actions';
 import { activityFinished, fieldFor, homeDogAte, MARA_POS } from '../app/flow';
@@ -29,7 +25,8 @@ import { LOOKS, PersonModel } from './PersonModel';
 import { Ground, Grass, Hedges, Trees, WindClock, WindFlag } from './world/Field';
 import { Kennel } from './world/Kennel';
 import { Yard } from './world/Yard';
-import { Orchard, Shelter, VillageGreen } from './world/Places';
+import { Orchard, Shelter, VillageGreen, VillageGreenExtras } from './world/Places';
+import { GreenWorld, HomeWorld, OrchardWorld, ShelterWorld } from './world/PropWorld';
 import { Lighting, Sky } from './world/Atmosphere';
 import { heightAt } from './world/terrain';
 
@@ -54,14 +51,12 @@ function Runner() {
   useFrame((_, dt) => {
     const app = useApp.getState();
     const paused = app.panel !== null || app.dialog !== null;
-    const { move, running } = movementVector();
 
     if (live.home) {
+      const steered = driveKeeper(live.home.keeper, dt, paused);
       // Click-to-walk: head for the tapped point until close or the keys take over.
-      let input = move;
-      let jog = running;
       const target = walkTarget.point;
-      if (target && Math.hypot(move.x, move.z) < 0.05) {
+      if (target && !steered && !paused) {
         const dx = target.x - live.home.keeper.pos.x;
         const dz = target.z - live.home.keeper.pos.z;
         const d = Math.hypot(dx, dz);
@@ -72,14 +67,12 @@ function Runner() {
           const nx = next.x - live.home.keeper.pos.x;
           const nz = next.z - live.home.keeper.pos.z;
           const nd = Math.hypot(nx, nz) || 1;
-          input = { x: nx / nd, z: nz / nd };
-          jog = d > 6;
+          setHomeInput(live.home, { x: nx / nd, z: nz / nd }, d > 6);
         }
-      } else if (Math.hypot(move.x, move.z) > 0.05) walkTarget.point = null;
-      setHomeInput(live.home, paused ? { x: 0, z: 0 } : input, jog);
+      } else if (steered) walkTarget.point = null;
     }
-    if (live.field) setKeeperInput(live.field, paused ? { x: 0, z: 0 } : move, running);
-    if (live.search) setSearchKeeperInput(live.search, paused ? { x: 0, z: 0 } : move, running);
+    if (live.field) driveKeeper(live.field.keeper, dt, paused);
+    if (live.search) driveKeeper(live.search.keeper, dt, paused);
 
     if (!paused) {
       acc.current += Math.min(dt, 0.1);
@@ -250,43 +243,28 @@ function CameraRig() {
     let pitch = cameraState.pitch;
     let autoYaw: number | null = null;
 
-    const frameWork = (k: Vec2, d: Vec2, working: boolean) => {
-      const away = distance(k, d);
-      const spread = working && away > 10 ? Math.min(1, (away - 10) / 25) : 0;
-      target = cameraState.watchDog
-        ? d
-        : { x: k.x + (d.x - k.x) * 0.4 * spread, z: k.z + (d.z - k.z) * 0.4 * spread };
-      dist = 8.5 + (spread > 0 ? Math.min(24, away * 0.5) : 0);
-      pitch = cameraState.pitch + spread * 0.2;
-      if (spread > 0) autoYaw = Math.atan2(d.x - k.x, d.z - k.z);
-    };
-
-    if (live.home) {
-      const k = live.home.keeper;
-      target = k.pos;
-      dist = 8.5;
-      if (k.speed > 1) autoYaw = k.heading;
-    } else if (live.field) {
-      const s = live.field;
-      const flying = s.items.find((i) => i.state === 'flying' && i.kind !== 'ball');
-      if (flying) {
-        // Follow the throw so you can see exactly where it lands.
-        target = {
-          x: (s.keeper.pos.x + flying.landing.x) / 2,
-          z: (s.keeper.pos.z + flying.landing.z) / 2,
-        };
-        dist = 10 + distance(s.keeper.pos, flying.landing) * 0.55;
-        pitch = cameraState.pitch + 0.15;
-        autoYaw = Math.atan2(flying.landing.x - s.keeper.pos.x, flying.landing.z - s.keeper.pos.z);
-      } else {
-        const working = !(s.dog.mode === 'sit' || s.dog.mode === 'heel');
-        frameWork(s.keeper.pos, s.dog.pos, working);
-        if (!working && s.keeper.speed > 1) autoYaw = s.keeper.heading;
-      }
-    } else if (live.search) {
-      const s = live.search;
-      frameWork(s.keeper.pos, s.dog.pos, s.dog.mode !== 'heel' && s.dog.mode !== 'sit');
-      if (s.keeper.speed > 1) autoYaw = s.keeper.heading;
+    const keeper = live.home?.keeper ?? live.field?.keeper ?? live.search?.keeper ?? null;
+    if (keeper) {
+      // Behind the keeper, turning with them. Out in the field the camera rises
+      // and pulls back so whatever matters (the fall, the stake, the circle,
+      // your dog) fits in view in front of you.
+      const k = keeper.pos;
+      target = k;
+      autoYaw = keeper.heading;
+      const reach = live.home ? 0 : framingReach(keeper);
+      if (reach > 4) {
+        // Aim between you and the far point, tilt down, and back off just far
+        // enough that you stay in the lower part of the screen; the far point
+        // then sits in the upper middle, clear of the messages.
+        const half = (reach / 2) * Math.min(1, (reach - 4) / 6);
+        const ahead = fromHeading(keeper.heading, half);
+        target = { x: k.x + ahead.x, z: k.z + ahead.z };
+        pitch = cameraState.pitch + Math.min(1, reach / 60) * 0.5;
+        const fit = (half * Math.sin(pitch)) / Math.tan(0.3) + half * Math.cos(pitch);
+        dist = Math.min(60, Math.max(8.5, fit));
+      } else dist = 8.5;
+      if (cameraState.watchDog && (live.field || live.search))
+        target = (live.field ?? live.search)!.dog.pos;
     } else if (live.lesson) {
       const t = live.lesson;
       const k = t.keeper.pos;
@@ -311,8 +289,11 @@ function CameraRig() {
       autoYaw = t.lesson === 'sit' ? -Math.PI / 2 + 0.5 : Math.PI;
     }
 
-    if (autoYaw !== null && now - cameraState.manualAt > 2.5) {
-      cameraState.yaw += wrapAngle(autoYaw - cameraState.yaw) * damp(1.4, dt);
+    // Dragging looks around for a moment; steering brings the view straight back.
+    const looking =
+      now - cameraState.manualAt < 1.5 && steerState.lastActive < cameraState.manualAt;
+    if (autoYaw !== null && !looking) {
+      cameraState.yaw += wrapAngle(autoYaw - cameraState.yaw) * damp(keeper ? 12 : 1.4, dt);
     }
     dist *= cameraState.zoom * (portrait ? 1.3 : 1);
     const ty = heightAt(target.x, target.z) + 1.1;
@@ -770,7 +751,6 @@ function dogView(): DogView | null {
 
 function keeperView(): KeeperView {
   const k = live.home?.keeper ?? live.field?.keeper ?? live.search?.keeper ?? live.lesson?.keeper;
-  const dog = live.home?.dog ?? live.field?.dog ?? live.search?.dog ?? live.lesson?.dog;
   if (!k)
     return {
       pos: { x: 0, z: 78 },
@@ -788,7 +768,8 @@ function keeperView(): KeeperView {
     action: k.action,
     actionTime: k.actionTime,
     signalHeading: k.signalHeading,
-    watch: dog && distance(dog.pos, k.pos) > 2.5 && !live.home ? dog.pos : null,
+    // The keeper's heading already faces what matters, so the model just follows it.
+    watch: null,
   };
 }
 
@@ -919,34 +900,58 @@ export function Scene() {
         <Grass field={field} />
         {place === 'home' && (
           <>
-            <Hedges field={field} />
-            <Trees field={field} />
-            <Kennel />
-            <Yard
-              kennelName={game?.kennelName ?? ''}
-              bowlFilled={!!game?.bowlFilled}
-              gardenRestored={!!game && hasFlag(game, 'restored:scentGarden')}
-            />
+            <Suspense
+              fallback={
+                <>
+                  <Hedges field={field} />
+                  <Trees field={field} />
+                  <Kennel />
+                  <Yard
+                    kennelName={game?.kennelName ?? ''}
+                    bowlFilled={!!game?.bowlFilled}
+                    gardenRestored={!!game && hasFlag(game, 'restored:scentGarden')}
+                  />
+                </>
+              }
+            >
+              <HomeWorld
+                field={field}
+                kennelName={game?.kennelName ?? ''}
+                bowlFilled={!!game?.bowlFilled}
+                gardenRestored={!!game && hasFlag(game, 'restored:scentGarden')}
+              />
+            </Suspense>
             <WindFlag x={-24} z={8} heading={wind.heading} strength={strength} />
             <WindFlag x={30} z={-40} heading={wind.heading} strength={strength} />
           </>
         )}
         {place === 'orchard' && (
           <>
-            <Orchard field={field} />
+            <Suspense fallback={<Orchard field={field} />}>
+              <OrchardWorld field={field} />
+            </Suspense>
             <WindFlag x={30} z={6} heading={wind.heading} strength={strength} />
           </>
         )}
         {place === 'green' && (
           <>
-            <VillageGreen field={field} />
+            <Suspense fallback={<VillageGreen field={field} />}>
+              <GreenWorld field={field} />
+              <VillageGreenExtras />
+            </Suspense>
             <WindFlag x={-30} z={10} heading={wind.heading} strength={strength} />
           </>
         )}
-        {place === 'shelter' && <Shelter field={field} />}
+        {place === 'shelter' && (
+          <Suspense fallback={<Shelter field={field} />}>
+            <ShelterWorld field={field} />
+          </Suspense>
+        )}
       </group>
       <Items />
       <FallFlags />
+      <TargetBeacons />
+      <TargetTracker />
       <AimLine />
       <DogBeacon />
       <GoalBeacon />

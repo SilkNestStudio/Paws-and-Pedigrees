@@ -9,6 +9,7 @@ import { FREE_PLAY, RETRIEVE_SETUPS } from '../sim/exercises';
 import { LESSONS, type Lesson } from '../sim/training';
 import { useApp } from '../app/store';
 import {
+  go,
   adopt,
   brush,
   buyItem,
@@ -241,7 +242,14 @@ function Noticeboard({ game }: { game: GameState }) {
             <button
               className="button"
               disabled={game.block === 'night' || !game.dogs.length}
-              onClick={() => startJob(job)}
+              onClick={() =>
+                go(
+                  job.place === 'orchard'
+                    ? "Driving to Mara's orchard…"
+                    : 'Out to the training field…',
+                  () => startJob(job),
+                )
+              }
             >
               Take it
             </button>
@@ -269,7 +277,10 @@ function VanPanel({ game }: { game: GameState }) {
               <div className="title">Larchwood Rescue</div>
               <div className="sub">Grandpa's wish: start with a dog that needs you.</div>
             </div>
-            <button className="button" onClick={() => travel('shelter')}>
+            <button
+              className="button"
+              onClick={() => go('Driving to Larchwood Rescue…', () => travel('shelter'))}
+            >
               Drive there
             </button>
           </div>
@@ -311,7 +322,11 @@ function VanPanel({ game }: { game: GameState }) {
                     : `Sunday. ${FUN_DAY - game.day} day${FUN_DAY - game.day > 1 ? 's' : ''} to go.`}
               </div>
             </div>
-            <button className="button" disabled={!funDay} onClick={() => travel('green')}>
+            <button
+              className="button"
+              disabled={!funDay}
+              onClick={() => go('Driving to the village green…', () => travel('green'))}
+            >
               Enter
             </button>
           </div>
@@ -449,7 +464,11 @@ function FieldGate({ game }: { game: GameState }) {
                 <Bar value={dog.skills[l]} />
               </div>
               <span className="badge">-{ACTIVITY_ENERGY.lesson} energy</span>
-              <button className="button" disabled={night} onClick={() => startLesson(l)}>
+              <button
+                className="button"
+                disabled={night}
+                onClick={() => go('Setting up the lesson…', () => startLesson(l))}
+              >
                 Train
               </button>
             </div>
@@ -480,7 +499,7 @@ function FieldGate({ game }: { game: GameState }) {
                 <button
                   className="button"
                   disabled={night && !s.free}
-                  onClick={() => startFieldWork(s)}
+                  onClick={() => go('Out to the training field…', () => startFieldWork(s))}
                 >
                   {s.free ? 'Play' : 'Go'}
                 </button>
@@ -524,7 +543,10 @@ function ScentGardenPanel({ game }: { game: GameState }) {
           </button>
         )}
         {done && game.dogs.length > 0 && (
-          <button className="button" onClick={() => startLesson('indicate')}>
+          <button
+            className="button"
+            onClick={() => go('Setting up the scent boxes…', () => startLesson('indicate'))}
+          >
             Train Search and indicate
           </button>
         )}
@@ -565,7 +587,7 @@ function Bed({ game }: { game: GameState }) {
         </ul>
       )}
       <div className="button-row">
-        <button className="button" onClick={goToBed}>
+        <button className="button" onClick={() => go('Goodnight…', goToBed)}>
           Go to bed
         </button>
         {dog && game.block === 'evening' && (
@@ -621,7 +643,10 @@ function Result() {
       </ul>
       {r.suggestion && <p style={{ marginTop: 12, fontWeight: 700 }}>{r.suggestion}</p>}
       <div className="button-row">
-        <button className="button" onClick={closeResult}>
+        <button
+          className="button"
+          onClick={() => go(r.next === 'home' ? 'Heading home…' : 'Next…', closeResult)}
+        >
           {r.next === 'funDayNext'
             ? 'Next round'
             : r.next === 'funDayDone'
@@ -693,7 +718,7 @@ function FunDayTable({ game }: { game: GameState }) {
         </tbody>
       </table>
       <div className="button-row">
-        <button className="button" onClick={leaveFunDay}>
+        <button className="button" onClick={() => go('Driving home…', leaveFunDay)}>
           Head home
         </button>
       </div>
@@ -791,7 +816,7 @@ function ShelterCards({ game }: { game: GameState }) {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  adopt(i, name || dog.name);
+                  go(`Driving home with ${name || dog.name}…`, () => adopt(i, name || dog.name));
                 }}
               >
                 <input
@@ -813,7 +838,10 @@ function ShelterCards({ game }: { game: GameState }) {
             ) : (
               <div className="button-row">
                 {i !== pick && (
-                  <button className="button secondary small" onClick={() => meetShelterDog(i)}>
+                  <button
+                    className="button secondary small"
+                    onClick={() => go(`Meeting ${dog.name}…`, () => meetShelterDog(i))}
+                  >
                     Play
                   </button>
                 )}

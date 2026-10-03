@@ -7,7 +7,8 @@ import { Panels } from './ui/Panels';
 import { Story } from './ui/Story';
 import { cameraState, input } from './app/input';
 import { useApp } from './app/store';
-import { advanceDialog, boot } from './app/flow';
+import { advanceDialog, boot, fieldFor } from './app/flow';
+import { grassMeshes, groundGeometry } from './render/world/Field';
 import * as act from './app/actions';
 
 const PREVENT = new Set(['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
@@ -80,6 +81,20 @@ export default function App() {
   useKeyboard();
   useEffect(() => {
     void boot();
+    // Build every place's ground and grass in quiet moments, so the first
+    // trip anywhere doesn't stall.
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300));
+    (['home', 'orchard', 'green', 'shelter'] as const).forEach((place, i) =>
+      window.setTimeout(
+        () =>
+          idle(() => {
+            const field = fieldFor(place);
+            groundGeometry(field);
+            grassMeshes(field);
+          }),
+        1500 + i * 700,
+      ),
+    );
   }, []);
   return (
     <div className="app">

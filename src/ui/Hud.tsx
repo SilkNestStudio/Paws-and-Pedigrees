@@ -3,12 +3,13 @@ import { coatOf } from '../core/dog/dog';
 import { wrapAngle } from '../core/math';
 import { activeDog, dayName } from '../game/state';
 import { objective } from '../game/story';
-import { fieldFor, abandonActivity } from '../app/flow';
+import { fieldFor, abandonActivity, go } from '../app/flow';
 import { LESSONS } from '../sim/training';
 import { useHud, type HudSnapshot } from '../app/hud';
 import { useApp, type Place } from '../app/store';
 import { input } from '../app/input';
 import * as act from '../app/actions';
+import { useIndicators } from '../render/Targets';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
@@ -25,6 +26,7 @@ export function Hud() {
     <div className="hud">
       <TopBar snap={snap} />
       {snap.kind === 'home' ? <ObjectiveCard /> : <ActivityCard snap={snap} />}
+      {(snap.field || snap.search) && <TargetLabels />}
       <TopRight snap={snap} />
       {snap.lesson?.feedback && snap.lesson.time - snap.lesson.feedback.time < 3 && (
         <div className={`coach card ${snap.lesson.feedback.tone}`}>{snap.lesson.feedback.text}</div>
@@ -236,7 +238,7 @@ function Events({ snap }: { snap: HudSnapshot }) {
 }
 
 function TopRight({ snap }: { snap: HudSnapshot }) {
-  const [showMap, setShowMap] = useState(!isTouch);
+  const [showMap, setShowMap] = useState(true);
   const screen = useApp((s) => s.screen);
   const inActivity =
     screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'lesson';
@@ -246,7 +248,7 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
         Menu
       </button>
       {inActivity && (
-        <button className="icon-button" onClick={abandonActivity}>
+        <button className="icon-button" onClick={() => go('Heading back…', abandonActivity)}>
           {screen.kind === 'lesson' ? 'Finish' : 'Leave'}
         </button>
       )}
@@ -257,6 +259,36 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
       )}
       {(snap.field || snap.search) && showMap && <MiniMap snap={snap} />}
     </div>
+  );
+}
+
+/** Labels over targets on screen, arrows at the edge for targets off screen. */
+function TargetLabels() {
+  const list = useIndicators((s) => s.list);
+  return (
+    <>
+      {list.map((t) =>
+        t.onScreen ? (
+          <div
+            key={t.id}
+            className="target-label"
+            style={{ left: `${t.x}%`, top: `${t.y}%`, borderColor: t.colour }}
+          >
+            {t.label} · {t.metres} m
+          </div>
+        ) : (
+          <div key={t.id} className="target-edge" style={{ left: `${t.x}%`, top: `${t.y}%` }}>
+            <div
+              className="target-arrow"
+              style={{ transform: `rotate(${t.angle}rad)`, borderBottomColor: t.colour }}
+            />
+            <span>
+              {t.label} · {t.metres} m
+            </span>
+          </div>
+        ),
+      )}
+    </>
   );
 }
 
@@ -278,7 +310,20 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
   const trace = f?.trace ?? s?.trace ?? [];
   return (
     <div className="minimap card">
-      <svg viewBox={`${field.minX} ${field.minZ} ${w} ${h}`}>
+      <svg
+        viewBox={`${field.minX} ${field.minZ} ${w} ${h}`}
+        onPointerUp={(e) => {
+          // Tap the map to send, direct, or search there.
+          const svg = e.currentTarget;
+          const p = svg.createSVGPoint();
+          p.x = e.clientX;
+          p.y = e.clientY;
+          const m = svg.getScreenCTM();
+          if (!m) return;
+          const w = p.matrixTransform(m.inverse());
+          act.tapGround({ x: w.x, z: w.y });
+        }}
+      >
         <rect x={field.minX} y={field.minZ} width={w} height={h} fill="#8fb35f" />
         {field.cover.map((c, i) => (
           <circle

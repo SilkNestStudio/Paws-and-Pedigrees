@@ -38,11 +38,15 @@ so the whole loop can be judged rather than a single activity. It replaces the e
 
 | Desktop | Phone | Action |
 | --- | --- | --- |
-| WASD / arrows, Shift to jog | Joystick, or tap the ground to walk there | Move |
+| W / up arrow forward, S back up, Shift to jog | Push the joystick up | Walk forward or back up |
+| A / D or left / right arrows | Push the joystick sideways | Turn your keeper; the camera stays behind them and turns with them |
+| Drag the view | Drag | Look around for a moment; walking or turning brings the view straight back |
+| — | Tap the ground at home | Walk there |
 | E | The big context button | Use what's nearby (office, bowl, van, noticeboard…) |
 | F | Pat button | Pat your dog at home |
 | R | Call / Here! | Call your dog |
 | Click or tap the ground | Tap | Throw, send, direct, or "search here" |
+| Click the map | Tap the map | The same, for spots too far away to click in the view |
 | Space | Whistle / Show me! / Yes! | Stop whistle · trust an indication · mark in lessons |
 | X | Search on | Doubt an indication |
 | T | Throw! | Call for the marks |
@@ -52,8 +56,16 @@ so the whole loop can be judged rather than a single activity. It replaces the e
 
 Menu → Tester tools: +$200 and food, skip a day, adopt instantly, delete the save, and the dog's hidden aptitudes.
 
+## Seeing what matters in the field
+
+- When you stand still, your keeper turns to face what matters: the item in the air, then your dog when it is out, then the newest fall or the blind stake.
+- The camera rises and pulls back far enough to fit you and the farthest important thing in front of you.
+- Falls (white), blind stakes (orange), the search area (gold) and your dog (when more than 12 m away) carry a light beam and a label with the distance. Anything off screen gets an arrow at the edge of the screen.
+- Changing place fades briefly ("Driving to…") so the button responds at once while the next place is built.
+
 ## Known limitations
 
+- Buildings, trees, hedges, fences and yard items are Blender-made (`public/models/props.glb`, laid out in `src/render/world/PropWorld.tsx`). Foliage is smooth blobs that don't sway yet, windows and doors are solid, and props have no collision except the buildings at home.
 - Characters are Blender-made but still procedural art: no blinking or facial expressions yet, and some foot sliding at unusual speeds. A hired artist could replace the base models later without changing the game.
 - One week only. The season calendar, aging, more dogs, competitions beyond the Fun Day and breeding come later.
 - Saves are local to the browser (IndexedDB database `paws-rebuild`).

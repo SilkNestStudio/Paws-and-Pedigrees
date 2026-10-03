@@ -304,13 +304,14 @@ export function stepHome(s: HomeSession, dt: number): void {
 
 function stepKeeperHome(k: KeeperAgent, dt: number): void {
   const len = Math.hypot(k.input.x, k.input.z);
-  const target = len > 0.05 ? (k.running ? JOG : WALK) * Math.min(1, len) : 0;
+  const top = k.backing ? WALK * 0.6 : k.running ? JOG : WALK;
+  const target = len > 0.05 ? top * Math.min(1, len) : 0;
   k.speed += clamp(target - k.speed, -14 * dt, 10 * dt);
   if (len > 0.05) {
-    k.heading = turnToward(k.heading, headingOf(k.input), 9 * dt);
+    if (!k.backing) k.heading = turnToward(k.heading, headingOf(k.input), 9 * dt);
     k.stillTime = 0;
   } else k.stillTime += dt;
-  const step = fromHeading(k.heading, k.speed * dt);
+  const step = fromHeading(k.heading, k.speed * dt * (k.backing ? -1 : 1));
   k.pos = collide({ x: k.pos.x + step.x, z: k.pos.z + step.z }, 0.45);
   if (k.action !== 'none') {
     k.actionTime += dt;

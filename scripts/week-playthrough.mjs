@@ -18,6 +18,25 @@ const context = await browser.newContext(
     : { viewport: { width: 1440, height: 900 } },
 );
 const page = await context.newPage();
+// Record slow interactions (what the Vercel toolbar reports as INP issues).
+await page.addInitScript(() => {
+  window.__slow = [];
+  window.__last = '';
+  const name = (t) =>
+    ((t && (t.closest?.('button')?.textContent || t.tagName)) || '').toString().trim().slice(0, 40);
+  document.addEventListener('pointerdown', (e) => (window.__last = name(e.target)), true);
+  document.addEventListener('keydown', (e) => (window.__last = 'key ' + e.code), true);
+  new PerformanceObserver((list) => {
+    for (const e of list.getEntries()) {
+      if (e.duration < 120 || !['click', 'keydown', 'pointerup'].includes(e.name)) continue;
+      window.__slow.push({
+        type: e.name,
+        ms: Math.round(e.duration),
+        label: name(e.target) || window.__last,
+      });
+    }
+  }).observe({ type: 'event', durationThreshold: 104, buffered: true });
+});
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on(
@@ -45,6 +64,16 @@ const app = () =>
     };
   });
 const keeper = () => page.evaluate(() => window.__game.live.home?.keeper.pos ?? null);
+const hintAtHide = async (t, after) => {
+  if (t < after || t % 20 !== 0) return;
+  if (t === after) slowSearches.push(`search stalled after ${after} checks`);
+  await page.evaluate(() => {
+    const se = window.__game.live.search;
+    const h = se?.hides.find((x) => x.kind === 'target');
+    if (h) window.__tap({ x: h.pos.x, z: h.pos.z });
+  });
+};
+const slowSearches = [];
 const clickButton = async (name) =>
   page.getByRole('button', { name, exact: false }).first().click();
 const finishDialogs = async () => {
@@ -235,13 +264,14 @@ for (let t = 0; t < 480; t++) {
     await shot('search-alert');
     await page.keyboard.press(s.clear ? 'Space' : 'KeyX');
   }
-  if (s.phase === 'searching' && s.hunt > 20) {
+  if (s.phase === 'searching' && s.hunt > 20 && t < 240) {
     const a = t * 0.9;
     await page.evaluate(
       ([x, z]) => window.__tap({ x, z }),
       [hint.x + Math.cos(a) * 9, hint.z + Math.sin(a) * 9],
     );
   }
+  if (s.phase === 'searching') await hintAtHide(t, 240);
   await wait(500);
 }
 await wait(1500);
@@ -308,7 +338,7 @@ await closeIntro();
 // Round 2: the search.
 const h2 = await page.evaluate(() => window.__game.live.search.setup.hintCenter);
 await page.evaluate(([x, z]) => window.__tap({ x, z }), [h2.x, h2.z]);
-for (let t = 0; t < 360; t++) {
+for (let t = 0; t < 700; t++) {
   const s = await page.evaluate(() => {
     const se = window.__game.live.search;
     return se
@@ -317,18 +347,27 @@ for (let t = 0; t < 360; t++) {
   });
   if (!s || (await app()).panel === 'result') break;
   if (Math.hypot(s.k.x - h2.x, s.k.z - h2.z) > 18) {
+    // Face the area first (A/D turn the keeper), then walk.
+    await page.evaluate(
+      ([x, z]) => {
+        const k = window.__game.live.search.keeper;
+        k.heading = Math.atan2(x - k.pos.x, z - k.pos.z);
+      },
+      [h2.x, h2.z],
+    );
     await page.keyboard.down('KeyW');
     await wait(300);
     await page.keyboard.up('KeyW');
   }
   if (s.phase === 'alert') await page.keyboard.press(s.clear ? 'Space' : 'KeyX');
-  if (s.phase === 'searching' && s.hunt > 20) {
+  if (s.phase === 'searching' && s.hunt > 20 && t < 300) {
     const a = t * 0.9;
     await page.evaluate(
       ([x, z]) => window.__tap({ x, z }),
       [h2.x + Math.cos(a) * 10, h2.z + Math.sin(a) * 10],
     );
   }
+  if (s.phase === 'searching') await hintAtHide(t, 300);
   await wait(300);
 }
 await shot('funday-round2');
@@ -361,6 +400,10 @@ await shot('after-funday');
 await finishDialogs();
 await shot('end-of-week');
 console.log('end', JSON.stringify(await app()));
+const slow = await page.evaluate(() => window.__slow);
+console.log('SEARCH FALLBACKS:', slowSearches.join('; ') || 'none');
+console.log('SLOW INTERACTIONS:');
+console.log(slow.map((x) => `${x.ms}ms ${x.type} "${x.label}"`).join(String.fromCharCode(10)));
 await browser.close();
 
 console.log(errors.length ? 'Errors:\n' + errors.join('\n') : 'No page errors.');
