@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { coatOf } from '../core/dog/dog';
 import { wrapAngle } from '../core/math';
 import { activeDog, dayName } from '../game/state';
+import { seasonOf } from '../game/calendar';
+import { dogWithTitles } from '../app/flow';
 import { objective } from '../game/story';
 import { fieldFor, abandonActivity, go } from '../app/flow';
 import { LESSONS } from '../sim/training';
@@ -73,7 +75,9 @@ function TopBar({ snap }: { snap: HudSnapshot }) {
           <>
             <div className="swatch" style={{ background: swatch }} />
             <div className="dog-text">
-              <div className="name">{dog.name}</div>
+              <div className="name">
+                {screen.kind === 'shelter' ? dog.name : dogWithTitles(dog)}
+              </div>
               <div className="tell">{snap.tell || coat?.name}</div>
               {screen.kind !== 'shelter' && (
                 <div className="needs">
@@ -97,6 +101,9 @@ function TopBar({ snap }: { snap: HudSnapshot }) {
       <div className="day-chip card">
         <div className="day">
           {dayName(game.day)} · <span className="block">{game.block}</span>
+        </div>
+        <div className="season">
+          {seasonOf(game.day)}, week {Math.floor((game.day - 1) / 7) + 1}
         </div>
         <div className="stock">
           <span title="Money">${game.money}</span>
@@ -133,21 +140,27 @@ function ObjectiveCard() {
 
 function ActivityCard({ snap }: { snap: HudSnapshot }) {
   const screen = useApp((s) => s.screen);
+  const event = useApp((s) => s.event);
+  const roundIndex =
+    screen.kind === 'retrieve' || screen.kind === 'search' ? (screen.round ?? 0) : 0;
+  const eventLine = event
+    ? `${event.def.name} · round ${roundIndex + 1} of ${event.def.rounds.length}`
+    : '';
   let title = '';
   let sub = '';
   if (screen.kind === 'retrieve') {
     title = screen.setup.title;
     sub = screen.job
       ? `Job for ${screen.job.client} · $${screen.job.pay}`
-      : screen.round
-        ? 'Village Fun Day'
+      : screen.round !== undefined
+        ? eventLine
         : screen.setup.focus;
   } else if (screen.kind === 'search') {
     title = screen.setup.title;
     sub = screen.job
       ? `Job for ${screen.job.client} · $${screen.job.pay}`
-      : screen.round
-        ? 'Village Fun Day'
+      : screen.round !== undefined
+        ? eventLine
         : 'Search';
   } else if (screen.kind === 'lesson') {
     title = LESSONS[screen.lesson].title;

@@ -25,6 +25,10 @@ export const CUE_LABELS: Record<Cue, { name: string; meaning: string }> = {
 export type Sex = 'female' | 'male';
 export type Origin = 'shelter' | 'bred' | 'purchased';
 
+/** Field trial levels, in order. Two qualifying runs at a level earn its title. */
+export const TRIAL_LEVELS = ['novice', 'open', 'excellent'] as const;
+export type TrialLevel = (typeof TRIAL_LEVELS)[number];
+
 export interface Dog {
   id: string;
   name: string;
@@ -47,6 +51,10 @@ export interface Dog {
   fullness: number;
   /** 0-100. Work uses it; rest and a night's sleep restore it. */
   energy: number;
+  /** Trial titles earned, in order (novice first). */
+  titles: TrialLevel[];
+  /** Qualifying runs toward the title at each level. */
+  qualifiers: Partial<Record<TrialLevel, number>>;
 }
 
 /** A dog's aptitude on the 1-99 scale (50 = average dog). */
@@ -187,6 +195,8 @@ export function generateRescue(rng: Rng, name?: string): Dog {
     bond: int(rng, 10, 20),
     fullness: 60,
     energy: 90,
+    titles: [],
+    qualifiers: {},
   };
 }
 

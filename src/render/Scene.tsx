@@ -5,7 +5,6 @@ import { damp, distance, fromHeading, wrapAngle, type Vec2 } from '../core/math'
 import type { Dog } from '../core/dog/dog';
 import { activeDog, hasFlag } from '../game/state';
 import { objective, type Landmark } from '../game/story';
-import { createRivals } from '../game/funday';
 import { FIXED_DT, aimTarget, stepSession, type RetrieveSession } from '../sim/retrieve';
 import { stepSearch, type SearchSession } from '../sim/search';
 import { stepTraining, type TrainingSession } from '../sim/training';
@@ -26,7 +25,7 @@ import { Ground, Grass, Hedges, Trees, WindClock, WindFlag } from './world/Field
 import { Kennel } from './world/Kennel';
 import { Yard } from './world/Yard';
 import { Orchard, Shelter, VillageGreen, VillageGreenExtras } from './world/Places';
-import { GreenWorld, HomeWorld, OrchardWorld, ShelterWorld } from './world/PropWorld';
+import { GreenWorld, HomeWorld, OrchardWorld, ShelterWorld, TrialWorld } from './world/PropWorld';
 import { Lighting, Sky } from './world/Atmosphere';
 import { heightAt } from './world/terrain';
 
@@ -786,13 +785,21 @@ const still = (pos: Vec2, heading: number, pose: DogView['pose'] = 'sit'): DogVi
 function Bystanders({ place }: { place: Place }) {
   const game = useApp((s) => s.game);
   const screen = useApp((s) => s.screen);
-  const seed = game?.seed;
-  const rivals = useMemo(() => (seed !== undefined ? createRivals(seed) : []), [seed]);
+  const event = useApp((s) => s.event);
   if (!game) return null;
   const maraHere =
     (place === 'home' && game.story === 'meetMara') ||
-    (place === 'orchard' && screen.kind === 'search' && screen.job?.id === 'mara-keys');
-  const maraPos = place === 'home' ? MARA_POS : { x: -20, z: 16 };
+    (place === 'orchard' && screen.kind === 'search' && screen.job?.id === 'mara-keys') ||
+    (place === 'trial' && !!event);
+  const maraPos =
+    place === 'home' ? MARA_POS : place === 'trial' ? { x: -16, z: 17 } : { x: -20, z: 16 };
+  const rivals = event && event.def.place === place ? event.def.rivals : [];
+  // Rival handlers wait behind the line with their dogs.
+  const spots = [
+    { x: -8, z: 16 },
+    { x: 9, z: 16 },
+    { x: 15, z: 17.5 },
+  ];
   return (
     <>
       {maraHere && (
@@ -809,39 +816,35 @@ function Bystanders({ place }: { place: Place }) {
           })}
         />
       )}
-      {place === 'green' && rivals.length === 2 && (
-        <>
-          <PersonModel
-            look={LOOKS.victor}
-            view={() => ({
-              pos: { x: -8, z: 16 },
-              heading: Math.PI,
-              speed: 0,
-              action: 'none',
-              actionTime: 9,
-              signalHeading: 0,
-              watch: null,
-            })}
-          />
-          <AnyDog dog={rivals[0]!.dog} view={() => still({ x: -8.9, z: 16.2 }, Math.PI)} />
-          <PersonModel
-            look={LOOKS.billy}
-            view={() => ({
-              pos: { x: 9, z: 16 },
-              heading: Math.PI,
-              speed: 0,
-              action: 'none',
-              actionTime: 9,
-              signalHeading: 0,
-              watch: null,
-            })}
-          />
-          <AnyDog
-            dog={rivals[1]!.dog}
-            view={() => still({ x: 9.9, z: 16.2 }, Math.PI * 0.9, 'down')}
-          />
-        </>
-      )}
+      {rivals.map((r, i) => {
+        const at = spots[i % spots.length]!;
+        return (
+          <group key={r.id}>
+            <PersonModel
+              look={LOOKS[r.look]}
+              view={() => ({
+                pos: at,
+                heading: Math.PI,
+                speed: 0,
+                action: 'none',
+                actionTime: 9,
+                signalHeading: 0,
+                watch: null,
+              })}
+            />
+            <AnyDog
+              dog={r.dog}
+              view={() =>
+                still(
+                  { x: at.x + 0.9, z: at.z + 0.2 },
+                  Math.PI * (i % 2 ? 0.9 : 1),
+                  i % 2 ? 'down' : 'sit',
+                )
+              }
+            />
+          </group>
+        );
+      })}
       {place === 'shelter' &&
         game.shelter.map((d, i) =>
           i === useApp.getState().shelterPick ? null : (
@@ -946,6 +949,14 @@ export function Scene() {
           <Suspense fallback={<Shelter field={field} />}>
             <ShelterWorld field={field} />
           </Suspense>
+        )}
+        {place === 'trial' && (
+          <>
+            <Suspense fallback={null}>
+              <TrialWorld field={field} />
+            </Suspense>
+            <WindFlag x={-34} z={10} heading={wind.heading} strength={strength} />
+          </>
         )}
       </group>
       <Items />

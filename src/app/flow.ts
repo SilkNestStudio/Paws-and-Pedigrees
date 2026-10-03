@@ -30,13 +30,18 @@ import {
 } from '../game/rules';
 import { LINES, progressStory, type Line } from '../game/story';
 import {
-  createRivals,
-  funDaySearch,
-  rivalRound,
-  ROUNDS,
-  standings,
-  type RoundId,
-} from '../game/funday';
+  enterEvent,
+  funDayEvent,
+  QUALIFY,
+  recordEvent,
+  rivalScore,
+  trialEvent,
+  trialLevel,
+  TRIAL_RULES,
+  type EventDef,
+  type EventOutcome,
+} from '../game/events';
+import { isTrialDay } from '../game/calendar';
 import { deleteGame, loadGame, saveGame } from '../game/save';
 import { createHomeSession, fillHomeBowl, HOME_SPOTS, type SpotId } from '../sim/home';
 import { createRetrieveSession } from '../sim/retrieve';
@@ -48,17 +53,12 @@ import {
   type SearchSetup,
 } from '../sim/search';
 import { createTrainingSession, lessonSummary, LESSONS, type Lesson } from '../sim/training';
-import {
-  FREE_PLAY,
-  FUN_DAY_BLIND,
-  FUN_DAY_MARK,
-  RETRIEVE_SETUPS,
-  type RetrieveSetup,
-} from '../sim/exercises';
+import { FREE_PLAY, RETRIEVE_SETUPS, type RetrieveSetup } from '../sim/exercises';
 import {
   createOrchard,
   createShelterYard,
   createTrainingField,
+  createTrialGround,
   createVillageGreen,
   type Field,
 } from '../sim/field';
@@ -114,6 +114,8 @@ export function fieldFor(place: Place): Field {
       return createVillageGreen();
     case 'shelter':
       return createShelterYard();
+    case 'trial':
+      return createTrialGround();
     default:
       return createTrainingField();
   }
@@ -146,7 +148,7 @@ export function startNewGame(): void {
     screen: { kind: 'letter', page: 0 },
     panel: null,
     result: null,
-    funDay: null,
+    event: null,
   });
   saveGame(g);
 }
@@ -202,9 +204,9 @@ const INTROS: Record<string, { title: string; lines: string[] }> = {
   home: {
     title: 'Getting around',
     lines: [
-      'Walk with WASD or the arrow keys (on a phone, the stick in the corner). Hold Shift to jog.',
-      'The orange arrow always points to your next goal. Walk up to things to use them: a button appears.',
-      'Drag the screen or press Q and E to look around.',
+      'W walks forward and S backs up; A and D turn you, and the camera turns with you. Hold Shift to jog. On a phone, use the stick in the corner, or tap the ground to walk there.',
+      'The orange arrow always points to your next goal. Walk up to things to use them: a button appears (E).',
+      'Drag the screen or press Q to look around for a moment.',
     ],
   },
   mark: {
@@ -422,7 +424,7 @@ export function nameKennel(name: string): void {
 // Travel
 // ---------------------------------------------------------------------------
 
-export function travel(dest: 'shelter' | 'village' | 'green' | 'home'): void {
+export function travel(dest: 'shelter' | 'village' | 'green' | 'trial' | 'home'): void {
   useApp.setState({ panel: null });
   if (dest === 'shelter') {
     commit((g) => {
@@ -434,6 +436,8 @@ export function travel(dest: 'shelter' | 'village' | 'green' | 'home'): void {
     useApp.setState({ panel: 'shop' });
   } else if (dest === 'green') {
     beginFunDay();
+  } else if (dest === 'trial') {
+    beginTrial();
   } else goHome('van');
 }
 
@@ -479,6 +483,7 @@ export function adopt(index: number, name: string): void {
     const dog: Dog = { ...g.shelter[index]!, name: clean };
     g.dogs.push(dog);
     g.activeDogId = dog.id;
+    g.season.skills[dog.id] = { ...dog.skills };
     g.shelter = [];
     g.block = 'evening';
     note(g, `Brought ${clean} home from Larchwood Rescue.`);
@@ -505,14 +510,14 @@ function allowed(kind: ActivityKind): boolean {
 
 export function startFieldWork(
   setup: RetrieveSetup,
-  opts: { job?: Job; round?: RoundId; place?: Place } = {},
+  opts: { job?: Job; round?: number; place?: Place } = {},
 ): void {
   const kind: ActivityKind = setup.free
     ? 'free'
     : setup.blinds.length && !setup.marks.length
       ? 'blind'
       : 'mark';
-  if (!opts.round && !allowed(kind)) return;
+  if (opts.round === undefined && !allowed(kind)) return;
   const g = game();
   const dog = activeDog(g)!;
   const place = opts.place ?? 'home';
@@ -533,9 +538,9 @@ export function startFieldWork(
 
 export function startSearch(
   setup: SearchSetup,
-  opts: { job?: Job; round?: RoundId; place?: Place } = {},
+  opts: { job?: Job; round?: number; place?: Place } = {},
 ): void {
-  if (!opts.round && !allowed('search')) return;
+  if (opts.round === undefined && !allowed('search')) return;
   const g = game();
   const dog = activeDog(g)!;
   const place = opts.place ?? 'orchard';
@@ -596,7 +601,7 @@ export function startJob(job: Job): void {
       windDeg: Math.round(random(rng) * 360),
       windStrength: 0.35 + random(rng) * 0.35,
     };
-    startFieldWork(setup, { job, place: 'orchard' });
+    startFieldWork(setup, { job, place: job.place === 'field' ? 'home' : 'orchard' });
   } else {
     const base = RETRIEVE_SETUPS.find(
       (s) => s.id === (random(rng) < 0.5 ? 'double' : 'long-mark'),
@@ -620,7 +625,7 @@ function finishRetrieve(): void {
   const report = buildReport(s);
   const kind: ActivityKind =
     screen.setup.blinds.length && !screen.setup.marks.length ? 'blind' : 'mark';
-  if (screen.round) return finishRound(screen.round, report.score, report.notes);
+  if (screen.round !== undefined) return finishRound(screen.round, report.score, report.notes);
   const pay = screen.job ? screen.job.pay : 0;
   let discoveries: ResultView['discoveries'] = [];
   commit((g) => {
@@ -655,7 +660,7 @@ function finishSearchActivity(): void {
   const screen = get().screen;
   if (!s || screen.kind !== 'search') return;
   const report = buildSearchReport(s);
-  if (screen.round) return finishRound(screen.round, report.score, report.notes);
+  if (screen.round !== undefined) return finishRound(screen.round, report.score, report.notes);
   const pay = screen.job ? screen.job.pay : 0;
   let discoveries: ResultView['discoveries'] = [];
   commit((g) => {
@@ -742,7 +747,7 @@ export function abandonActivity(): void {
     finishLessonActivity();
     return;
   }
-  if ((screen.kind === 'retrieve' || screen.kind === 'search') && screen.round) {
+  if ((screen.kind === 'retrieve' || screen.kind === 'search') && screen.round !== undefined) {
     finishRound(screen.round, 0, [{ text: 'Retired from the round.', tone: 'warn' }]);
     return;
   }
@@ -758,8 +763,8 @@ export function closeResult(): void {
   useApp.setState({ result: null, panel: null });
   const screen = get().screen;
   if (!r) return;
-  if (r.next === 'funDayNext') return nextRound();
-  if (r.next === 'funDayDone') return finishFunDay();
+  if (r.next === 'eventNext') return nextRound();
+  if (r.next === 'eventDone') return finishEvent();
   const g = game();
   if (screen.kind === 'search' && screen.job?.id === 'mara-keys') {
     goHome('van');
@@ -776,11 +781,18 @@ export function closeResult(): void {
 }
 
 // ---------------------------------------------------------------------------
-// The Fun Day
+// Competitions: the Village Fun Day and the Larkspur trials
 // ---------------------------------------------------------------------------
 
 export function canGoToFunDay(g: GameState): boolean {
   return g.day >= FUN_DAY && !g.funDay && g.dogs.length > 0 && g.block !== 'night';
+}
+
+/** Today's trial, if there is one and the active dog can still enter it. */
+export function todaysTrial(g: GameState): EventDef | null {
+  const dog = activeDog(g);
+  if (!dog || !isTrialDay(g.day) || g.trials.some((t) => t.day === g.day)) return null;
+  return trialEvent(g.seed, g.day, trialLevel(dog));
 }
 
 function beginFunDay(): void {
@@ -794,45 +806,108 @@ function beginFunDay(): void {
     );
     return;
   }
-  useApp.setState({ funDay: { round: 0, player: [], rivals: [[], []] } });
-  // Show the green first, then Mara explains.
-  startRound(0);
+  beginEvent(funDayEvent(g.seed));
   say(LINES.funDayIntro!(g));
 }
 
-function startRound(index: number): void {
-  const round = ROUNDS[index]!;
+function beginTrial(): void {
   const g = game();
-  if (round.id === 'search')
-    startSearch(funDaySearch(g.seed % 997), { round: round.id, place: 'green' });
-  else
-    startFieldWork(round.id === 'mark' ? FUN_DAY_MARK : FUN_DAY_BLIND, {
-      round: round.id,
-      place: 'green',
-    });
+  const def = todaysTrial(g);
+  if (!def || g.block === 'night') {
+    toast('There is no trial for you to enter right now. Trials run every Sunday.', 'info');
+    goHome('van');
+    return;
+  }
+  let paid = false;
+  commit((d) => {
+    paid = enterEvent(d, def);
+  });
+  if (!paid) {
+    toast(`The entry fee is $${def.entryFee}. Noticeboard jobs pay.`, 'warn');
+    goHome('van');
+    return;
+  }
+  beginEvent(def);
+  say(trialIntro(def));
 }
 
-function finishRound(round: RoundId, score: number, notes: ResultView['notes']): void {
+function trialIntro(def: EventDef): Line[] {
   const g = game();
-  const fd = get().funDay;
-  if (!fd) return;
-  const index = ROUNDS.findIndex((r) => r.id === round);
-  const rivals = createRivals(g.seed);
-  const rivalScores = rivals.map((r) => rivalRound(r, round, g.seed % 9973));
-  const progress = {
-    round: index,
-    player: [...fd.player, score],
-    rivals: fd.rivals.map((rs, i) => [...rs, rivalScores[i]!]),
-  };
-  useApp.setState({ funDay: progress });
-  const last = index === ROUNDS.length - 1;
-  const beat = rivals
-    .filter((_, i) => score > rivalScores[i]!)
-    .map((r) => `${r.handler} (${rivalScores[rivals.indexOf(r)]})`);
+  const dog = activeDog(g)!;
+  const first = g.trials.length === 0;
+  const names = def.rivals.map((r) => `${r.handler} with ${r.dog.name}`).join(', ');
+  const lines: Line[] = [
+    {
+      speaker: 'Mara',
+      text: first
+        ? `Welcome to Larkspur! This is a proper trial: three rounds, a judge, and a $${def.entryFee} entry. Today you're up against ${names}.`
+        : `${def.name} today. Running against ${names}.`,
+    },
+  ];
+  if (first) {
+    lines.push(
+      {
+        speaker: 'Mara',
+        text: `Score at least ${QUALIFY.minRound} in every round and ${QUALIFY.minTotal} in total and that's a qualifying run. Two of those and ${dog.name} earns a ${TRIAL_RULES[def.level!].name} title and moves up a level.`,
+      },
+      {
+        speaker: 'Mara',
+        text: 'Prize money goes to the top three. But the qualifying run is what counts.',
+      },
+    );
+  }
+  return lines;
+}
+
+function beginEvent(def: EventDef): void {
+  useApp.setState({
+    event: { def, round: 0, player: [], rivals: def.rivals.map(() => []) },
+  });
+  startRound(0);
+}
+
+function startRound(index: number): void {
+  const ev = get().event;
+  if (!ev) return;
+  const round = ev.def.rounds[index]!;
+  if (round.kind === 'search') startSearch(round.search!, { round: index, place: ev.def.place });
+  else startFieldWork(round.retrieve!, { round: index, place: ev.def.place });
+}
+
+function finishRound(index: number, score: number, notes: ResultView['notes']): void {
+  const ev = get().event;
+  if (!ev) return;
+  const rivalScores = ev.def.rivals.map((r) => rivalScore(ev.def, r, index));
+  useApp.setState({
+    event: {
+      ...ev,
+      round: index,
+      player: [...ev.player, score],
+      rivals: ev.rivals.map((rs, i) => [...rs, rivalScores[i]!]),
+    },
+  });
+  const last = index === ev.def.rounds.length - 1;
+  const beat = ev.def.rivals
+    .map((r, i) => ({ r, s: rivalScores[i]! }))
+    .filter((x) => score > x.s)
+    .map((x) => `${x.r.handler} (${x.s})`);
+  const extra: ResultView['notes'] = [];
+  if (ev.def.kind === 'trial' && score < QUALIFY.minRound)
+    extra.push({
+      text: `Under ${QUALIFY.minRound} in this round, so no qualifying run today. Every round still counts toward the placings.`,
+      tone: 'warn',
+    });
+  extra.push({
+    text: ev.def.rivals
+      .map((r, i) => `${r.handler} and ${r.dog.name} scored ${rivalScores[i]}.`)
+      .join(' '),
+    tone: 'info',
+  });
+  if (beat.length) extra.push({ text: `You beat ${beat.join(' and ')} this round!`, tone: 'good' });
   useApp.setState({
     panel: 'result',
     result: {
-      title: ROUNDS[index]!.title,
+      title: ev.def.rounds[index]!.title,
       grade:
         score >= 85
           ? 'Excellent'
@@ -845,84 +920,106 @@ function finishRound(round: RoundId, score: number, notes: ResultView['notes']):
                 : 'No score',
       score,
       seconds: 0,
-      notes: [
-        ...notes,
-        {
-          text: `Victor Sterling and Duchess scored ${rivalScores[0]}. Billy Ashby and Pickles scored ${rivalScores[1]}.`,
-          tone: 'info',
-        },
-        ...(beat.length
-          ? [{ text: `You beat ${beat.join(' and ')} this round!`, tone: 'good' as const }]
-          : []),
-      ],
+      notes: [...notes, ...extra],
       discoveries: [],
       pay: 0,
-      next: last ? 'funDayDone' : 'funDayNext',
+      next: last ? 'eventDone' : 'eventNext',
     },
   });
 }
 
 function nextRound(): void {
-  const fd = get().funDay;
-  if (!fd) return;
-  startRound(fd.round + 1);
+  const ev = get().event;
+  if (!ev) return;
+  startRound(ev.round + 1);
 }
 
-function finishFunDay(): void {
-  const fd = get().funDay;
-  if (!fd) return;
-  const g = game();
-  const dog = activeDog(g)!;
-  const rivals = createRivals(g.seed);
-  const record = standings(g.kennelName || 'Your kennel', dog, fd.player, rivals, fd.rivals);
-  const place = record.entries.findIndex((e) => e.player) + 1;
-  const best = ROUNDS.find((r) => r.id === record.bestRound)!;
+/** The finished event, kept for the standings panel and Mara's words afterwards. */
+export interface EventResult {
+  def: EventDef;
+  outcome: EventOutcome;
+}
+
+let lastEvent: EventResult | null = null;
+export const finishedEvent = (): EventResult | null => lastEvent;
+
+function finishEvent(): void {
+  const ev = get().event;
+  if (!ev) return;
+  const dog = activeDog(game())!;
+  let outcome: EventOutcome | null = null;
   commit((d) => {
-    d.funDay = record;
-    d.block = 'evening';
-    note(
-      d,
-      `Village Fun Day: placed ${ordinal(place)} of 3. ${dog.name} was best at ${best.skill}.`,
-    );
+    outcome = recordEvent(d, ev.def, ev.player, ev.rivals);
     d.knowledge[dog.id] ??= {};
     for (const o of ['mark', 'search', 'blind'] as const) {
       observe(
-        createRng(eventSeed(d, `fd-${o}`)),
+        createRng(eventSeed(d, `${ev.def.id}-${o}`)),
         dog,
         d.knowledge[dog.id]!,
         ACTIVITY_OBSERVATIONS[o]!,
       );
     }
   });
-  useApp.setState({ panel: 'funDay' });
+  if (!outcome) return;
+  lastEvent = { def: ev.def, outcome };
+  useApp.setState({ panel: 'standings' });
 }
 
-export function leaveFunDay(): void {
-  const g = game();
-  const record = g.funDay;
-  useApp.setState({ panel: null, funDay: null });
+export function leaveEvent(): void {
+  const done = lastEvent;
+  useApp.setState({ panel: null, event: null });
   goHome('van');
-  if (!record) return;
+  if (!done) return;
+  const g = game();
   const dog = activeDog(g)!;
-  const place = record.entries.findIndex((e) => e.player) + 1;
-  const best = ROUNDS.find((r) => r.id === record.bestRound)!;
+  const { record, title } = done.outcome;
+  const best = done.def.rounds[record.bestRound]!;
+  if (done.def.kind === 'funday') {
+    say([
+      {
+        speaker: 'Mara',
+        text:
+          record.placing === 1
+            ? `You won it! In your very first week. Your grandpa would be over the moon.`
+            : `${ordinal(record.placing)} place. Victor will be insufferable, but you saw it too, didn't you? ${dog.name} has a real gift for ${best.skill}.`,
+      },
+      {
+        speaker: 'Mara',
+        text: 'That is what you build on. From next week there is a proper trial at Larkspur every Sunday. Two qualifying runs earn a Novice title, then come the Open trials, and one day, the Hollowmere Cup.',
+      },
+      {
+        speaker: 'Mara',
+        text: 'Seven days make a season out here, and the dogs grow up with them. Train the weak spots, take the jobs, fix up the place. See you at Larkspur.',
+      },
+      { speaker: 'You', text: 'The cup Grandpa used to win. One day.' },
+    ]);
+    return;
+  }
+  const level = TRIAL_RULES[done.def.level!].name;
+  const qs = dog.qualifiers[done.def.level!] ?? 0;
+  const pronoun = dog.sex === 'female' ? 'her' : 'his';
   say([
     {
       speaker: 'Mara',
-      text:
-        place === 1
-          ? `You won it! In your very first week. Your grandpa would be over the moon.`
-          : `${ordinal(place)} place. Victor will be insufferable, but you saw it too, didn't you? ${dog.name} has a real gift for ${best.skill}.`,
+      text: title
+        ? `A ${level} title! It's official: ${dogWithTitles(dog)}. From next Sunday you run at ${TRIAL_RULES[trialLevel(dog)].name} level. Harder work, bigger prizes.`
+        : record.qualified
+          ? `A qualifying run! That's ${qs} of ${QUALIFY.toTitle} toward the ${level} title.`
+          : `No qualifying run today. Look at the round that let you down: that's this week's training. ${dog.name} was at ${pronoun} best in ${best.skill}.`,
     },
-    {
-      speaker: 'Mara',
-      text: "That's what you build on. Train the weak spots, take the jobs, fix up the place. Next season there's the county trial, and after that, the Hollowmere Cup.",
-    },
-    { speaker: 'You', text: 'The cup Grandpa used to win. One day.' },
   ]);
 }
 
-const ordinal = (n: number) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
+/** Short title letters after a dog's name: Novice → FN, Open → FO, Excellent → FX. */
+export const titleLetters = (level: string): string =>
+  level === 'novice' ? 'FN' : level === 'open' ? 'FO' : 'FX';
+
+/** "Pepper FN FO" */
+export const dogWithTitles = (dog: Dog): string =>
+  [dog.name, ...dog.titles.map(titleLetters)].join(' ');
+
+export const ordinal = (n: number) =>
+  n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
 
 // ---------------------------------------------------------------------------
 // Bed, rest, shopping, restoring
@@ -947,6 +1044,15 @@ export function goToBed(): void {
   useApp.setState({ panel: null });
   goHome('house');
   messages.forEach((m, i) => setTimeout(() => toast(m, i === 0 ? 'info' : 'warn'), i * 400));
+  if (game().recap) useApp.setState({ panel: 'season' });
+}
+
+/** The season recap has been read. */
+export function closeRecap(): void {
+  commit((g) => {
+    g.recap = null;
+  });
+  useApp.setState({ panel: null });
 }
 
 export function restEvening(): void {
@@ -979,6 +1085,14 @@ export function restoreGarden(): void {
 export function devSkipDays(days: number): void {
   for (let i = 0; i < days; i++) commit((g) => sleepRule(g));
   goHome('house');
+  if (game().recap) useApp.setState({ panel: 'season' });
+}
+
+/** Tester tool: jump to the morning of the next Sunday. */
+export function devSkipToSunday(): void {
+  const g = game();
+  const days = 6 - ((g.day - 1) % 7);
+  devSkipDays(days === 0 ? 7 : days);
 }
 
 export function devMoney(): void {
@@ -997,6 +1111,7 @@ export function devAdoptQuick(): void {
     };
     g.dogs.push(dog);
     g.activeDogId = dog.id;
+    g.season.skills[dog.id] = { ...dog.skills };
     g.shelter = [];
     if (g.kennelName === '') g.kennelName = 'Test';
     g.story = 'settle';

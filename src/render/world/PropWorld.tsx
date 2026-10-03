@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import * as THREE from 'three';
 import type { Field } from '../../sim/field';
 import { heightAt, scatter } from './terrain';
 import { along, Prop, Props, type Placement, type PropName } from './Props';
@@ -273,6 +274,55 @@ export function ShelterWorld({ field }: { field: Field }) {
       <mesh position={[6, heightAt(6, -2) + 0.02, -2]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[1.2, 16]} />
         <meshStandardMaterial color="#c9b98f" />
+      </mesh>
+    </>
+  );
+}
+
+const TRIAL_BENCHES: Placement[] = [
+  { x: -22, z: 21, rot: Math.PI },
+  { x: -18, z: 21.5, rot: Math.PI },
+  { x: 20, z: 21, rot: Math.PI },
+  { x: 24, z: 21.5, rot: Math.PI },
+];
+const TRIAL_BALES: Placement[] = [
+  { x: -30, z: 18, rot: 0.3 },
+  { x: 32, z: 17.5, rot: -0.4 },
+  { x: -3.5, z: 20, rot: 0.1 },
+];
+
+/** Larkspur trial ground: the judges' tents behind the line, hedges and old trees. */
+export function TrialWorld({ field }: { field: Field }) {
+  const banner = useSignTexture(
+    ['Larkspur Field Trials', 'judging today: marks · search · blind'],
+    {
+      bg: '#2f4a3c',
+    },
+  );
+  const hedge = useMemo(
+    () => [
+      ...along([field.minX, field.minZ - 1.5], [field.maxX, field.minZ - 1.5], 5),
+      ...along([field.minX - 1.5, field.maxZ - 6], [field.minX - 1.5, field.minZ], 5),
+      ...along([field.maxX + 1.5, field.maxZ - 6], [field.maxX + 1.5, field.minZ], 5),
+    ],
+    [field],
+  );
+  const rope = useMemo(
+    () => [...along([-40, 19], [-6, 19], 3), ...along([6, 19], [40, 19], 3)],
+    [],
+  );
+  return (
+    <>
+      <Prop name="Tent" at={{ x: -10, z: 26, rot: Math.PI }} />
+      <Prop name="Tent" at={{ x: 10, z: 27, rot: Math.PI }} />
+      <Props name="Bench" items={TRIAL_BENCHES} />
+      <Props name="Bales" items={TRIAL_BALES} />
+      <Props name="FenceSection" items={rope} />
+      <Props name="HedgeSection" items={hedge} />
+      <FieldTrees field={field} kinds={['TreeOak', 'TreeOak2', 'TreePine']} />
+      <mesh position={[0, heightAt(0, 24) + 3.4, 24]}>
+        <planeGeometry args={[6.5, 1.6]} />
+        <meshStandardMaterial map={banner} side={THREE.DoubleSide} />
       </mesh>
     </>
   );

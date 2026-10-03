@@ -1,4 +1,6 @@
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState, type StoryStep } from './state';
+import { daysUntilSunday, isTrialDay, nextTrialDay } from './calendar';
+import { QUALIFY, TRIAL_RULES, trialLevel } from './events';
 
 /**
  * The first week's story and the "what next?" guidance. The objective shown
@@ -145,15 +147,47 @@ export function objective(state: GameState): Objective {
         target: 'van',
       };
     case 'afterFunDay':
-      return {
-        title: 'Keep building the kennel',
-        steps: [
-          { text: 'Train, take jobs and save up', done: false },
-          { text: "Restore Grandpa's scent garden", done: hasFlag(state, 'restored:scentGarden') },
-        ],
-        target: null,
-      };
+      return trialObjective(state);
   }
+}
+
+/** After the Fun Day: work toward the next title at the Sunday trials. */
+function trialObjective(state: GameState): Objective {
+  const dog = activeDog(state);
+  if (!dog) return { title: 'Keep building the kennel', steps: [], target: null };
+  const level = trialLevel(dog);
+  const rules = TRIAL_RULES[level];
+  const qs = dog.qualifiers[level] ?? 0;
+  const today = isTrialDay(state.day);
+  const entered = state.trials.some((t) => t.day === state.day);
+  const days = nextTrialDay(state.day) - state.day;
+  const when = today ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+  const steps = [
+    {
+      text: `Qualifying runs for the ${rules.name} title: ${qs} of ${QUALIFY.toTitle}`,
+      done: dog.titles.includes(level),
+    },
+    {
+      text: `Enter the ${rules.name} trial at Larkspur (Sunday, ${when}; $${rules.entryFee} entry)`,
+      done: entered,
+    },
+    { text: 'Train the weak spots at the field gate', done: false },
+    { text: `Take jobs to keep money and food coming in`, done: state.money >= rules.entryFee },
+  ];
+  if (!hasFlag(state, 'restored:scentGarden'))
+    steps.push({ text: "Restore Grandpa's scent garden ($90)", done: false });
+  return {
+    title: today && !entered ? 'Trial day at Larkspur' : `${dog.name}'s ${rules.name} title`,
+    steps,
+    target:
+      today && !entered && state.block !== 'night'
+        ? 'van'
+        : state.food < 2
+          ? 'van'
+          : daysUntilSunday(state.day) <= 1
+            ? 'fieldGate'
+            : 'noticeboard',
+  };
 }
 
 /** Moves the story on whenever its conditions are met. Call after any change. */

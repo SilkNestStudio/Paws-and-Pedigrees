@@ -28,6 +28,7 @@ const GROUND: Record<FieldData['style'], { inside: string; outside: string; yard
   orchard: { inside: '#78a04a', outside: '#6a8c42', yard: '#78a04a' },
   green: { inside: '#86b052', outside: '#78a04a', yard: '#86b052' },
   shelter: { inside: '#8aa85a', outside: '#7d9a4f', yard: '#8aa85a' },
+  trial: { inside: '#82ac50', outside: '#719646', yard: '#82ac50' },
 };
 
 const groundCache = new Map<string, THREE.BufferGeometry>();
@@ -69,7 +70,7 @@ function buildGround(field: FieldData): THREE.BufferGeometry {
     const cover = coverAt(field, { x, z });
     const palette = GROUND[field.style];
     // Mown stripes on the training field and green; rougher meadow outside.
-    const mown = field.style === 'training' || field.style === 'green';
+    const mown = field.style === 'training' || field.style === 'green' || field.style === 'trial';
     const stripe = inField && mown ? (Math.floor((x + 200) / 6) % 2 === 0 ? 0.03 : -0.02) : 0;
     const yard = field.style === 'training' && z > 43 && Math.abs(x) < 41;
     base.set(yard ? palette.yard : inField ? palette.inside : palette.outside);

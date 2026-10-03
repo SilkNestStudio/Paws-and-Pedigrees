@@ -4,7 +4,8 @@ import { describe as describeEstimate, isKnown } from '../core/dog/knowledge';
 import { APTITUDE_LABELS, APTITUDES } from '../core/genetics/traits';
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState } from '../game/state';
 import { ACTIVITY_ENERGY, RESTORATIONS, SHOP } from '../game/rules';
-import { ROUNDS } from '../game/funday';
+import { ageText, FIRST_TRIAL_DAY, nextTrialDay } from '../game/calendar';
+import { QUALIFY, TRIAL_RULES, trialLevel } from '../game/events';
 import { FREE_PLAY, RETRIEVE_SETUPS } from '../sim/exercises';
 import { LESSONS, type Lesson } from '../sim/training';
 import { useApp } from '../app/store';
@@ -15,12 +16,18 @@ import {
   buyItem,
   canGoToFunDay,
   closeIntro,
+  closeRecap,
   closeResult,
   devAdoptQuick,
   devMoney,
   devSkipDays,
+  devSkipToSunday,
+  dogWithTitles,
+  finishedEvent,
   goToBed,
-  leaveFunDay,
+  leaveEvent,
+  ordinal,
+  todaysTrial,
   meetShelterDog,
   nameKennel,
   resetGame,
@@ -41,7 +48,7 @@ export function Panels() {
   const screen = useApp((s) => s.screen);
   if (!game) return null;
   if (!panel) return screen.kind === 'shelter' ? <ShelterCards game={game} /> : null;
-  const dismissable = !['result', 'intro', 'funDay'].includes(panel);
+  const dismissable = !['result', 'intro', 'standings', 'season'].includes(panel);
   return (
     <div
       className="overlay"
@@ -57,7 +64,8 @@ export function Panels() {
       {panel === 'bed' && <Bed game={game} />}
       {panel === 'result' && <Result />}
       {panel === 'intro' && <Intro />}
-      {panel === 'funDay' && <FunDayTable game={game} />}
+      {panel === 'standings' && <Standings game={game} />}
+      {panel === 'season' && <SeasonRecapPanel game={game} />}
       {panel === 'menu' && <Menu />}
     </div>
   );
@@ -150,9 +158,10 @@ function DogCard({ dog, game }: { dog: Dog; game: GameState }) {
   return (
     <div>
       <p className="lead">
-        {dog.name} · {dog.sex}, about {Math.max(1, Math.round(dog.ageMonths / 12))} years old ·{' '}
-        {coat.name} · {breedDescription(dog)}
+        {dogWithTitles(dog)} · {dog.sex}, {ageText(dog.ageMonths)} old · {coat.name} ·{' '}
+        {breedDescription(dog)}
       </p>
+      <TitleLine dog={dog} />
       <div className="two-col">
         <div>
           <h3>Natural talents</h3>
@@ -310,7 +319,8 @@ function VanPanel({ game }: { game: GameState }) {
             Go shopping
           </button>
         </div>
-        {hasDog && (
+        {hasDog && (game.funDay || game.day >= FIRST_TRIAL_DAY) && <TrialRow game={game} />}
+        {hasDog && !game.funDay && game.day < FIRST_TRIAL_DAY && (
           <div className="row">
             <div className="grow">
               <div className="title">Village green: the Fun Day</div>
@@ -647,9 +657,9 @@ function Result() {
           className="button"
           onClick={() => go(r.next === 'home' ? 'Heading home…' : 'Next…', closeResult)}
         >
-          {r.next === 'funDayNext'
+          {r.next === 'eventNext'
             ? 'Next round'
-            : r.next === 'funDayDone'
+            : r.next === 'eventDone'
               ? 'Final standings'
               : 'Back home'}
         </button>
@@ -679,22 +689,24 @@ function Intro() {
   );
 }
 
-function FunDayTable({ game }: { game: GameState }) {
-  const record = game.funDay;
-  if (!record) return null;
+function Standings({ game }: { game: GameState }) {
+  const done = finishedEvent();
+  if (!done) return null;
+  const { def, outcome } = done;
+  const { record, title } = outcome;
+  const dog = game.dogs.find((d) => d.id === record.dogId);
+  const winner = record.entries[0]!;
   return (
     <div className="panel card">
-      <div className="kicker">Village Fun Day · final standings</div>
-      <h2>{record.entries[0]!.player ? 'You won!' : `${record.entries[0]!.kennel} wins`}</h2>
+      <div className="kicker">{def.name} · final standings</div>
+      <h2>{winner.player ? 'You won!' : `${winner.kennel} wins`}</h2>
       <table className="standings">
         <thead>
           <tr>
             <th>#</th>
             <th>Kennel</th>
-            {ROUNDS.map((r) => (
-              <th key={r.id}>
-                {r.id === 'mark' ? 'Mark' : r.id === 'search' ? 'Search' : 'Blind'}
-              </th>
+            {def.rounds.map((r) => (
+              <th key={r.title}>{r.short}</th>
             ))}
             <th>Total</th>
           </tr>
@@ -717,12 +729,125 @@ function FunDayTable({ game }: { game: GameState }) {
           ))}
         </tbody>
       </table>
+      <ul className="notes">
+        <li className={record.placing <= 3 ? 'good' : 'info'}>
+          You placed {ordinal(record.placing)} of {record.entries.length}
+          {record.prize > 0 ? `: $${record.prize} prize money.` : '.'}
+        </li>
+        {def.kind === 'trial' && (
+          <li className={record.qualified ? 'good' : 'warn'}>
+            {record.qualified
+              ? 'A qualifying run.'
+              : `No qualifying run (needs ${QUALIFY.minRound}+ in every round and ${QUALIFY.minTotal}+ in total).`}
+          </li>
+        )}
+        {title && dog && (
+          <li className="discovery">
+            ★ {dog.name} earned the {TRIAL_RULES[title].name} title: {dogWithTitles(dog)}.
+          </li>
+        )}
+      </ul>
       <div className="button-row">
-        <button className="button" onClick={() => go('Driving home…', leaveFunDay)}>
+        <button className="button" onClick={() => go('Driving home…', leaveEvent)}>
           Head home
         </button>
       </div>
     </div>
+  );
+}
+
+function SeasonRecapPanel({ game }: { game: GameState }) {
+  const r = game.recap;
+  if (!r) return null;
+  return (
+    <div className="panel card">
+      <div className="kicker">The season turns</div>
+      <h2>
+        {r.season} is over. {r.next} begins.
+      </h2>
+      <ul className="notes">
+        <li>
+          {r.activities} lessons, jobs and practices.{' '}
+          {r.jobs > 0 ? `${r.jobs} job${r.jobs > 1 ? 's' : ''} done. ` : ''}
+          Money {r.moneyChange >= 0 ? `up $${r.moneyChange}` : `down $${-r.moneyChange}`}.
+        </li>
+        {r.trials.map((t, i) => (
+          <li key={i} className={t.qualified ? 'good' : 'info'}>
+            {t.name}: {ordinal(t.placing)} of {t.entries}
+            {t.qualified ? ', a qualifying run' : ''}.
+          </li>
+        ))}
+        {r.best.map((b) => (
+          <li key={b.title}>
+            Best {b.title}: {b.score} points
+          </li>
+        ))}
+        {r.skillGains.map((g) => (
+          <li key={`${g.dog}-${g.cue}`} className="good">
+            {g.dog}: {CUE_LABELS[g.cue].name} {Math.round(g.before * 100)}% →{' '}
+            {Math.round(g.after * 100)}%
+          </li>
+        ))}
+        {r.ages.map((a) => (
+          <li key={a.dog} className="discovery">
+            {a.dog} is now {ageText(a.months)} old.
+          </li>
+        ))}
+      </ul>
+      <div className="button-row">
+        <button className="button" onClick={closeRecap}>
+          On to {r.next}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The van's Larkspur row: today's trial, or when the next one is. */
+function TrialRow({ game }: { game: GameState }) {
+  const dog = activeDog(game);
+  if (!dog) return null;
+  const today = todaysTrial(game);
+  const level = trialLevel(dog);
+  const rules = TRIAL_RULES[level];
+  const ranToday = game.trials.some((t) => t.day === game.day);
+  const days = nextTrialDay(game.day) - game.day;
+  const night = game.block === 'night';
+  return (
+    <div className="row">
+      <div className="grow">
+        <div className="title">Larkspur trial ground</div>
+        <div className="sub">
+          {ranToday
+            ? 'You ran today. The next trial is next Sunday.'
+            : today
+              ? `Today: the ${today.name}. ${rules.blurb} Entry $${today.entryFee}; prizes $${today.prizes.join(', $')}.`
+              : `${rules.name} trial on Sunday (${days === 1 ? 'tomorrow' : `in ${days} days`}). ${rules.blurb}`}
+        </div>
+      </div>
+      <button
+        className="button"
+        disabled={!today || night || game.money < (today?.entryFee ?? 0)}
+        onClick={() => go('Driving to Larkspur…', () => travel('trial'))}
+      >
+        {today && game.money < today.entryFee ? `Need $${today.entryFee}` : 'Enter'}
+      </button>
+    </div>
+  );
+}
+
+/** Titles and qualifying runs, under the dog's name in the ledger. */
+function TitleLine({ dog }: { dog: Dog }) {
+  const level = trialLevel(dog);
+  const qs = dog.qualifiers[level] ?? 0;
+  return (
+    <p className="small">
+      {dog.titles.length
+        ? `Titles: ${dog.titles.map((t) => TRIAL_RULES[t].name).join(', ')}. `
+        : 'No trial titles yet. '}
+      {!dog.titles.includes(level) &&
+        `${TRIAL_RULES[level].name} title: ${qs} of ${QUALIFY.toTitle} qualifying runs.`}
+    </p>
   );
 }
 
@@ -753,6 +878,9 @@ function Menu() {
           </button>
           <button className="button secondary small" onClick={() => devSkipDays(1)}>
             Skip a day
+          </button>
+          <button className="button secondary small" onClick={() => devSkipToSunday()}>
+            Skip to Sunday
           </button>
           {game && game.dogs.length === 0 && (
             <button className="button secondary small" onClick={devAdoptQuick}>
@@ -803,7 +931,7 @@ function ShelterCards({ game }: { game: GameState }) {
           <div key={dog.id} className={`shelter-card card ${i === pick ? 'active' : ''}`}>
             <div className="title">{dog.name}</div>
             <div className="sub">
-              {dog.sex}, about {Math.max(1, Math.round(dog.ageMonths / 12))} · {coat.name}
+              {dog.sex}, {ageText(dog.ageMonths)} · {coat.name}
             </div>
             <div className="sub">{breedDescription(dog)}</div>
             {met && (

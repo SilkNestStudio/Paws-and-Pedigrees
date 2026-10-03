@@ -3,7 +3,7 @@ import type { Discovery } from '../core/dog/knowledge';
 import type { Line } from '../game/story';
 import type { GameState } from '../game/state';
 import type { Job } from '../game/jobs';
-import type { RoundId } from '../game/funday';
+import type { EventDef } from '../game/events';
 import type { HomeSession, SpotId } from '../sim/home';
 import type { RetrieveSession } from '../sim/retrieve';
 import type { SearchSession, SearchSetup } from '../sim/search';
@@ -15,7 +15,7 @@ import type { Lesson, TrainingSession } from '../sim/training';
  * `live` (outside React, stepped every frame). Game rules never live here:
  * flow.ts calls the pure rules in src/game and stores the result.
  */
-export type Place = 'home' | 'orchard' | 'green' | 'shelter';
+export type Place = 'home' | 'orchard' | 'green' | 'shelter' | 'trial';
 
 export type Screen =
   | { kind: 'loading' }
@@ -23,8 +23,8 @@ export type Screen =
   | { kind: 'letter'; page: number }
   | { kind: 'home' }
   | { kind: 'shelter' }
-  | { kind: 'retrieve'; place: Place; setup: RetrieveSetup; job?: Job; round?: RoundId }
-  | { kind: 'search'; place: Place; setup: SearchSetup; job?: Job; round?: RoundId }
+  | { kind: 'retrieve'; place: Place; setup: RetrieveSetup; job?: Job; round?: number }
+  | { kind: 'search'; place: Place; setup: SearchSetup; job?: Job; round?: number }
   | { kind: 'lesson'; lesson: Lesson };
 
 export type Panel =
@@ -39,7 +39,8 @@ export type Panel =
   | 'bed'
   | 'result'
   | 'intro'
-  | 'funDay'
+  | 'standings'
+  | 'season'
   | 'adopt'
   | 'menu';
 
@@ -54,7 +55,7 @@ export interface ResultView {
   /** Lesson results show skill before and after. */
   skill?: { name: string; before: number; after: number };
   suggestion?: string;
-  next: 'home' | 'funDayNext' | 'funDayDone' | 'shelter';
+  next: 'home' | 'eventNext' | 'eventDone' | 'shelter';
 }
 
 export interface IntroCard {
@@ -63,7 +64,9 @@ export interface IntroCard {
   key: string;
 }
 
-export interface FunDayProgress {
+/** A competition in progress: which round, and the scores so far. */
+export interface EventProgress {
+  def: EventDef;
   round: number;
   player: number[];
   rivals: number[][];
@@ -89,7 +92,7 @@ export interface AppState {
   dialog: { lines: Line[]; index: number; then?: () => void } | null;
   intro: IntroCard | null;
   result: ResultView | null;
-  funDay: FunDayProgress | null;
+  event: EventProgress | null;
   toasts: Toast[];
   /** Bumped whenever a new live session starts, so the 3D scene remounts. */
   runId: number;
@@ -107,7 +110,7 @@ export const useApp = create<AppState>(() => ({
   dialog: null,
   intro: null,
   result: null,
-  funDay: null,
+  event: null,
   toasts: [],
   runId: 0,
   homeSpawn: 'arrive',

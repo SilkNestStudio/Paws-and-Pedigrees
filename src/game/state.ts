@@ -1,7 +1,8 @@
 import { createRng, int, type Rng } from '../core/rng';
-import { generateShelterTrio, type Dog } from '../core/dog/dog';
+import { CUES, generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
 import type { DogKnowledge } from '../core/dog/knowledge';
 import type { Job } from './jobs';
+import type { EventRecord } from './events';
 
 /**
  * The saved game. Everything the player has done lives here; it is plain
@@ -56,8 +57,29 @@ export interface FunDayRecord {
   bestRound: string;
 }
 
+/** Where things stood when the current season began, for the season recap. */
+export interface SeasonMark {
+  startDay: number;
+  money: number;
+  jobsDone: number;
+  skills: Record<string, Record<Cue, number>>;
+}
+
+/** What happened last season, shown once when the new season starts. */
+export interface SeasonRecap {
+  season: string;
+  next: string;
+  activities: number;
+  best: { title: string; score: number }[];
+  moneyChange: number;
+  jobs: number;
+  skillGains: { dog: string; cue: Cue; before: number; after: number }[];
+  trials: { name: string; placing: number; entries: number; qualified: boolean }[];
+  ages: { dog: string; months: number }[];
+}
+
 export interface GameState {
-  version: 1;
+  version: 2;
   seed: number;
   kennelName: string;
   money: number;
@@ -83,6 +105,13 @@ export interface GameState {
   /** Petting counts once per part of the day. */
   pettedAt: string | null;
   brushedDay: number | null;
+  /** Larkspur trials entered. */
+  trials: EventRecord[];
+  season: SeasonMark;
+  /** Last season's recap, until the player has seen it. */
+  recap: SeasonRecap | null;
+  /** Jobs done this season; they come back on the board next season. */
+  recentJobs: string[];
 }
 
 export const STARTING_MONEY = 40;
@@ -92,7 +121,7 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
   const rng = createRng(seed);
   const shelter = generateShelterTrio(rng);
   return {
-    version: 1,
+    version: 2,
     seed,
     kennelName: '',
     money: STARTING_MONEY,
@@ -113,7 +142,46 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
     diary: [],
     pettedAt: null,
     brushedDay: null,
+    trials: [],
+    season: { startDay: 1, money: STARTING_MONEY, jobsDone: 0, skills: {} },
+    recap: null,
+    recentJobs: [],
   };
+}
+
+/** Snapshot of every dog's skills, for measuring progress over a season. */
+export function skillSnapshot(dogs: Dog[]): Record<string, Record<Cue, number>> {
+  const out: Record<string, Record<Cue, number>> = {};
+  for (const d of dogs) out[d.id] = { ...d.skills };
+  return out;
+}
+
+/**
+ * Brings an older save up to date. Version 1 saves (the first week) gain the
+ * calendar, trial and title fields with sensible defaults; nothing is lost.
+ */
+export function migrate(raw: unknown): GameState | null {
+  const s = raw as Omit<Partial<GameState>, 'version'> & { version?: number };
+  if (!s || !Array.isArray(s.dogs) || typeof s.day !== 'number' || typeof s.story !== 'string')
+    return null;
+  if (s.version !== 1 && s.version !== 2) return null;
+  const state = s as unknown as GameState;
+  for (const dog of [...state.dogs, ...(state.shelter ?? [])]) {
+    dog.titles ??= [];
+    dog.qualifiers ??= {};
+    for (const cue of CUES) dog.skills[cue] ??= 0;
+  }
+  state.trials ??= [];
+  state.recap ??= null;
+  state.recentJobs ??= [...(state.jobsDone ?? [])];
+  state.season ??= {
+    startDay: Math.floor((state.day - 1) / 7) * 7 + 1,
+    money: state.money,
+    jobsDone: state.jobsDone?.length ?? 0,
+    skills: skillSnapshot(state.dogs),
+  };
+  state.version = 2;
+  return state;
 }
 
 /** A fresh Rng for an event, derived from the save so results are repeatable. */

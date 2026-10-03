@@ -18,7 +18,7 @@ export interface Tree {
   radius: number;
 }
 
-export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter';
+export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter' | 'trial';
 
 export interface Field {
   style: FieldStyle;
@@ -109,6 +109,35 @@ export function createVillageGreen(): Field {
       { pos: { x: -38, z: -10 }, radius: 1.4 },
       { pos: { x: 36, z: -14 }, radius: 1.5 },
       { pos: { x: 30, z: -58 }, radius: 1.4 },
+    ],
+  };
+}
+
+/**
+ * Larkspur trial ground: a big mown field with rough patches and a few old
+ * trees, where the weekly field trials run. The handlers' line is at z = 12.
+ */
+export function createTrialGround(): Field {
+  return {
+    style: 'trial',
+    minX: -54,
+    maxX: 54,
+    minZ: -86,
+    maxZ: 22,
+    line: { x: 0, z: 12 },
+    cover: [
+      { center: { x: -20, z: -14 }, radius: 7, density: 0.65 },
+      { center: { x: 18, z: -30 }, radius: 8, density: 0.7 },
+      { center: { x: -8, z: -50 }, radius: 7, density: 0.7 },
+      { center: { x: 28, z: -62 }, radius: 8, density: 0.75 },
+      { center: { x: -34, z: -40 }, radius: 6, density: 0.6 },
+      { center: { x: 4, z: -72 }, radius: 6, density: 0.65 },
+    ],
+    trees: [
+      { pos: { x: -40, z: -18 }, radius: 1.5 },
+      { pos: { x: 38, z: -12 }, radius: 1.4 },
+      { pos: { x: 42, z: -48 }, radius: 1.6 },
+      { pos: { x: -30, z: -70 }, radius: 1.5 },
     ],
   };
 }

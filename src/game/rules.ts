@@ -1,6 +1,6 @@
 import { clamp } from '../core/math';
 import { ACTIVITY_OBSERVATIONS, observe, type Discovery } from '../core/dog/knowledge';
-import type { Cue, Dog } from '../core/dog/dog';
+import { CUES, type Cue, type Dog } from '../core/dog/dog';
 import { boardForDay } from './jobs';
 import {
   activeDog,
@@ -11,8 +11,18 @@ import {
   FUN_DAY,
   hasFlag,
   note,
+  skillSnapshot,
   type GameState,
+  type SeasonRecap,
 } from './state';
+import {
+  ageText,
+  isSeasonStart,
+  isTrialDay,
+  MONTHS_PER_SEASON,
+  seasonOf,
+  seasonStartDay,
+} from './calendar';
 
 /**
  * The rules of daily life at the kennel. Every function changes a draft
@@ -170,22 +180,86 @@ export function brushDog(state: GameState): boolean {
 export function sleep(state: GameState): string[] {
   const messages: string[] = [];
   const dog = activeDog(state);
-  if (dog) {
-    if (state.bowlFilled) dogAte(state);
-    dog.fullness = clamp(dog.fullness - 25, 0, 100);
-    const rest = dog.fullness >= 30 ? 70 : 40;
-    dog.energy = clamp(dog.energy + rest, 0, 100);
-    if (dog.fullness < 30)
-      messages.push(`${dog.name} woke up hungry. Keep the bowl filled and the pantry stocked.`);
+  if (dog && state.bowlFilled) dogAte(state);
+  for (const d of state.dogs) {
+    d.fullness = clamp(d.fullness - 25, 0, 100);
+    const rest = d.fullness >= 30 ? 70 : 40;
+    d.energy = clamp(d.energy + rest, 0, 100);
   }
+  if (dog && dog.fullness < 30)
+    messages.push(`${dog.name} woke up hungry. Keep the bowl filled and the pantry stocked.`);
+  const lastDay = state.day;
   state.day += 1;
   state.block = 'morning';
-  state.jobs = boardForDay(state.seed, state.day, state.jobsDone).filter(
-    (j) => !state.jobsDone.includes(j.id),
-  );
+  if (isSeasonStart(state.day)) {
+    state.recap = endSeason(state, lastDay);
+    messages.push(
+      `${seasonOf(state.day)} has come. Every dog is ${MONTHS_PER_SEASON} months older.`,
+    );
+  }
+  state.jobs = boardForDay(state.seed, state.day, [...state.recentJobs, 'mara-keys']);
   if (state.day === FUN_DAY) messages.push("It's Sunday: the Village Fun Day is this afternoon!");
+  if (isTrialDay(state.day))
+    messages.push("It's Sunday: trial day at Larkspur. Enter from the van.");
   messages.unshift(`${dayName(state.day)} morning.`);
   return messages;
+}
+
+/**
+ * The season is over: sum it up, age every dog, and start the next one.
+ * Jobs done this season come back on the board.
+ */
+export function endSeason(state: GameState, lastDay: number): SeasonRecap {
+  const mark = state.season;
+  const inSeason = state.results.filter((r) => r.day >= mark.startDay && r.day <= lastDay);
+  const bestByTitle = new Map<string, number>();
+  for (const r of inSeason)
+    if (r.activity !== 'lesson')
+      bestByTitle.set(r.title, Math.max(bestByTitle.get(r.title) ?? 0, r.score));
+  const skillGains: SeasonRecap['skillGains'] = [];
+  for (const d of state.dogs) {
+    const before = mark.skills[d.id];
+    for (const cue of CUES) {
+      const was = before?.[cue] ?? 0;
+      if (d.skills[cue] - was >= 0.02)
+        skillGains.push({ dog: d.name, cue, before: was, after: d.skills[cue] });
+    }
+  }
+  const trials = state.trials
+    .filter((t) => t.day >= mark.startDay && t.day <= lastDay)
+    .map((t) => ({
+      name: t.name,
+      placing: t.placing,
+      entries: t.entries.length,
+      qualified: t.qualified,
+    }));
+  for (const d of state.dogs) d.ageMonths += MONTHS_PER_SEASON;
+  const recap: SeasonRecap = {
+    season: seasonOf(lastDay),
+    next: seasonOf(state.day),
+    activities: inSeason.length,
+    best: [...bestByTitle]
+      .map(([title, score]) => ({ title, score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4),
+    moneyChange: state.money - mark.money,
+    jobs: state.jobsDone.length - mark.jobsDone,
+    skillGains,
+    trials,
+    ages: state.dogs.map((d) => ({ dog: d.name, months: d.ageMonths })),
+  };
+  note(
+    state,
+    `${recap.season} ended. ${state.dogs.map((d) => `${d.name} is now ${ageText(d.ageMonths)}`).join('; ')}.`,
+  );
+  state.season = {
+    startDay: seasonStartDay(state.day),
+    money: state.money,
+    jobsDone: state.jobsDone.length,
+    skills: skillSnapshot(state.dogs),
+  };
+  state.recentJobs = [];
+  return recap;
 }
 
 /** An evening at home recovers a little energy. */
@@ -256,8 +330,9 @@ export function finishActivity(state: GameState, outcome: ActivityOutcome): Disc
   if (outcome.skill) dog.skills[outcome.skill.cue] = outcome.skill.value;
   if (outcome.score > 0 && outcome.kind !== 'lesson') dog.bond = clamp(dog.bond + 1, 0, 100);
   if (outcome.pay) state.money += outcome.pay;
-  if (outcome.jobId && !state.jobsDone.includes(outcome.jobId)) {
+  if (outcome.jobId && !state.recentJobs.includes(outcome.jobId)) {
     state.jobsDone.push(outcome.jobId);
+    state.recentJobs.push(outcome.jobId);
     state.jobs = state.jobs.filter((j) => j.id !== outcome.jobId);
     note(state, `${outcome.title}: done for $${outcome.pay ?? 0}.`);
   }

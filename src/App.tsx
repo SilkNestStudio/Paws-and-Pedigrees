@@ -84,7 +84,7 @@ export default function App() {
     // Build every place's ground and grass in quiet moments, so the first
     // trip anywhere doesn't stall.
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300));
-    (['home', 'orchard', 'green', 'shelter'] as const).forEach((place, i) =>
+    (['home', 'orchard', 'green', 'shelter', 'trial'] as const).forEach((place, i) =>
       window.setTimeout(
         () =>
           idle(() => {

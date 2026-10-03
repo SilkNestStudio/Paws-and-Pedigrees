@@ -74,6 +74,120 @@ const hintAtHide = async (t, after) => {
   });
 };
 const slowSearches = [];
+
+// ---------------------------------------------------------------------------
+// Playing competition rounds (the Fun Day and Larkspur trials)
+// ---------------------------------------------------------------------------
+const eventRounds = () =>
+  page.evaluate(() => window.__game.useApp.getState().event?.def.rounds.map((r) => r.kind) ?? []);
+
+async function playMarkRound() {
+  await page.keyboard.press('KeyT');
+  await wait(4500);
+  for (let t = 0; t < 160 && (await app()).panel !== 'result'; t++) {
+    const s = await page.evaluate(() => {
+      const f = window.__game.live.field;
+      if (!f) return null;
+      const lying = f.items.filter((i) => i.kind === 'mark' && i.state === 'lying');
+      return { mode: f.dog.mode, phase: f.phase, target: lying[lying.length - 1]?.landing ?? null };
+    });
+    if (s && s.target && (s.mode === 'sit' || s.mode === 'heel'))
+      await page.evaluate(([x, z]) => window.__tap({ x, z }), [s.target.x, s.target.z]);
+    await wait(500);
+  }
+}
+
+async function playSearchRound() {
+  const h = await page.evaluate(() => window.__game.live.search.setup.hintCenter);
+  await page.evaluate(([x, z]) => window.__tap({ x, z }), [h.x, h.z]);
+  for (let t = 0; t < 700; t++) {
+    const s = await page.evaluate(() => {
+      const se = window.__game.live.search;
+      return se
+        ? {
+            phase: se.phase,
+            clear: se.alert?.clear ?? null,
+            hunt: se.dog.huntTime,
+            k: se.keeper.pos,
+          }
+        : null;
+    });
+    if (!s || (await app()).panel === 'result') break;
+    if (Math.hypot(s.k.x - h.x, s.k.z - h.z) > 18) {
+      // Face the area first (A/D turn the keeper), then walk.
+      await page.evaluate(
+        ([x, z]) => {
+          const k = window.__game.live.search.keeper;
+          k.heading = Math.atan2(x - k.pos.x, z - k.pos.z);
+        },
+        [h.x, h.z],
+      );
+      await page.keyboard.down('KeyW');
+      await wait(300);
+      await page.keyboard.up('KeyW');
+    }
+    if (s.phase === 'alert') await page.keyboard.press(s.clear ? 'Space' : 'KeyX');
+    if (s.phase === 'searching' && s.hunt > 20 && t < 300) {
+      const a = t * 0.9;
+      await page.evaluate(
+        ([x, z]) => window.__tap({ x, z }),
+        [h.x + Math.cos(a) * 10, h.z + Math.sin(a) * 10],
+      );
+    }
+    if (s.phase === 'searching') await hintAtHide(t, 300);
+    await wait(300);
+  }
+}
+
+async function playBlindRound() {
+  // Some blinds start with a mark (the old fall): throw and pick it first.
+  const hasMark = await page.evaluate(() =>
+    window.__game.live.field.items.some((i) => i.kind === 'mark'),
+  );
+  if (hasMark) {
+    await page.keyboard.press('KeyT');
+    await wait(4500);
+  }
+  for (let t = 0; t < 260 && (await app()).panel !== 'result'; t++) {
+    const s = await page.evaluate(() => {
+      const f = window.__game.live.field;
+      if (!f) return null;
+      const want =
+        f.items.find((i) => i.kind === 'mark' && i.state === 'lying') ??
+        f.items.find((i) => i.kind === 'blind' && i.state === 'lying');
+      return { mode: f.dog.mode, pos: f.dog.pos, want: want ? want.pos : null };
+    });
+    if (s && s.want) {
+      if (['sit', 'heel', 'stopped', 'popped'].includes(s.mode))
+        await page.evaluate(([x, z]) => window.__tap({ x, z }), [s.want.x, s.want.z]);
+      else if (
+        s.mode === 'hunt' &&
+        Math.hypot(s.pos.x - s.want.x, s.pos.z - s.want.z) > 10 &&
+        t % 6 === 0
+      )
+        await page.keyboard.press('Space');
+    }
+    await wait(400);
+  }
+}
+
+async function playEvent(label) {
+  const kinds = await eventRounds();
+  for (let i = 0; i < kinds.length; i++) {
+    if (i > 0) {
+      await clickButton('Next round');
+      await wait(1200);
+      await closeIntro();
+    }
+    if (kinds[i] === 'search') await playSearchRound();
+    else if (kinds[i] === 'mark') await playMarkRound();
+    else await playBlindRound();
+    for (let t = 0; t < 60 && (await app()).panel !== 'result'; t++) await wait(500);
+    await shot(`${label}-round${i + 1}`);
+  }
+  await clickButton('Final standings');
+}
+
 const clickButton = async (name) =>
   page.getByRole('button', { name, exact: false }).first().click();
 const finishDialogs = async () => {
@@ -323,75 +437,7 @@ await wait(1500);
 await shot('funday-intro');
 await finishDialogs();
 await closeIntro();
-// Round 1: the mark.
-await page.keyboard.press('KeyT');
-await wait(3500);
-const f1 = await page.evaluate(
-  () => window.__game.live.field.items.find((i) => i.kind === 'mark').landing,
-);
-await page.evaluate(([x, z]) => window.__tap({ x, z }), [f1.x, f1.z]);
-for (let t = 0; t < 80 && (await app()).panel !== 'result'; t++) await wait(500);
-await shot('funday-round1');
-await clickButton('Next round');
-await wait(1200);
-await closeIntro();
-// Round 2: the search.
-const h2 = await page.evaluate(() => window.__game.live.search.setup.hintCenter);
-await page.evaluate(([x, z]) => window.__tap({ x, z }), [h2.x, h2.z]);
-for (let t = 0; t < 700; t++) {
-  const s = await page.evaluate(() => {
-    const se = window.__game.live.search;
-    return se
-      ? { phase: se.phase, clear: se.alert?.clear ?? null, hunt: se.dog.huntTime, k: se.keeper.pos }
-      : null;
-  });
-  if (!s || (await app()).panel === 'result') break;
-  if (Math.hypot(s.k.x - h2.x, s.k.z - h2.z) > 18) {
-    // Face the area first (A/D turn the keeper), then walk.
-    await page.evaluate(
-      ([x, z]) => {
-        const k = window.__game.live.search.keeper;
-        k.heading = Math.atan2(x - k.pos.x, z - k.pos.z);
-      },
-      [h2.x, h2.z],
-    );
-    await page.keyboard.down('KeyW');
-    await wait(300);
-    await page.keyboard.up('KeyW');
-  }
-  if (s.phase === 'alert') await page.keyboard.press(s.clear ? 'Space' : 'KeyX');
-  if (s.phase === 'searching' && s.hunt > 20 && t < 300) {
-    const a = t * 0.9;
-    await page.evaluate(
-      ([x, z]) => window.__tap({ x, z }),
-      [h2.x + Math.cos(a) * 10, h2.z + Math.sin(a) * 10],
-    );
-  }
-  if (s.phase === 'searching') await hintAtHide(t, 300);
-  await wait(300);
-}
-await shot('funday-round2');
-await clickButton('Next round');
-await wait(1200);
-await closeIntro();
-// Round 3: the blind, with some handling.
-const b3 = await page.evaluate(
-  () => window.__game.live.field.items.find((i) => i.kind === 'blind').pos,
-);
-await page.evaluate(([x, z]) => window.__tap({ x, z }), [b3.x, b3.z]);
-for (let t = 0; t < 200 && (await app()).panel !== 'result'; t++) {
-  const s = await page.evaluate(() => {
-    const f = window.__game.live.field;
-    return f ? { mode: f.dog.mode, pos: f.dog.pos } : null;
-  });
-  if (s && (s.mode === 'stopped' || s.mode === 'popped'))
-    await page.evaluate(([x, z]) => window.__tap({ x, z }), [b3.x, b3.z]);
-  if (s && s.mode === 'hunt' && Math.hypot(s.pos.x - b3.x, s.pos.z - b3.z) > 10 && t % 6 === 0)
-    await page.keyboard.press('Space');
-  await wait(400);
-}
-await shot('funday-round3');
-await clickButton('Final standings');
+await playEvent('funday');
 await wait(800);
 await shot('funday-standings');
 await clickButton('Head home');
@@ -399,6 +445,46 @@ await wait(1200);
 await shot('after-funday');
 await finishDialogs();
 await shot('end-of-week');
+console.log('end of week one', JSON.stringify(await app()));
+
+// Week two: go to bed, read the season recap, then jump to Sunday's trial.
+await walkTo(-11, 56);
+await use();
+await wait(400);
+await clickButton('Go to bed');
+await wait(1500);
+await shot('season-recap');
+await clickButton('On to');
+await wait(600);
+await page.keyboard.press('Escape');
+await wait(300);
+await clickButton('+$200');
+await wait(200);
+await clickButton('Skip to Sunday');
+await wait(1200);
+if ((await app()).panel) await page.keyboard.press('Escape');
+await wait(400);
+await walkTo(24, 69);
+await use();
+await shot('van-trial');
+await clickButton('Enter');
+await wait(1500);
+await shot('trial-intro');
+await finishDialogs();
+await closeIntro();
+await playEvent('trial');
+await wait(800);
+await shot('trial-standings');
+await clickButton('Head home');
+await wait(1200);
+await finishDialogs();
+await shot('after-trial');
+const trialEnd = await page.evaluate(() => {
+  const g = window.__game.useApp.getState().game;
+  const d = g.dogs[0];
+  return { day: g.day, trials: g.trials.length, q: d.qualifiers, titles: d.titles, money: g.money };
+});
+console.log('after trial', JSON.stringify(trialEnd));
 console.log('end', JSON.stringify(await app()));
 const slow = await page.evaluate(() => window.__slow);
 console.log('SEARCH FALLBACKS:', slowSearches.join('; ') || 'none');

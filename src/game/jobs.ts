@@ -95,6 +95,43 @@ const TEMPLATES: JobTemplate[] = [
     place: 'orchard',
     pay: 26,
   },
+  {
+    id: 'garrow-blind',
+    title: "Tom's lost dummy",
+    client: 'Tom Garrow',
+    blurb:
+      "One of my training dummies sailed over the hedge into your grandpa's field. I know about where.",
+    kind: 'blind',
+    place: 'field',
+    pay: 24,
+  },
+  {
+    id: 'vicar-hat',
+    title: "The vicar's hat",
+    client: 'Reverend Pike',
+    blurb: 'The wind took my hat across the orchard on Sunday. It is my good one.',
+    kind: 'search',
+    place: 'orchard',
+    pay: 20,
+  },
+  {
+    id: 'market-marks',
+    title: 'Market day display',
+    client: 'The village committee',
+    blurb: 'Show the market crowd what a trained dog can do: a couple of marks in your field.',
+    kind: 'mark',
+    place: 'field',
+    pay: 32,
+  },
+  {
+    id: 'mara-gloves',
+    title: "Mara's gardening gloves",
+    client: 'Mara Whitlow',
+    blurb: "I put my gloves down to prune a tree and now I can't find them. Again.",
+    kind: 'search',
+    place: 'orchard',
+    pay: 18,
+  },
 ];
 
 function fromTemplate(t: JobTemplate, seed: number): Job {
@@ -105,10 +142,13 @@ export function firstJob(seed: number): Job {
   return fromTemplate(FIRST_JOB, seed);
 }
 
-/** Two jobs a day from the ones not yet done, chosen the same way for the same day. */
-export function boardForDay(seed: number, day: number, done: string[]): Job[] {
+/**
+ * Two jobs a day from the ones not done recently, chosen the same way for the
+ * same day. Jobs done this season come back next season.
+ */
+export function boardForDay(seed: number, day: number, exclude: string[]): Job[] {
   const rng = createRng(seed ^ (day * 7919));
-  const open = TEMPLATES.filter((t) => !done.includes(t.id));
+  const open = TEMPLATES.filter((t) => !exclude.includes(t.id));
   return shuffle(rng, open)
     .slice(0, 2)
     .map((t) => fromTemplate(t, int(rng, 1, 2 ** 30)));

@@ -145,16 +145,16 @@ describe('getting to know a dog', () => {
   });
 });
 
-import { createRivals, rivalRound, standings } from '../src/game/funday';
+import { funDayEvent, rivalScore, standings } from '../src/game/events';
 
 describe('the Fun Day', () => {
   it('rivals play real rounds: the trained dog with an expert handler beats the novice', () => {
-    const [victor, billy] = createRivals(7);
-    const v = (['mark', 'search', 'blind'] as const).map((r) => rivalRound(victor!, r, 100));
-    const b = (['mark', 'search', 'blind'] as const).map((r) => rivalRound(billy!, r, 100));
+    const def = funDayEvent(7);
+    const [victor, billy] = def.rivals;
+    const v = def.rounds.map((_, i) => rivalScore(def, victor!, i));
+    const b = def.rounds.map((_, i) => rivalScore(def, billy!, i));
     expect(v.reduce((a, x) => a + x, 0)).toBeGreaterThan(b.reduce((a, x) => a + x, 0));
-    const s = adopt(update(newGame(2), (d) => (d.story = 'toShelter')));
-    const table = standings('Oak Hollow', s.dogs[0]!, [90, 40, 30], [victor!, billy!], [v, b]);
+    const table = standings(def, 'Oak Hollow', 'Rex', [90, 40, 30], [v, b]);
     expect(table.entries.length).toBe(3);
     expect(table.entries[0]!.total).toBeGreaterThanOrEqual(table.entries[2]!.total);
   });

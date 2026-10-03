@@ -1,4 +1,4 @@
-import type { GameState } from './state';
+import { migrate, type GameState } from './state';
 
 /**
  * Local save storage. The game talks only to these three functions, so a
@@ -18,23 +18,12 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
-function isValid(data: unknown): data is GameState {
-  const s = data as GameState;
-  return (
-    !!s &&
-    s.version === 1 &&
-    Array.isArray(s.dogs) &&
-    typeof s.day === 'number' &&
-    typeof s.story === 'string'
-  );
-}
-
 export async function loadGame(): Promise<GameState | null> {
   try {
     const db = await open();
     return await new Promise((resolve) => {
       const request = db.transaction(STORE, 'readonly').objectStore(STORE).get(SLOT);
-      request.onsuccess = () => resolve(isValid(request.result) ? request.result : null);
+      request.onsuccess = () => resolve(migrate(request.result));
       request.onerror = () => resolve(null);
     });
   } catch {

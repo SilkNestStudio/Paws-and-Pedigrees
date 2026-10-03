@@ -45,6 +45,12 @@
   text-transform: capitalize;
 }
 
+.day-chip .season {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
 .day-chip .stock {
   display: flex;
   gap: 12px;
