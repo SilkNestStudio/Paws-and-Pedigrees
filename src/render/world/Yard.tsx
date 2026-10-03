@@ -10,9 +10,9 @@ import { heightAt, scatter } from './terrain';
 /** A canvas texture with painted lettering, for signs. */
 export function useSignTexture(
   lines: string[],
-  options: { bg?: string; fg?: string; width?: number; height?: number } = {},
+  options: { bg?: string; fg?: string; width?: number; height?: number; flipY?: boolean } = {},
 ) {
-  const { bg = '#2f3d33', fg = '#f3ead8', width = 512, height = 256 } = options;
+  const { bg = '#2f3d33', fg = '#f3ead8', width = 512, height = 256, flipY = true } = options;
   const key = lines.join('|');
   return useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -38,9 +38,10 @@ export function useSignTexture(
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
+    texture.flipY = flipY;
     return texture;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, bg, fg, width, height]);
+  }, [key, bg, fg, width, height, flipY]);
 }
 
 function Sign({
@@ -203,7 +204,7 @@ function FoodBowl({ filled }: { filled: boolean }) {
   );
 }
 
-function ScentGarden({ restored }: { restored: boolean }) {
+export function ScentGarden({ restored }: { restored: boolean }) {
   const weeds = useMemo(
     () =>
       Array.from({ length: 40 }, (_, i) => ({
@@ -255,7 +256,7 @@ function ScentGarden({ restored }: { restored: boolean }) {
   );
 }
 
-function Paths() {
+export function Paths() {
   const pieces: { x: number; z: number; w: number; d: number }[] = [
     { x: 0, z: 66, w: 4, d: 32 }, // the drive
     { x: -8, z: 55.5, w: 18, d: 3 }, // to the house

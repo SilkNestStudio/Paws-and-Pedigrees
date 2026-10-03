@@ -180,13 +180,11 @@ function Spectators() {
   );
 }
 
-export function VillageGreen({ field }: { field: Field }) {
+/** Bunting, spectators and the banner; shared by both versions of the green. */
+export function VillageGreenExtras() {
   const banner = useSignTexture(['Village Fun Day', 'marks · search · blind'], { bg: '#3f6e8c' });
   return (
     <>
-      <Tent x={-26} z={26} colour="#d9622b" />
-      <Tent x={22} z={27} colour="#5b86a6" />
-      <Tent x={-6} z={30} colour="#3f8a4f" />
       <Bunting from={[-40, 18]} to={[-4, 18]} />
       <Bunting from={[4, 18]} to={[40, 18]} />
       <Spectators />
@@ -194,6 +192,17 @@ export function VillageGreen({ field }: { field: Field }) {
         <planeGeometry args={[6, 1.6]} />
         <meshStandardMaterial map={banner} side={THREE.DoubleSide} />
       </mesh>
+    </>
+  );
+}
+
+export function VillageGreen({ field }: { field: Field }) {
+  return (
+    <>
+      <Tent x={-26} z={26} colour="#d9622b" />
+      <Tent x={22} z={27} colour="#5b86a6" />
+      <Tent x={-6} z={30} colour="#3f8a4f" />
+      <VillageGreenExtras />
       {field.trees.map((t, i) => (
         <group key={i} position={at(t.pos.x, t.pos.z)}>
           <mesh position={[0, 1.6, 0]} castShadow>
