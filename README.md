@@ -22,7 +22,8 @@ Other commands:
 | `npm run build` | Type-check and production build |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier |
-| `node scripts/week-playthrough.mjs [label] [phone]` | Plays the whole first week in Edge with screenshots in `.browser.local/` (dev server on port 5180) |
+| `node scripts/week-playthrough.mjs [label] [phone]` | Plays the first week, the season change, a Larkspur trial and a second adoption in Edge, with screenshots in `.browser.local/` (dev server on port 5180) |
+| `node scripts/water-check.mjs [label]` | Restores the duck pond and runs the water set-ups and an Open water round |
 | `node scripts/dogshots.mjs [seed]` | Screenshots of the dog viewer in several poses |
 
 Open `/?view=dogs&seed=1` for the development dog viewer.

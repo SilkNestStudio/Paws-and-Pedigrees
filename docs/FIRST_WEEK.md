@@ -1,7 +1,8 @@
 # The first week
 
-Status: playable test build, October 1, 2026. This is a shallow but complete slice of the real day-to-day game, built
-so the whole loop can be judged rather than a single activity. It replaces the earlier Phase 1 field test.
+Status: playable test build, updated October 3, 2026. The first week is a shallow but complete slice of the real
+day-to-day game; since October 3 play carries on past it, with seasons, weekly trials, more dogs and water work (see
+"After the first week" below). It replaces the earlier Phase 1 field test.
 
 ## What happens
 
@@ -21,14 +22,35 @@ so the whole loop can be judged rather than a single activity. It replaces the e
    and young Billy Ashby's beagle cross. Rivals play the same simulation with their own dogs and handling skill.
    Afterwards Mara points out what your dog showed a gift for, and play continues.
 
+## After the first week (added October 3)
+
+- **Seasons and aging:** seven days make a season (Spring, Summer, Autumn, Winter). At each change of season every dog
+  ages three months and a season recap shows what changed: activities, money, skills gained, trial results and ages.
+  The top bar shows the season and week.
+- **Larkspur trials:** from the second Sunday, a field trial runs every Sunday at the Larkspur trial ground (a new van
+  destination). Three rounds against three rival kennels who come back week after week. Entry fee and prize money
+  for the top three. A qualifying run needs at least 50 in every round and 165 in total; two qualifying runs earn
+  the title for that level, and the dog moves up: Novice (FN), then Open (FO), then Excellent (FX).
+  Novice: a single mark, a search and a short blind ($10 entry). Open: a double, a windy search and a water blind
+  across the lake ($20). Excellent: a double into cover, a big search, and a blind past an old fall ($30).
+- **More dogs:** after the Fun Day, Larchwood Rescue has new arrivals each season ($40 adoption fee; up to six dogs,
+  one per run). Dogs not out with you wait in their runs with their names painted over the doors. At the runs you
+  choose who comes out and feed the others (one meal each). Each dog has its own skills, titles, energy and hunger,
+  and each can enter the Sunday trial.
+- **Water work:** restore Grandpa's duck pond ($150, from the field gate's Field work tab) to unlock three set-ups:
+  Into the pond, Across the pond, and a Water blind. Dogs swim much slower than they run, so a dog with little love of
+  water hesitates at the edge or runs round by the bank, which judges count as a serious fault. Catch it with the
+  whistle as it veers and cast it back into the water. The dog's Water aptitude now matters.
+- **Jobs** come back on the noticeboard each season, and there are more of them.
+
 ## Systems in the slice
 
-- **Time:** each day has morning, afternoon and evening. Lessons, field work, jobs and the Fun Day each use one part.
-  Bed starts the next day. Dog aging by season is designed but not active in this one-week slice.
+- **Time:** each day has morning, afternoon and evening. Lessons, field work, jobs and competitions each use one part
+  (a competition takes the rest of the day). Bed starts the next day; every seventh day the season turns.
 - **Care:** fullness falls through the day; filling the bowl uses a meal from the pantry. Energy is used by work and
   restored by sleep. Hungry dogs listen less and give up sooner; tired dogs run slower and tire sooner.
 - **Money:** start with $40 and 4 meals. Jobs pay $15 to $34. A bag of kibble (8 meals) costs $24. The scent garden
-  costs $90.
+  costs $90 and the duck pond $150. Trial entry is $10 to $30; prizes $15 to $160. Later adoptions cost $40.
 - **Getting to know your dog:** aptitudes start unknown. Watching your dog work narrows each one to a range shown in
   the office ledger, with "You're getting a feel for..." moments when one becomes clear.
 - **Activities:** retrieves (marks, doubles, blinds, with whistle, casts, wind and scent), scent search (choose where to
@@ -54,7 +76,8 @@ so the whole loop can be judged rather than a single activity. It replaces the e
 
 ## Tester tools
 
-Menu → Tester tools: +$200 and food, skip a day, adopt instantly, delete the save, and the dog's hidden aptitudes.
+Menu → Tester tools: +$200 and food, skip a day, skip to Sunday (trial day), adopt instantly, delete the save, and the
+dog's hidden aptitudes.
 
 ## Seeing what matters in the field
 
@@ -67,11 +90,14 @@ Menu → Tester tools: +$200 and food, skip a day, adopt instantly, delete the s
 
 - Buildings, trees, hedges, fences and yard items are Blender-made (`public/models/props.glb`, laid out in `src/render/world/PropWorld.tsx`). Foliage is smooth blobs that don't sway yet, windows and doors are solid, and props have no collision except the buildings at home.
 - Characters are Blender-made but still procedural art: no blinking or facial expressions yet, and some foot sliding at unusual speeds. A hired artist could replace the base models later without changing the game.
-- One week only. The season calendar, aging, more dogs, competitions beyond the Fun Day and breeding come later.
+- Breeding, puppies, retirement, regional and national events, and other disciplines (agility, herding) are not built
+  yet. Trial rules and prices are first proposals, open to tuning.
+- Dogs in the runs are shown resting; they don't move about yet.
 - Saves are local to the browser (IndexedDB database `paws-rebuild`).
 
 ## Checking it
 
-- `npm test`: rules, simulations, story progression, rivals (46 tests).
-- `node scripts/week-playthrough.mjs [label] [phone]`: plays the whole week in Edge with screenshots in `.browser.local/`
-  (dev server on port 5180).
+- `npm test`: rules, simulations, story, rivals, seasons, trials, adoption and water (63 tests).
+- `node scripts/week-playthrough.mjs [label] [phone]`: plays the first week, the season change, a Larkspur trial and a
+  second adoption in Edge, with screenshots in `.browser.local/` (dev server on port 5180).
+- `node scripts/water-check.mjs [label]`: restores the pond, runs the three water set-ups and an Open water round.
