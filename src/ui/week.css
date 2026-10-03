@@ -45,6 +45,21 @@
   text-transform: capitalize;
 }
 
+.needs-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.shelter-card.leave {
+  opacity: 0.92;
+}
+
 .day-chip .season {
   font-size: 12px;
   font-weight: 700;

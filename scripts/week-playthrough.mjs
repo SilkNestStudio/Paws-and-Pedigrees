@@ -485,6 +485,49 @@ const trialEnd = await page.evaluate(() => {
   return { day: g.day, trials: g.trials.length, q: d.qualifiers, titles: d.titles, money: g.money };
 });
 console.log('after trial', JSON.stringify(trialEnd));
+
+// A second dog from Larchwood, then swap dogs and feed at the runs.
+await walkTo(24, 69);
+await use();
+await clickButton('Visit');
+await wait(1800);
+await closeIntro();
+await shot('shelter-second-visit');
+await page.locator('.shelter-card').first().getByRole('button', { name: 'Choose' }).click();
+await wait(300);
+await clickButton('Take');
+await wait(1800);
+await finishDialogs();
+await shot('home-two-dogs');
+await walkTo(10, 52.8);
+await use();
+await wait(500);
+await shot('kennel-panel');
+await page
+  .locator('.row', { hasNot: page.locator('.badge.good') })
+  .getByRole('button', { name: 'Take out' })
+  .first()
+  .click();
+await wait(1800);
+await shot('swapped-dog');
+await walkTo(10, 52.8);
+await use();
+await wait(400);
+const feed = page.getByRole('button', { name: /Feed the dogs/ });
+if (await feed.isEnabled()) await feed.click();
+await wait(400);
+await shot('fed-runs');
+await page.keyboard.press('Escape');
+const kennel = await page.evaluate(() => {
+  const g = window.__game.useApp.getState().game;
+  return {
+    dogs: g.dogs.map((d) => `${d.name}:${Math.round(d.fullness)}`),
+    active: g.activeDogId,
+    money: g.money,
+    food: g.food,
+  };
+});
+console.log('kennel', JSON.stringify(kennel));
 console.log('end', JSON.stringify(await app()));
 const slow = await page.evaluate(() => window.__slow);
 console.log('SEARCH FALLBACKS:', slowSearches.join('; ') || 'none');

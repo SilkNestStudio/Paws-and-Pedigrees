@@ -42,6 +42,7 @@ export type Panel =
   | 'standings'
   | 'season'
   | 'adopt'
+  | 'kennel'
   | 'menu';
 
 export interface ResultView {

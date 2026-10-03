@@ -1,6 +1,6 @@
 import { clamp } from '../core/math';
 import { ACTIVITY_OBSERVATIONS, observe, type Discovery } from '../core/dog/knowledge';
-import { CUES, type Cue, type Dog } from '../core/dog/dog';
+import { CUES, generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
 import { boardForDay } from './jobs';
 import {
   activeDog,
@@ -188,6 +188,9 @@ export function sleep(state: GameState): string[] {
   }
   if (dog && dog.fullness < 30)
     messages.push(`${dog.name} woke up hungry. Keep the bowl filled and the pantry stocked.`);
+  const hungryInRuns = state.dogs.filter((d) => d !== dog && d.fullness < 30).map((d) => d.name);
+  if (hungryInRuns.length)
+    messages.push(`${hungryInRuns.join(' and ')} went hungry in the runs. Feed them at the runs.`);
   const lastDay = state.day;
   state.day += 1;
   state.block = 'morning';
@@ -301,6 +304,65 @@ export function restore(state: GameState, id: string): { ok: boolean; message: s
   addFlag(state, `restored:${id}`);
   note(state, `Restored ${r.name.toLowerCase()}. Grandpa would be pleased.`);
   return { ok: true, message: `${r.name} is back in use. ${r.unlocks}` };
+}
+
+// ---------------------------------------------------------------------------
+// More dogs: the rescue, the runs, and who comes out with you
+// ---------------------------------------------------------------------------
+
+/** Grandpa's kennel block has six runs. */
+export const KENNEL_RUNS = 6;
+/** The first dog was Grandpa's wish; later rescues pay the shelter's fee. */
+export const ADOPTION_FEE = 40;
+
+export const canAdoptMore = (state: GameState): boolean =>
+  state.dogs.length > 0 && state.dogs.length < KENNEL_RUNS && !!state.funDay;
+
+/** New arrivals at Larchwood: a fresh three each season. */
+export function refreshShelter(state: GameState): void {
+  const flag = `shelter:${state.season.startDay}`;
+  if (hasFlag(state, flag) || state.dogs.length === 0) return;
+  addFlag(state, flag);
+  state.shelter = generateShelterTrio(eventRng(state, flag));
+}
+
+/** Brings a dog home from the rescue. Returns false if the fee can't be paid. */
+export function adoptDog(state: GameState, index: number, name: string): Dog | null {
+  const chosen = state.shelter[index];
+  if (!chosen) return null;
+  const fee = state.dogs.length > 0 ? ADOPTION_FEE : 0;
+  if (state.money < fee || state.dogs.length >= KENNEL_RUNS) return null;
+  state.money -= fee;
+  const dog: Dog = { ...chosen, name };
+  state.dogs.push(dog);
+  state.activeDogId = dog.id;
+  state.season.skills[dog.id] = { ...dog.skills };
+  state.shelter = [];
+  return dog;
+}
+
+/** Which dog walks out with you. */
+export function setActiveDog(state: GameState, id: string): boolean {
+  if (!state.dogs.some((d) => d.id === id)) return false;
+  state.activeDogId = id;
+  return true;
+}
+
+/** Feeds every hungry dog waiting in the runs, one meal each, while the pantry lasts. */
+export function feedRuns(state: GameState): { fed: string[]; hungry: string[] } {
+  const fed: string[] = [];
+  const hungry: string[] = [];
+  for (const d of state.dogs) {
+    if (d.id === state.activeDogId || d.fullness >= 70) continue;
+    if (state.food <= 0) {
+      hungry.push(d.name);
+      continue;
+    }
+    state.food -= 1;
+    d.fullness = clamp(d.fullness + 55, 0, 100);
+    fed.push(d.name);
+  }
+  return { fed, hungry };
 }
 
 // ---------------------------------------------------------------------------

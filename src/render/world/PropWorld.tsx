@@ -54,17 +54,52 @@ function FieldHedges({ field }: { field: Field }) {
 }
 
 /** Grandpa's place: the farmhouse, kennel block, yard and the training field around it. */
+/** Grandpa's old dogs, still painted above the doors of the empty runs. */
+const OLD_NAMES = ['Duke', 'Bess', 'Ranger', 'Nell', 'Captain', 'Tam'];
+
+/** Name plates over the six run doors: your dogs, then Grandpa's faded old names. */
+function usePlates(names: string[]): Record<string, THREE.Texture> {
+  const key = names.join('|');
+  return useMemo(() => {
+    const out: Record<string, THREE.Texture> = {};
+    for (let i = 0; i < 6; i++) {
+      const name = names[i];
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 141;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = name ? '#f3ead8' : '#cfc3a8';
+      ctx.fillRect(0, 0, 512, 141);
+      ctx.fillStyle = name ? '#2f3d33' : '#9a8d72';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `700 ${name ? 78 : 66}px Georgia, serif`;
+      ctx.fillText(name ?? OLD_NAMES[i]!, 256, 74, 480);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = false;
+      out[`NamePlate${i + 1}`] = texture;
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+}
+
 export function HomeWorld({
   field,
   kennelName,
   bowlFilled,
   gardenRestored,
+  runNames = [],
 }: {
   field: Field;
   kennelName: string;
   bowlFilled: boolean;
   gardenRestored: boolean;
+  /** Dogs' names in run order. */
+  runNames?: string[];
 }) {
+  const plates = usePlates(runNames);
   const gateSign = useSignTexture(
     kennelName ? [`${kennelName} Kennels`] : ['Kennels', 'the name has worn away'],
     { bg: '#f3ead8', fg: '#3b2a1e', width: 1024, height: 308, flipY: false },
@@ -141,7 +176,7 @@ export function HomeWorld({
       <FieldTrees field={field} />
       <Paths />
       <Prop name="Farmhouse" at={{ x: -16, z: 62, rot: Math.PI + 0.08 }} />
-      <Prop name="KennelBlock" at={{ x: 14, z: 60, rot: Math.PI - 0.02 }} />
+      <Prop name="KennelBlock" at={{ x: 14, z: 60, rot: Math.PI }} signs={plates} />
       <Prop name="PantryShed" at={{ x: 22.5, z: 60, rot: Math.PI }} />
       <Prop name="Van" at={{ x: 26, z: 72.5, rot: -Math.PI / 2 }} />
       <Prop name="Noticeboard" at={{ x: 5, z: 46.6 }} />

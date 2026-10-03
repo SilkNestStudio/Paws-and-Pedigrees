@@ -16,10 +16,15 @@ import {
 } from '../game/state';
 import { firstJob, type Job } from '../game/jobs';
 import {
+  adoptDog,
+  ADOPTION_FEE,
   brushDog,
   buy,
   canStartActivity,
   dogAte,
+  feedRuns,
+  refreshShelter,
+  setActiveDog,
   fillBowl as fillBowlRule,
   finishActivity,
   petDog as petDogRule,
@@ -288,6 +293,8 @@ export function goHome(spawn: SpotId | 'arrive' = 'arrive'): void {
     eventSeed(g, `home-${get().runId}`),
     at,
     g.bowlFilled,
+    // At the runs, face the dogs so the camera stays out in the yard.
+    spawn === 'runs' ? 0 : Math.PI,
   );
   useApp.setState({ screen: { kind: 'home' }, panel: null, runId: nextRun(), homeSpawn: spawn });
 }
@@ -311,6 +318,7 @@ export function activateSpot(spot: SpotId): void {
     case 'runs':
       commit((d) => addFlag(d, 'saw:runs'));
       if (!g.dogs.length) say(LINES.runs!(g));
+      else if (g.dogs.length > 1) useApp.setState({ panel: 'kennel' });
       else fillBowl();
       break;
     case 'bowl':
@@ -429,6 +437,7 @@ export function travel(dest: 'shelter' | 'village' | 'green' | 'trial' | 'home')
   if (dest === 'shelter') {
     commit((g) => {
       if (g.story === 'explore') g.story = 'toShelter';
+      refreshShelter(g);
     });
     meetShelterDog(0);
     showIntro('shelter');
@@ -476,23 +485,68 @@ export function meetShelterDog(index: number): void {
 }
 
 export function adopt(index: number, name: string): void {
-  const chosen = game().shelter[index];
+  const before = game();
+  const chosen = before.shelter[index];
   if (!chosen) return;
   const clean = name.trim().slice(0, 16) || chosen.name;
+  const first = before.dogs.length === 0;
+  let dog: Dog | null = null;
   commit((g) => {
-    const dog: Dog = { ...g.shelter[index]!, name: clean };
-    g.dogs.push(dog);
-    g.activeDogId = dog.id;
-    g.season.skills[dog.id] = { ...dog.skills };
-    g.shelter = [];
-    g.block = 'evening';
+    dog = adoptDog(g, index, clean);
+    if (!dog) return;
+    if (first) g.block = 'evening';
     note(g, `Brought ${clean} home from Larchwood Rescue.`);
   });
+  if (!dog) {
+    toast(`The adoption fee is $${ADOPTION_FEE}. Noticeboard jobs pay.`, 'warn');
+    return;
+  }
   goHome('van');
+  if (first) {
+    say([
+      { speaker: 'You', text: `Welcome home, ${clean}. This is where you live now.` },
+      { speaker: 'You', text: 'First things first: a meal. The food bowl is by the runs.' },
+    ]);
+    return;
+  }
+  const others = before.dogs.map((d) => d.name).join(' and ');
   say([
-    { speaker: 'You', text: `Welcome home, ${clean}. This is where you live now.` },
-    { speaker: 'You', text: 'First things first: a meal. The food bowl is by the runs.' },
+    {
+      speaker: 'You',
+      text: `Welcome home, ${clean}. ${others} will show you around. Your run is ready, with your name on the door.`,
+    },
+    {
+      speaker: 'You',
+      text: 'At the runs I can choose who comes out with me. The others wait in their runs, and need feeding too.',
+    },
   ]);
+}
+
+/** Leaves the rescue without adopting (only once you already have a dog). */
+export function leaveShelter(): void {
+  if (!game().dogs.length) return;
+  goHome('van');
+}
+
+/** Swaps which dog walks out with you. */
+export function takeOut(id: string): void {
+  const dog = game().dogs.find((d) => d.id === id);
+  if (!dog) return;
+  commit((g) => setActiveDog(g, id));
+  goHome('runs');
+  toast(`${dog.name} bounds out of the run to join you.`, 'good');
+}
+
+/** Feeds the dogs waiting in the runs. */
+export function feedRunDogs(): void {
+  let out = { fed: [] as string[], hungry: [] as string[] };
+  commit((g) => {
+    out = feedRuns(g);
+  });
+  if (out.fed.length) toast(`Fed ${out.fed.join(' and ')}. ${game().food} meals left.`, 'good');
+  if (out.hungry.length)
+    toast(`No food left for ${out.hungry.join(' and ')}. Buy kibble at the village shop.`, 'warn');
+  if (!out.fed.length && !out.hungry.length) toast('Everyone in the runs is well fed.');
 }
 
 // ---------------------------------------------------------------------------
@@ -741,7 +795,10 @@ function finishLessonActivity(): void {
 export function abandonActivity(): void {
   const screen = get().screen;
   useApp.setState({ panel: null, result: null });
-  if (screen.kind === 'shelter') return;
+  if (screen.kind === 'shelter') {
+    leaveShelter();
+    return;
+  }
   // Ending a lesson early keeps whatever the dog learned so far.
   if (screen.kind === 'lesson') {
     finishLessonActivity();
@@ -791,7 +848,8 @@ export function canGoToFunDay(g: GameState): boolean {
 /** Today's trial, if there is one and the active dog can still enter it. */
 export function todaysTrial(g: GameState): EventDef | null {
   const dog = activeDog(g);
-  if (!dog || !isTrialDay(g.day) || g.trials.some((t) => t.day === g.day)) return null;
+  if (!dog || !isTrialDay(g.day)) return null;
+  if (g.trials.some((t) => t.day === g.day && t.dogId === dog.id)) return null;
   return trialEvent(g.seed, g.day, trialLevel(dog));
 }
 

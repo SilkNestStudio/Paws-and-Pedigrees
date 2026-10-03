@@ -3,7 +3,14 @@ import { aptitude, breedDescription, coatOf, CUE_LABELS, CUES, type Dog } from '
 import { describe as describeEstimate, isKnown } from '../core/dog/knowledge';
 import { APTITUDE_LABELS, APTITUDES } from '../core/genetics/traits';
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState } from '../game/state';
-import { ACTIVITY_ENERGY, RESTORATIONS, SHOP } from '../game/rules';
+import {
+  ACTIVITY_ENERGY,
+  ADOPTION_FEE,
+  canAdoptMore,
+  KENNEL_RUNS,
+  RESTORATIONS,
+  SHOP,
+} from '../game/rules';
 import { ageText, FIRST_TRIAL_DAY, nextTrialDay } from '../game/calendar';
 import { QUALIFY, TRIAL_RULES, trialLevel } from '../game/events';
 import { FREE_PLAY, RETRIEVE_SETUPS } from '../sim/exercises';
@@ -23,7 +30,11 @@ import {
   devSkipDays,
   devSkipToSunday,
   dogWithTitles,
+  feedRunDogs,
+  fillBowl,
   finishedEvent,
+  leaveShelter,
+  takeOut,
   goToBed,
   leaveEvent,
   ordinal,
@@ -66,6 +77,7 @@ export function Panels() {
       {panel === 'intro' && <Intro />}
       {panel === 'standings' && <Standings game={game} />}
       {panel === 'season' && <SeasonRecapPanel game={game} />}
+      {panel === 'kennel' && <KennelPanel game={game} />}
       {panel === 'menu' && <Menu />}
     </div>
   );
@@ -84,18 +96,22 @@ function Close({ label = 'Close' }: { label?: string }) {
 // ---------------------------------------------------------------------------
 
 function Office({ game }: { game: GameState }) {
-  const [tab, setTab] = useState<'dog' | 'diary' | 'notes'>(game.dogs.length ? 'dog' : 'notes');
-  const dog = activeDog(game);
+  const [tab, setTab] = useState<string>(game.activeDogId ?? 'notes');
+  const dog = game.dogs.find((d) => d.id === tab) ?? null;
   return (
     <div className="panel card">
       <div className="kicker">The office</div>
       <h2>Grandpa's ledger</h2>
       <div className="tabs">
-        {dog && (
-          <button className={`tab ${tab === 'dog' ? 'active' : ''}`} onClick={() => setTab('dog')}>
-            {dog.name}
+        {game.dogs.map((d) => (
+          <button
+            key={d.id}
+            className={`tab ${tab === d.id ? 'active' : ''}`}
+            onClick={() => setTab(d.id)}
+          >
+            {d.name}
           </button>
-        )}
+        ))}
         <button
           className={`tab ${tab === 'diary' ? 'active' : ''}`}
           onClick={() => setTab('diary')}
@@ -109,7 +125,7 @@ function Office({ game }: { game: GameState }) {
           Grandpa's notes
         </button>
       </div>
-      {tab === 'dog' && dog && <DogCard dog={dog} game={game} />}
+      {dog && <DogCard dog={dog} game={game} />}
       {tab === 'diary' && (
         <ul className="notes">
           {game.diary.length === 0 && <li>Nothing written yet. The pages are waiting.</li>}
@@ -307,6 +323,23 @@ function VanPanel({ game }: { game: GameState }) {
               onClick={() => useApp.setState({ panel: 'noticeboard' })}
             >
               See jobs
+            </button>
+          </div>
+        )}
+        {canAdoptMore(game) && (
+          <div className="row">
+            <div className="grow">
+              <div className="title">Larchwood Rescue</div>
+              <div className="sub">
+                New arrivals every season. Room in the runs for {KENNEL_RUNS - game.dogs.length}{' '}
+                more. Adoption fee ${ADOPTION_FEE}.
+              </div>
+            </div>
+            <button
+              className="button secondary"
+              onClick={() => go('Driving to Larchwood Rescue…', () => travel('shelter'))}
+            >
+              Visit
             </button>
           </div>
         )}
@@ -955,8 +988,13 @@ function ShelterCards({ game }: { game: GameState }) {
                   onChange={(e) => setName(e.target.value)}
                 />
                 <div className="button-row">
-                  <button className="button small" type="submit">
+                  <button
+                    className="button small"
+                    type="submit"
+                    disabled={game.dogs.length > 0 && game.money < ADOPTION_FEE}
+                  >
                     Take {name || dog.name} home
+                    {game.dogs.length > 0 ? ` ($${ADOPTION_FEE})` : ''}
                   </button>
                   <button className="link" type="button" onClick={() => setChoosing(null)}>
                     Back
@@ -987,6 +1025,82 @@ function ShelterCards({ game }: { game: GameState }) {
           </div>
         );
       })}
+      {game.dogs.length > 0 && (
+        <div className="shelter-card card leave">
+          <div className="title">Not today</div>
+          <div className="sub">You have ${game.money}. New dogs arrive every season.</div>
+          <div className="button-row">
+            <button
+              className="button secondary small"
+              onClick={() => go('Driving home…', leaveShelter)}
+            >
+              Drive home
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The kennel runs: who comes out, and feeding the others
+// ---------------------------------------------------------------------------
+
+function KennelPanel({ game }: { game: GameState }) {
+  const inRuns = game.dogs.filter((d) => d.id !== game.activeDogId);
+  const hungry = inRuns.filter((d) => d.fullness < 70).length;
+  return (
+    <div className="panel card">
+      <div className="kicker">The kennel runs</div>
+      <h2>Your dogs</h2>
+      <p className="lead">
+        One dog comes out with you; the others wait in their runs. {game.food} meals in the pantry.
+      </p>
+      <div className="list">
+        {game.dogs.map((d) => {
+          const out = d.id === game.activeDogId;
+          return (
+            <div key={d.id} className={`row ${out ? 'active' : ''}`}>
+              <div className="grow">
+                <div className="title">{dogWithTitles(d)}</div>
+                <div className="sub">
+                  {ageText(d.ageMonths)} · {coatOf(d).name}
+                </div>
+                <div className="needs-row">
+                  <span>Energy</span>
+                  <Bar value={d.energy / 100} />
+                  <span>Fed</span>
+                  <Bar value={d.fullness / 100} />
+                </div>
+              </div>
+              {out ? (
+                <span className="badge good">With you</span>
+              ) : (
+                <button
+                  className="button secondary"
+                  onClick={() => go(`Fetching ${d.name}…`, () => takeOut(d.id))}
+                >
+                  Take out
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="button-row">
+        {inRuns.length > 0 && (
+          <button className="button" disabled={hungry === 0} onClick={feedRunDogs}>
+            {hungry
+              ? `Feed the dogs in the runs (${hungry} meal${hungry > 1 ? 's' : ''})`
+              : 'Runs are fed'}
+          </button>
+        )}
+        <button className="button secondary" disabled={game.bowlFilled} onClick={fillBowl}>
+          {game.bowlFilled ? 'Bowl is full' : `Fill ${activeDog(game)?.name ?? 'the'}'s bowl`}
+        </button>
+        <Close />
+      </div>
     </div>
   );
 }

@@ -68,6 +68,9 @@ export const HOME_SPOTS: Spot[] = [
   { id: 'scentGarden', pos: { x: -30, z: 49 }, reach: 4, label: 'Overgrown corner' },
 ];
 
+/** Where a dog rests inside run `bay` of the kennel block (0 = leftmost seen from the yard). */
+export const runPosition = (bay: number): Vec2 => ({ x: 20.25 - 2.5 * bay, z: 56 });
+
 export const HOME_BOUNDS = { minX: -40, maxX: 40, minZ: 45, maxZ: 82 };
 
 export const HOME_SOLIDS: (Block2 & { height: number })[] = [
@@ -111,9 +114,10 @@ export function createHomeSession(
   seed: number,
   start: Vec2,
   bowlFilled: boolean,
+  heading = Math.PI,
 ): HomeSession {
   const keeper = createKeeper(start);
-  keeper.heading = Math.PI;
+  keeper.heading = heading;
   const params = dog ? dogParams(dog) : null;
   const agent = dog && params ? createDog(add(start, { x: -1.2, z: 1 }), params) : null;
   if (agent) agent.mode = 'heel';

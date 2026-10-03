@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { migrate, newGame, update, type GameState } from '../src/game/state';
 import { progressStory } from '../src/game/story';
-import { finishActivity, sleep } from '../src/game/rules';
+import {
+  adoptDog,
+  ADOPTION_FEE,
+  canAdoptMore,
+  feedRuns,
+  finishActivity,
+  refreshShelter,
+  sleep,
+} from '../src/game/rules';
 import { FIRST_TRIAL_DAY, isTrialDay, nextTrialDay, seasonOf, yearOf } from '../src/game/calendar';
 import {
   enterEvent,
@@ -155,5 +163,44 @@ describe('trials and titles', () => {
       return total / n;
     };
     expect(avg('open')).toBeGreaterThan(avg('novice'));
+  });
+});
+
+describe('a second dog', () => {
+  it('new arrivals come once a season, and later adoptions cost a fee', () => {
+    let s = withDog(21);
+    s = update(s, (d) => {
+      d.funDay = { entries: [], bestRound: 'mark' };
+      d.money = 100;
+      expect(canAdoptMore(d)).toBe(true);
+      refreshShelter(d);
+      expect(d.shelter.length).toBe(3);
+      const names = d.shelter.map((x) => x.id);
+      refreshShelter(d);
+      expect(d.shelter.map((x) => x.id)).toEqual(names); // same season, same dogs
+      const dog = adoptDog(d, 1, 'Juniper')!;
+      expect(dog.name).toBe('Juniper');
+      expect(d.activeDogId).toBe(dog.id);
+    });
+    expect(s.dogs.length).toBe(2);
+    expect(s.money).toBe(100 - ADOPTION_FEE);
+  });
+
+  it('dogs in the runs are fed from the pantry and go hungry without it', () => {
+    let s = withDog(22);
+    s = update(s, (d) => {
+      d.funDay = { entries: [], bestRound: 'mark' };
+      d.money = 100;
+      refreshShelter(d);
+      adoptDog(d, 0, 'Second');
+      d.activeDogId = d.dogs[1]!.id;
+      d.dogs[0]!.fullness = 20;
+      d.food = 1;
+      const out = feedRuns(d);
+      expect(out.fed).toEqual([d.dogs[0]!.name]);
+      d.dogs[0]!.fullness = 20;
+      expect(feedRuns(d).hungry).toEqual([d.dogs[0]!.name]);
+    });
+    expect(s.food).toBe(0);
   });
 });

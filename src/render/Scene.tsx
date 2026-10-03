@@ -8,7 +8,14 @@ import { objective, type Landmark } from '../game/story';
 import { FIXED_DT, aimTarget, stepSession, type RetrieveSession } from '../sim/retrieve';
 import { stepSearch, type SearchSession } from '../sim/search';
 import { stepTraining, type TrainingSession } from '../sim/training';
-import { HOME_SOLIDS, HOME_SPOTS, routeAround, setHomeInput, stepHome } from '../sim/home';
+import {
+  HOME_SOLIDS,
+  HOME_SPOTS,
+  routeAround,
+  runPosition,
+  setHomeInput,
+  stepHome,
+} from '../sim/home';
 import { windAt } from '../sim/scent';
 import { live, useApp, type Place } from '../app/store';
 import { cameraState } from '../app/input';
@@ -845,6 +852,16 @@ function Bystanders({ place }: { place: Place }) {
           </group>
         );
       })}
+      {place === 'home' &&
+        game.dogs.map((d, i) =>
+          d.id === game.activeDogId ? null : (
+            <AnyDog
+              key={d.id}
+              dog={d}
+              view={() => still(runPosition(i), Math.PI, d.energy < 50 ? 'down' : 'sit')}
+            />
+          ),
+        )}
       {place === 'shelter' &&
         game.shelter.map((d, i) =>
           i === useApp.getState().shelterPick ? null : (
@@ -922,6 +939,7 @@ export function Scene() {
                 kennelName={game?.kennelName ?? ''}
                 bowlFilled={!!game?.bowlFilled}
                 gardenRestored={!!game && hasFlag(game, 'restored:scentGarden')}
+                runNames={game?.dogs.map((d) => d.name) ?? []}
               />
             </Suspense>
             <WindFlag x={-24} z={8} heading={wind.heading} strength={strength} />
