@@ -9,6 +9,7 @@ import {
   normalize,
   scale,
   sub,
+  turnToward,
   wrapAngle,
   type Vec2,
 } from '../core/math';
@@ -647,8 +648,10 @@ function atSide(s: RetrieveSession, dt: number): void {
     if (dog.mode === 'sit') {
       brake(dog, params, dt);
       dog.pose = 'sit';
-      const ahead = add(dog.pos, fromHeading(keeper.heading, 5));
-      dog.heading = headingOf(sub(ahead, dog.pos));
+      // Shuffle round smoothly to face what the keeper faces (or the fall it is
+      // watching); snapping to the keeper's heading made the dog spin as you turned.
+      const watching = dog.lookAt ? headingOf(sub(dog.lookAt, dog.pos)) : keeper.heading;
+      dog.heading = turnToward(dog.heading, watching, 3 * dt);
     }
   }
 

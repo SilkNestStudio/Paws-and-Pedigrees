@@ -389,6 +389,7 @@ function stepHomeDog(s: HomeSession, dog: DogAgent, params: DogParams, dt: numbe
           noseDown: false,
           text: 'Trotting along with you',
         };
+        if (awayFromKeeper < 4) dog.lookAt = k.pos;
       } else {
         brake(dog, params, dt);
         dog.lookAt = k.pos;

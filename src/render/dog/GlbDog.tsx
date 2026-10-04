@@ -385,14 +385,19 @@ export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
     // Layer body language on top of the clip.
     if (bones.spine_01) bones.spine_01.rotateZ(s.lean * 0.5);
 
+    // Turn the head toward what the dog is watching, but only within reach:
+    // nothing right under its nose (the angle is meaningless there) and
+    // nothing behind it (the angle flips sides as it passes behind).
     let yaw = 0;
     if (v.lookAt) {
-      yaw = Math.max(
-        -1,
-        Math.min(1, wrapAngle(Math.atan2(v.lookAt.x - v.pos.x, v.lookAt.z - v.pos.z) - v.heading)),
-      );
+      const dx = v.lookAt.x - v.pos.x;
+      const dz = v.lookAt.z - v.pos.z;
+      const rel = wrapAngle(Math.atan2(dx, dz) - v.heading);
+      const behind = Math.max(0, Math.min(1, (Math.abs(rel) - 1.3) / 0.9));
+      const near = Math.max(0, Math.min(1, (Math.hypot(dx, dz) - 0.8) / 0.8));
+      yaw = Math.max(-1, Math.min(1, rel)) * (1 - behind) * near;
     }
-    s.yaw += (yaw - s.yaw) * damp(5, dt);
+    s.yaw += (yaw - s.yaw) * damp(4, dt);
     bones.neck_02?.rotateZ(s.yaw * 0.45);
     bones.head?.rotateZ(s.yaw * 0.4);
 
