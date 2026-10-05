@@ -107,6 +107,8 @@ export interface HomeSession {
   ate: boolean;
   nearSpot: SpotId | null;
   nearDog: boolean;
+  /** The dog has arrived where it was going in this mode and is staying put. */
+  settled: boolean;
 }
 
 export function createHomeSession(
@@ -134,6 +136,7 @@ export function createHomeSession(
     ate: false,
     nearSpot: null,
     nearDog: false,
+    settled: false,
   };
 }
 
@@ -285,6 +288,7 @@ export function greetDog(s: HomeSession): void {
 function setDogMode(s: HomeSession, mode: HomeDogMode): void {
   s.dogMode = mode;
   s.modeTime = 0;
+  s.settled = false;
 }
 
 export function stepHome(s: HomeSession, dt: number): void {
@@ -323,6 +327,22 @@ function stepKeeperHome(k: KeeperAgent, dt: number): void {
   }
 }
 
+/** A spot to sniff about: a few metres out in front of the keeper, in view, and in the yard. */
+function potterSpot(s: HomeSession): Vec2 {
+  const k = s.keeper;
+  for (let i = 0; i < 8; i++) {
+    const angle = k.heading + (random(s.rng) - 0.5) * 1.6;
+    const p = add(k.pos, fromHeading(angle, 3.5 + random(s.rng) * 4.5));
+    const inside =
+      p.x > HOME_BOUNDS.minX + 2 &&
+      p.x < HOME_BOUNDS.maxX - 2 &&
+      p.z > HOME_BOUNDS.minZ + 2 &&
+      p.z < HOME_BOUNDS.maxZ - 2;
+    if (inside && distance(collide(p, 0.6), p) < 0.01) return p;
+  }
+  return POTTER_SPOTS[Math.floor(random(s.rng) * POTTER_SPOTS.length)]!;
+}
+
 /** Where the dog stands to eat, facing the bowl just outside the runs. */
 const BOWL: Vec2 = { x: 13.5, z: 52.7 };
 
@@ -332,7 +352,8 @@ function stepHomeDog(s: HomeSession, dog: DogAgent, params: DogParams, dt: numbe
   const go = (target: Vec2, speed: number, arrive = 0.5) => {
     const next = routeAround(dog.pos, target);
     const final = next === target;
-    const done = steerToward(dog, params, yard, next, speed, dt, final ? arrive : 1.5);
+    // Corners on the way are passed through, not stopped at.
+    const done = steerToward(dog, params, yard, next, speed, dt, final ? arrive : 0.05);
     dog.pos = collide(dog.pos, 0.35);
     return final && done;
   };
@@ -365,7 +386,10 @@ function stepHomeDog(s: HomeSession, dog: DogAgent, params: DogParams, dt: numbe
         noseDown: false,
         text: s.dogMode === 'greet' ? 'Loving the attention' : 'Coming to you',
       };
-      if (go(front, params.trot * 1.5, 0.7)) {
+      // Once sitting in front of you, stay put unless you walk off.
+      if (s.settled && distance(dog.pos, front) > 2.2) s.settled = false;
+      if (s.settled || go(front, params.trot * 1.5, 0.9)) {
+        s.settled = true;
         brake(dog, params, dt);
         dog.heading = headingOf(sub(k.pos, dog.pos));
         dog.pose = 'sit';
@@ -397,8 +421,9 @@ function stepHomeDog(s: HomeSession, dog: DogAgent, params: DogParams, dt: numbe
         dog.tell = { ears: 'forward', tail: 'wag', noseDown: false, text: 'Watching you' };
       }
       // Left alone for a while, the dog goes exploring.
-      if (k.stillTime > 7 || (k.stillTime > 4 && random(s.rng) < dt * 0.15)) {
-        s.potterTarget = POTTER_SPOTS[Math.floor(random(s.rng) * POTTER_SPOTS.length)]!;
+      // Left alone for a while, the dog has a sniff about, somewhere you can see it.
+      if (k.stillTime > 18 || (k.stillTime > 10 && random(s.rng) < dt * 0.1)) {
+        s.potterTarget = potterSpot(s);
         setDogMode(s, 'potter');
       }
       break;
@@ -419,7 +444,7 @@ function stepHomeDog(s: HomeSession, dog: DogAgent, params: DogParams, dt: numbe
         dog.pose = 'stand';
         dog.tell = { ears: 'neutral', tail: 'wag', noseDown: true, text: 'Exploring' };
       }
-      if (k.speed > 0.5 && awayFromKeeper > 8) setDogMode(s, 'follow');
+      if (k.speed > 0.5 && awayFromKeeper > 4) setDogMode(s, 'follow');
       break;
     }
     case 'nap':

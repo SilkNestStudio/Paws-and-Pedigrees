@@ -1,4 +1,13 @@
-import { clamp, distance, fromHeading, headingOf, sub, turnToward, type Vec2 } from '../core/math';
+import {
+  clamp,
+  distance,
+  fromHeading,
+  headingOf,
+  sub,
+  turnToward,
+  wrapAngle,
+  type Vec2,
+} from '../core/math';
 import type { DogParams } from './dogParams';
 import { clampToField, coverAt, resolveTrees, type Field, inWater, resolvePonds } from './field';
 
@@ -245,8 +254,20 @@ export function steerToward(
   arriveRadius = 1.5,
 ): boolean {
   const d = distance(dog.pos, target);
-  const speed = d < arriveRadius * 2 ? Math.min(desiredSpeed, 1 + d * 1.2) : desiredSpeed;
-  steerDog(dog, params, field, headingOf(sub(target, dog.pos)), speed, dt);
+  // Arrived: stop. Turning toward a point under its feet only makes the dog spin.
+  if (d <= arriveRadius) {
+    brake(dog, params, dt);
+    return true;
+  }
+  const want = headingOf(sub(target, dog.pos));
+  let speed = d < arriveRadius * 2 ? Math.min(desiredSpeed, 1 + d * 1.2) : desiredSpeed;
+  // Close to the target but facing away from it: slow right down and turn,
+  // rather than circling round it at speed.
+  if (d < arriveRadius * 2 + 2.5) {
+    const align = Math.cos(wrapAngle(want - dog.heading));
+    speed *= Math.max(0.12, (align + 1) / 2) ** 2;
+  }
+  steerDog(dog, params, field, want, speed, dt);
   return d <= arriveRadius;
 }
 
