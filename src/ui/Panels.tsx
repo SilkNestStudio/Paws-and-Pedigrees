@@ -16,6 +16,7 @@ import { QUALIFY, TRIAL_RULES, trialLevel } from '../game/events';
 import { FREE_PLAY, RETRIEVE_SETUPS, WATER_SETUPS } from '../sim/exercises';
 import { LESSONS, type Lesson } from '../sim/training';
 import { useApp } from '../app/store';
+import { BreedingPanel, PedigreeBlock, WhelpingRoomPanel } from './Breeding';
 import {
   go,
   adopt,
@@ -28,6 +29,8 @@ import {
   devAdoptQuick,
   devMoney,
   devSkipDays,
+  devSkipToLitter,
+  devSkipToPuppiesReady,
   devSkipToSunday,
   dogWithTitles,
   feedRunDogs,
@@ -79,6 +82,8 @@ export function Panels() {
       {panel === 'standings' && <Standings game={game} />}
       {panel === 'season' && <SeasonRecapPanel game={game} />}
       {panel === 'kennel' && <KennelPanel game={game} />}
+      {panel === 'breeding' && <BreedingPanel game={game} />}
+      {panel === 'whelping' && <WhelpingRoomPanel game={game} />}
       {panel === 'menu' && <Menu />}
     </div>
   );
@@ -230,6 +235,7 @@ function DogCard({ dog, game }: { dog: Dog; game: GameState }) {
         </div>
       </div>
       {coat.notes.length > 0 && <p className="small">{coat.notes.join(' ')}</p>}
+      <PedigreeBlock game={game} dog={dog} />
     </div>
   );
 }
@@ -849,6 +855,12 @@ function SeasonRecapPanel({ game }: { game: GameState }) {
             {Math.round(g.after * 100)}%
           </li>
         ))}
+        {(r.litters ?? []).map((l) => (
+          <li key={l.dam + l.sire} className="discovery">
+            {l.dam} had {l.count} puppies by {l.sire}. They can leave their mother now: keep or
+            place them at the puppy paddock.
+          </li>
+        ))}
         {r.ages.map((a) => (
           <li key={a.dog} className="discovery">
             {a.dog} is now {ageText(a.months)} old.
@@ -943,6 +955,16 @@ function Menu() {
           <button className="button secondary small" onClick={() => devSkipToSunday()}>
             Skip to Sunday
           </button>
+          {game && game.pregnancies.length > 0 && (
+            <button className="button secondary small" onClick={() => devSkipToLitter()}>
+              Skip to the litter
+            </button>
+          )}
+          {game && game.litters.some((l) => l.puppies.some((p) => p.ageMonths < 3)) && (
+            <button className="button secondary small" onClick={() => devSkipToPuppiesReady()}>
+              Skip until the puppies can leave
+            </button>
+          )}
           {game && game.dogs.length === 0 && (
             <button className="button secondary small" onClick={devAdoptQuick}>
               Adopt the first dog now

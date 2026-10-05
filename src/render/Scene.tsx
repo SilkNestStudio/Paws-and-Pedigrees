@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { damp, distance, fromHeading, wrapAngle, type Vec2 } from '../core/math';
+import { damp, distance, fromHeading, turnToward, wrapAngle, type Vec2 } from '../core/math';
 import type { Dog } from '../core/dog/dog';
 import { activeDog, hasFlag } from '../game/state';
 import { objective, type Landmark } from '../game/story';
@@ -11,6 +11,7 @@ import { stepTraining, type TrainingSession } from '../sim/training';
 import {
   HOME_SOLIDS,
   HOME_SPOTS,
+  PADDOCK,
   routeAround,
   runPosition,
   setHomeInput,
@@ -830,6 +831,93 @@ const still = (pos: Vec2, heading: number, pose: DogView['pose'] = 'sit'): DogVi
   carrying: null,
 });
 
+/** A dam with young puppies stays in the paddock with them. */
+const nursing = (game: NonNullable<ReturnType<typeof useApp.getState>['game']>, id: string) =>
+  game.litters.some((l) => l.damId === id && l.puppies.some((p) => p.ageMonths < 3));
+
+interface PupState {
+  pos: Vec2;
+  heading: number;
+  speed: number;
+  target: Vec2;
+  wait: number;
+  pose: 'stand' | 'sit' | 'down';
+}
+
+const randomInPaddock = (): Vec2 => ({
+  x: PADDOCK.minX + 0.7 + Math.random() * (PADDOCK.maxX - PADDOCK.minX - 1.4),
+  z: PADDOCK.minZ + 0.7 + Math.random() * (PADDOCK.maxZ - PADDOCK.minZ - 1.4),
+});
+
+/** The litter tumbling about the paddock, with their mother lying in the straw. */
+function PaddockPuppies() {
+  const game = useApp((s) => s.game);
+  const states = useRef(new Map<string, PupState>());
+  const pups = useMemo(() => (game ? game.litters.flatMap((l) => l.puppies) : []), [game]);
+  const dam = useMemo(
+    () => game?.dogs.find((d) => d.id !== game.activeDogId && nursing(game, d.id)) ?? null,
+    [game],
+  );
+  useFrame((_, rawDt) => {
+    const dt = Math.min(rawDt, 0.05);
+    for (const p of pups) {
+      let st = states.current.get(p.id);
+      if (!st) {
+        st = {
+          pos: randomInPaddock(),
+          heading: Math.random() * 6.28,
+          speed: 0,
+          target: randomInPaddock(),
+          wait: Math.random() * 2,
+          pose: 'stand',
+        };
+        states.current.set(p.id, st);
+      }
+      if (st.wait > 0) {
+        st.wait -= dt;
+        st.speed = Math.max(0, st.speed - dt * 4);
+        continue;
+      }
+      const dx = st.target.x - st.pos.x;
+      const dz = st.target.z - st.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.25) {
+        st.target = randomInPaddock();
+        st.wait = 0.6 + Math.random() * 3;
+        const r = Math.random();
+        st.pose = r < 0.15 ? 'down' : r < 0.4 ? 'sit' : 'stand';
+        continue;
+      }
+      st.pose = 'stand';
+      st.heading = turnToward(st.heading, Math.atan2(dx, dz), 5 * dt);
+      st.speed =
+        Math.min(1.1, st.speed + dt * 3) *
+        Math.max(0.2, Math.cos(wrapAngle(Math.atan2(dx, dz) - st.heading)));
+      st.pos = {
+        x: st.pos.x + Math.sin(st.heading) * st.speed * dt,
+        z: st.pos.z + Math.cos(st.heading) * st.speed * dt,
+      };
+    }
+  });
+  return (
+    <>
+      {dam && <AnyDog dog={dam} view={() => still({ x: 31.2, z: 56.4 }, Math.PI * 1.1, 'down')} />}
+      {pups.map((p) => (
+        <AnyDog
+          key={p.id}
+          dog={p}
+          view={() => {
+            const st = states.current.get(p.id);
+            const growth = 0.55 + 0.45 * Math.min(1, p.ageMonths / 12);
+            const base = still(st?.pos ?? { x: 31, z: 55 }, st?.heading ?? 0, st?.pose ?? 'stand');
+            return { ...base, speed: st?.speed ?? 0, growth };
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 function Bystanders({ place }: { place: Place }) {
   const game = useApp((s) => s.game);
   const screen = useApp((s) => s.screen);
@@ -893,9 +981,10 @@ function Bystanders({ place }: { place: Place }) {
           </group>
         );
       })}
+      {place === 'home' && <PaddockPuppies />}
       {place === 'home' &&
         game.dogs.map((d, i) =>
-          d.id === game.activeDogId ? null : (
+          d.id === game.activeDogId || nursing(game, d.id) ? null : (
             <AnyDog
               key={d.id}
               dog={d}
@@ -984,6 +1073,7 @@ export function Scene() {
                 bowlFilled={!!game?.bowlFilled}
                 gardenRestored={!!game && hasFlag(game, 'restored:scentGarden')}
                 runNames={game?.dogs.map((d) => d.name) ?? []}
+                paddock={!!game && hasFlag(game, 'restored:whelpingRoom')}
               />
             </Suspense>
             <WindFlag x={-24} z={8} heading={wind.heading} strength={strength} />

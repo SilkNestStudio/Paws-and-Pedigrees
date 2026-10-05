@@ -647,3 +647,177 @@
   font-size: clamp(22px, 4vw, 34px);
   font-style: italic;
 }
+
+/* Breeding */
+.panel.wide {
+  width: min(860px, 100%);
+}
+
+.swatch.inline {
+  display: inline-block;
+  border-radius: 50%;
+  flex: none;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  vertical-align: middle;
+}
+
+.pickers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 230px;
+  overflow: auto;
+}
+
+.pick {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+
+.pick.active {
+  border-color: var(--orange, #d9622b);
+}
+
+.pick span {
+  display: flex;
+  flex-direction: column;
+}
+
+.pick small {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.forecast {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: #fff;
+  border-radius: 16px;
+}
+
+.forecast h3 {
+  margin-top: 0;
+}
+
+.forecast h4 {
+  margin: 14px 0 6px;
+  font-size: 14px;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge.warn {
+  background: #f6dccf;
+  color: #8a3b1a;
+}
+
+.coat-odds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 14px;
+}
+
+.coat-odd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.coat-odd .swatch {
+  width: 22px;
+  height: 22px;
+}
+
+.coat-odd .grow,
+.row .grow {
+  flex: 1;
+}
+
+.talents {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 16px;
+}
+
+.range .mid {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 3px;
+  margin-left: -1px;
+  background: #3b2a1e;
+}
+
+.litter {
+  margin-bottom: 14px;
+}
+
+.puppies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.puppy {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.puppy-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.puppy input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid #d8cfbd;
+  font: inherit;
+}
+
+.ped {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.ped td {
+  border: 1px solid #e6dcc8;
+  padding: 4px 8px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .pickers {
+    grid-template-columns: 1fr;
+  }
+}

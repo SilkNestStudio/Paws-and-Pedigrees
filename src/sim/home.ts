@@ -37,7 +37,8 @@ export type SpotId =
   | 'fieldGate'
   | 'house'
   | 'scentGarden'
-  | 'bowl';
+  | 'bowl'
+  | 'paddock';
 
 export interface Spot {
   id: SpotId;
@@ -66,7 +67,11 @@ export const HOME_SPOTS: Spot[] = [
   { id: 'van', pos: { x: 26, z: 70 }, reach: 3.2, label: 'Van' },
   { id: 'gateSign', pos: { x: 0, z: 79 }, reach: 3, label: 'Gate sign' },
   { id: 'scentGarden', pos: { x: -30, z: 49 }, reach: 4, label: 'Overgrown corner' },
+  { id: 'paddock', pos: { x: 31, z: 50.6 }, reach: 2.8, label: 'Puppy paddock' },
 ];
+
+/** The puppy paddock beside the kennel block, where litters grow up. */
+export const PADDOCK = { minX: 28, maxX: 34, minZ: 52.5, maxZ: 57.5 };
 
 /** Where a dog rests inside run `bay` of the kennel block (0 = leftmost seen from the yard). */
 export const runPosition = (bay: number): Vec2 => ({ x: 20.25 - 2.5 * bay, z: 56 });
@@ -79,6 +84,7 @@ export const HOME_SOLIDS: (Block2 & { height: number })[] = [
   { minX: 6.5, maxX: 21.5, minZ: 54.4, maxZ: 57.8, height: 1.6 }, // the runs in front of it
   { minX: 21, maxX: 24, minZ: 58, maxZ: 62, height: 2.8 }, // pantry shed
   { minX: 23.5, maxX: 28.5, minZ: 71, maxZ: 74, height: 2.4 }, // van
+  { minX: 27.8, maxX: 34.2, minZ: 52.3, maxZ: 57.7, height: 1.0 }, // puppy paddock fence
 ];
 
 /** Where the dog likes to potter about when nothing is happening. */

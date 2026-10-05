@@ -69,6 +69,7 @@ const SPOT_ACTIONS: Record<SpotId, string> = {
   noticeboard: 'Read the noticeboard',
   fieldGate: 'Go training',
   scentGarden: 'Look at the overgrown corner',
+  paddock: 'The puppy paddock',
 };
 
 function homeSnapshot(h: HomeSession): HudSnapshot {

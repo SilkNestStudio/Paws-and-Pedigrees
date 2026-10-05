@@ -340,13 +340,15 @@ export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
     const { root, bones, actions, mixer } = rig;
 
     root.position.set(v.pos.x, v.groundY ?? heightAt(v.pos.x, v.pos.z), v.pos.z);
+    const growth = v.growth ?? 1;
+    root.scale.setScalar(rig.scale * growth);
     root.rotation.y = v.heading;
     const turn = wrapAngle(v.heading - s.lastHeading) / Math.max(dt, 1e-3);
     s.lastHeading = v.heading;
     s.lean += (Math.max(-0.2, Math.min(0.2, -turn * v.speed * 0.01)) - s.lean) * damp(6, dt);
 
     // Choose the clip from what the simulation says the dog is doing.
-    const size = rig.scale;
+    const size = rig.scale * growth;
     let clip: ClipName = 'Idle';
     let timeScale = 1;
     if (v.pose === 'sit') clip = 'Sit';

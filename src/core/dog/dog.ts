@@ -55,6 +55,10 @@ export interface Dog {
   titles: TrialLevel[];
   /** Qualifying runs toward the title at each level. */
   qualifiers: Partial<Record<TrialLevel, number>>;
+  /** The coat genes have been DNA tested, so the keeper can see them. */
+  dnaTested: boolean;
+  /** The kennel that bred this dog, if it was bred rather than found. */
+  breeder?: string;
 }
 
 /** A dog's aptitude on the 1-99 scale (50 = average dog). */
@@ -197,6 +201,71 @@ export function generateRescue(rng: Rng, name?: string): Dog {
     energy: 90,
     titles: [],
     qualifiers: {},
+    dnaTested: false,
+  };
+}
+
+const PUPPY_NAMES: Record<Sex, string[]> = {
+  female: [
+    'Bramble',
+    'Thistle',
+    'Meadow',
+    'Skye',
+    'Willa',
+    'Pip',
+    'Rue',
+    'Holly',
+    'Briar',
+    'Myrtle',
+    'Ottilie',
+    'Dove',
+  ],
+  male: [
+    'Barley',
+    'Rowan',
+    'Flint',
+    'Hollin',
+    'Teasel',
+    'Ash',
+    'Cobble',
+    'Linden',
+    'Bracken',
+    'Heath',
+    'Sorrel',
+    'Tor',
+  ],
+};
+
+/** A newborn puppy from two parents, with its own genes drawn from both. */
+export function createPuppy(
+  rng: Rng,
+  sire: Dog,
+  dam: Dog,
+  inbreeding: number,
+  breeder: string,
+  taken: string[],
+): Dog {
+  const sex: Sex = chance(rng, 0.5) ? 'female' : 'male';
+  const free = PUPPY_NAMES[sex].filter((n) => !taken.includes(n));
+  return {
+    id: newId(rng),
+    name: free.length ? pick(rng, free) : pick(rng, PUPPY_NAMES[sex]),
+    sex,
+    ageMonths: 0,
+    genome: inheritGenome(rng, sire.genome, dam.genome, inbreeding),
+    breedMix: mixBreeds(sire.breedMix, dam.breedMix),
+    origin: 'bred',
+    premiumTouched: sire.premiumTouched || dam.premiumTouched,
+    sireId: sire.id,
+    damId: dam.id,
+    skills: { sit: 0, stay: 0, recall: 0.1, stop: 0, cast: 0, deliver: 0, indicate: 0 },
+    bond: 40,
+    fullness: 80,
+    energy: 100,
+    titles: [],
+    qualifiers: {},
+    dnaTested: false,
+    breeder,
   };
 }
 

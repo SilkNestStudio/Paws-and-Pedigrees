@@ -3,6 +3,7 @@ import { CUES, generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
 import type { DogKnowledge } from '../core/dog/knowledge';
 import type { Job } from './jobs';
 import type { EventRecord } from './events';
+import type { Litter, PedigreeEntry, Pregnancy } from './breeding';
 
 /**
  * The saved game. Everything the player has done lives here; it is plain
@@ -76,10 +77,12 @@ export interface SeasonRecap {
   skillGains: { dog: string; cue: Cue; before: number; after: number }[];
   trials: { name: string; placing: number; entries: number; qualified: boolean }[];
   ages: { dog: string; months: number }[];
+  /** Litters born this season. */
+  litters?: { dam: string; sire: string; count: number }[];
 }
 
 export interface GameState {
-  version: 2;
+  version: 3;
   seed: number;
   kennelName: string;
   money: number;
@@ -112,6 +115,12 @@ export interface GameState {
   recap: SeasonRecap | null;
   /** Jobs done this season; they come back on the board next season. */
   recentJobs: string[];
+  /** Dams in whelp. */
+  pregnancies: Pregnancy[];
+  /** Every litter bred here, with the puppies still at home. */
+  litters: Litter[];
+  /** Every dog the kennel has known, for pedigrees and relatedness. */
+  pedigree: Record<string, PedigreeEntry>;
 }
 
 export const STARTING_MONEY = 40;
@@ -121,7 +130,7 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
   const rng = createRng(seed);
   const shelter = generateShelterTrio(rng);
   return {
-    version: 2,
+    version: 3,
     seed,
     kennelName: '',
     money: STARTING_MONEY,
@@ -146,6 +155,9 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
     season: { startDay: 1, money: STARTING_MONEY, jobsDone: 0, skills: {} },
     recap: null,
     recentJobs: [],
+    pregnancies: [],
+    litters: [],
+    pedigree: {},
   };
 }
 
@@ -164,11 +176,12 @@ export function migrate(raw: unknown): GameState | null {
   const s = raw as Omit<Partial<GameState>, 'version'> & { version?: number };
   if (!s || !Array.isArray(s.dogs) || typeof s.day !== 'number' || typeof s.story !== 'string')
     return null;
-  if (s.version !== 1 && s.version !== 2) return null;
+  if (s.version !== 1 && s.version !== 2 && s.version !== 3) return null;
   const state = s as unknown as GameState;
   for (const dog of [...state.dogs, ...(state.shelter ?? [])]) {
     dog.titles ??= [];
     dog.qualifiers ??= {};
+    dog.dnaTested ??= false;
     for (const cue of CUES) dog.skills[cue] ??= 0;
   }
   state.trials ??= [];
@@ -180,7 +193,23 @@ export function migrate(raw: unknown): GameState | null {
     jobsDone: state.jobsDone?.length ?? 0,
     skills: skillSnapshot(state.dogs),
   };
-  state.version = 2;
+  state.pregnancies ??= [];
+  state.litters ??= [];
+  if (!state.pedigree) {
+    state.pedigree = {};
+    for (const dog of state.dogs)
+      state.pedigree[dog.id] = {
+        id: dog.id,
+        name: dog.name,
+        sex: dog.sex,
+        kennel: 'Larchwood Rescue',
+        coat: '',
+        breed: '',
+        titles: [...dog.titles],
+        inbreeding: dog.genome.inbreeding,
+      };
+  }
+  state.version = 3;
   return state;
 }
 

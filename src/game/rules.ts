@@ -2,6 +2,7 @@ import { clamp } from '../core/math';
 import { ACTIVITY_OBSERVATIONS, observe, type Discovery } from '../core/dog/knowledge';
 import { CUES, generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
 import { boardForDay } from './jobs';
+import { dueToday, growPuppies, register } from './breeding';
 import {
   activeDog,
   addFlag,
@@ -87,6 +88,15 @@ export const RESTORATIONS: Restoration[] = [
       'The "Search and indicate" lesson, which teaches your dog to sit and point out a find instead of guessing.',
   },
   {
+    id: 'whelpingRoom',
+    name: "Grandpa's whelping room",
+    cost: 80,
+    description:
+      'The warm room at the end of the kennel block where every champion of his was born, and the puppy paddock beside it. Scrub it out and put down fresh bedding.',
+    unlocks:
+      'Breeding: plan pairings with your own dogs or famous studs, raise litters, and keep the best puppies or place them in good homes.',
+  },
+  {
     id: 'duckPond',
     name: "Grandpa's duck pond",
     cost: 150,
@@ -131,6 +141,14 @@ export function canStartActivity(
 ): { ok: true } | { ok: false; reason: string } {
   const dog = activeDog(state);
   if (!dog) return { ok: false, reason: 'You need a dog first.' };
+  const hard = kind === 'mark' || kind === 'blind' || kind === 'search' || kind === 'funday';
+  if (hard && state.pregnancies.some((p) => p.damId === dog.id))
+    return {
+      ok: false,
+      reason: `${dog.name} is in whelp: gentle lessons only until her puppies come.`,
+    };
+  if (hard && dog.ageMonths < 9)
+    return { ok: false, reason: `${dog.name} is still a puppy: lessons only until 9 months old.` };
   if (TAKES_TIME[kind] && state.block === 'night') {
     return { ok: false, reason: "It's dark. Time for bed; the day starts fresh tomorrow." };
   }
@@ -203,7 +221,12 @@ export function sleep(state: GameState): string[] {
   const lastDay = state.day;
   state.day += 1;
   state.block = 'morning';
+  for (const litter of dueToday(state))
+    messages.push(
+      `${litter.damName} has had her puppies: ${litter.puppies.length} of them! Go and see them in the puppy paddock.`,
+    );
   if (isSeasonStart(state.day)) {
+    messages.push(...growPuppies(state, MONTHS_PER_SEASON));
     state.recap = endSeason(state, lastDay);
     messages.push(
       `${seasonOf(state.day)} has come. Every dog is ${MONTHS_PER_SEASON} months older.`,
@@ -259,6 +282,13 @@ export function endSeason(state: GameState, lastDay: number): SeasonRecap {
     skillGains,
     trials,
     ages: state.dogs.map((d) => ({ dog: d.name, months: d.ageMonths })),
+    litters: state.litters
+      .filter((l) => l.bornDay >= mark.startDay && l.bornDay <= lastDay)
+      .map((l) => ({
+        dam: l.damName,
+        sire: l.sireName,
+        count: l.puppies.length + l.kept.length + l.placed.length,
+      })),
   };
   note(
     state,
@@ -347,6 +377,7 @@ export function adoptDog(state: GameState, index: number, name: string): Dog | n
   state.activeDogId = dog.id;
   state.season.skills[dog.id] = { ...dog.skills };
   state.shelter = [];
+  register(state, dog, 'Larchwood Rescue');
   return dog;
 }
 

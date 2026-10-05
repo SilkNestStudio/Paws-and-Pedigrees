@@ -107,6 +107,7 @@ export function HomeWorld({
   bowlFilled,
   gardenRestored,
   runNames = [],
+  paddock = false,
 }: {
   field: Field;
   kennelName: string;
@@ -114,6 +115,8 @@ export function HomeWorld({
   gardenRestored: boolean;
   /** Dogs' names in run order. */
   runNames?: string[];
+  /** Grandpa's whelping room and puppy paddock are restored. */
+  paddock?: boolean;
 }) {
   const plates = usePlates(runNames);
   const gateSign = useSignTexture(
@@ -215,6 +218,42 @@ export function HomeWorld({
       <Props name="Rock" items={rocks} />
       <Props name="TallGrassClump" items={grass} shadows={false} />
       <ScentGarden restored={gardenRestored} />
+      <Props name="FenceSection" items={PADDOCK_FENCE} />
+      {paddock && <Paddock />}
+    </>
+  );
+}
+
+const PADDOCK_FENCE: Placement[] = [
+  ...along([28, 52.5], [34, 52.5], 3),
+  ...along([28, 57.5], [34, 57.5], 3),
+  ...along([28, 52.5], [28, 57.5], 2.5),
+  ...along([34, 52.5], [34, 57.5], 2.5),
+];
+
+/** The puppy paddock: a low fence, fresh straw, and a sign. */
+function Paddock() {
+  const sign = useSignTexture(['Puppy paddock'], {
+    bg: '#f3ead8',
+    fg: '#3b2a1e',
+    width: 1024,
+    height: 308,
+    flipY: false,
+  });
+  const signs = useMemo(() => ({ SignFace: sign }), [sign]);
+  return (
+    <>
+      <mesh
+        position={[31, heightAt(31, 55) + 0.03, 55]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[5.7, 4.7]} />
+        <meshStandardMaterial color="#d8c27a" roughness={1} />
+      </mesh>
+      <Prop name="Bales" at={{ x: 33, z: 57, rot: Math.PI / 2, scale: 0.8 }} />
+      <Prop name="WaterBowl" at={{ x: 29, z: 53.3 }} />
+      <Prop name="GateSign" at={{ x: 34.9, z: 51.6, rot: -0.5, scale: 0.5 }} signs={signs} />
     </>
   );
 }

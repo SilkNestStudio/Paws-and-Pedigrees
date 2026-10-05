@@ -93,11 +93,16 @@ describe('older saves', () => {
     delete old.season;
     delete old.recap;
     delete old.recentJobs;
+    delete old.litters;
+    delete old.pregnancies;
+    delete old.pedigree;
     const dog = (old.dogs as Record<string, unknown>[])[0]!;
     delete dog.titles;
     delete dog.qualifiers;
     const s = migrate(structuredClone(old))!;
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(3);
+    expect(s.litters).toEqual([]);
+    expect(Object.keys(s.pedigree).length).toBe(1);
     expect(s.trials).toEqual([]);
     expect(s.dogs[0]!.titles).toEqual([]);
     expect(s.dogs[0]!.name).toBe((dog as { name: string }).name);

@@ -176,6 +176,25 @@ function trialObjective(state: GameState): Objective {
   ];
   if (!hasFlag(state, 'restored:scentGarden'))
     steps.push({ text: "Restore Grandpa's scent garden ($90)", done: false });
+  if (!hasFlag(state, 'restored:whelpingRoom'))
+    steps.push({
+      text: "Restore Grandpa's whelping room ($80) at the puppy paddock to start breeding",
+      done: false,
+    });
+  else {
+    const due = state.pregnancies[0];
+    const pups = state.litters.flatMap((l) => l.puppies);
+    if (due) steps.push({ text: `Puppies due on day ${due.dueDay}`, done: false });
+    else if (pups.length)
+      steps.push({
+        text: pups.some((p) => p.ageMonths >= 3)
+          ? "Decide each puppy's future: keep or place (puppy paddock)"
+          : `${pups.length} puppies growing up in the paddock`,
+        done: false,
+      });
+    else if (!hasFlag(state, 'firstLitter'))
+      steps.push({ text: 'Plan a first litter at the puppy paddock', done: false });
+  }
   return {
     title: today && !entered ? 'Trial day at Larkspur' : `${dog.name}'s ${rules.name} title`,
     steps,

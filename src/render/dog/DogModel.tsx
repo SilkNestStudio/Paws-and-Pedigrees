@@ -19,6 +19,8 @@ export interface DogView {
   carrying: 'dummy' | 'ball' | null;
   /** Ground height override; defaults to the field terrain. */
   groundY?: number;
+  /** Size as a share of grown size, for puppies (1 = adult). */
+  growth?: number;
 }
 
 const TAU = Math.PI * 2;

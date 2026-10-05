@@ -43,6 +43,8 @@ export type Panel =
   | 'season'
   | 'adopt'
   | 'kennel'
+  | 'breeding'
+  | 'whelping'
   | 'menu';
 
 export interface ResultView {
@@ -102,6 +104,10 @@ export interface AppState {
   shelterPick: number;
   /** A short travel fade shown while the next place loads. */
   cover: string | null;
+  /** Which part of the breeding screen is open. */
+  breedingTab: 'plan' | 'litters' | 'studs';
+  /** A panel to open once the how-to-play card is closed. */
+  introNext: Panel;
 }
 
 export const useApp = create<AppState>(() => ({
@@ -117,6 +123,8 @@ export const useApp = create<AppState>(() => ({
   homeSpawn: 'arrive',
   shelterPick: 0,
   cover: null,
+  breedingTab: 'plan',
+  introNext: null,
 }));
 
 let toastId = 0;

@@ -35,6 +35,14 @@ import {
 } from '../game/rules';
 import { LINES, progressStory, type Line } from '../game/story';
 import {
+  breed as breedRule,
+  dnaTest,
+  keepPuppy,
+  placePuppy,
+  register as registerDog,
+} from '../game/breeding';
+import { formatGenotype } from '../core/genetics/loci';
+import {
   enterEvent,
   funDayEvent,
   QUALIFY,
@@ -225,6 +233,14 @@ const INTROS: Record<string, { title: string; lines: string[] }> = {
       '4. If it hunts in the wrong place, blow the whistle (Space), then click where you want it to go.',
     ],
   },
+  breeding: {
+    title: 'Breeding',
+    lines: [
+      'Pick a dam (one of your females, 18 months or older) and a sire: one of your own males, or a stud from the stud book for a fee.',
+      'The forecast shows what the puppies are likely to be. Talent ranges come from what you know about the parents, so dogs you have worked a lot give clearer forecasts. A DNA test reveals coat genes, so you can see likely colours.',
+      'Puppies arrive five days after mating, each with its own mix of genes. At three months, keep the best (each needs a run) and place the rest in good homes.',
+    ],
+  },
   water: {
     title: 'Water work',
     lines: [
@@ -278,7 +294,17 @@ export function showIntro(key: string, force = false): void {
 }
 
 export function closeIntro(): void {
-  useApp.setState({ intro: null, panel: null });
+  const next = get().introNext;
+  useApp.setState({ intro: null, panel: next, introNext: null });
+}
+
+/** The breeding screen, with its how-to card first the very first time. */
+export function openBreeding(tab: 'plan' | 'litters' | 'studs'): void {
+  useApp.setState({ breedingTab: tab });
+  if (!hasFlag(game(), 'intro:breeding')) {
+    showIntro('breeding');
+    useApp.setState({ introNext: 'breeding' });
+  } else useApp.setState({ panel: 'breeding' });
 }
 
 // ---------------------------------------------------------------------------
@@ -368,6 +394,13 @@ export function activateSpot(spot: SpotId): void {
       break;
     case 'scentGarden':
       useApp.setState({ panel: 'scentGarden' });
+      break;
+    case 'paddock':
+      if (!hasFlag(g, 'restored:whelpingRoom')) useApp.setState({ panel: 'whelping' });
+      else {
+        const pups = g.litters.some((l) => l.puppies.length > 0);
+        openBreeding(pups || g.pregnancies.length ? 'litters' : 'plan');
+      }
       break;
   }
 }
@@ -1114,7 +1147,79 @@ export function goToBed(): void {
   useApp.setState({ panel: null });
   goHome('house');
   messages.forEach((m, i) => setTimeout(() => toast(m, i === 0 ? 'info' : 'warn'), i * 400));
+  afterWaking();
+}
+
+/** A new morning: the season recap first, then any new puppies. */
+function afterWaking(): void {
   if (game().recap) useApp.setState({ panel: 'season' });
+  else if (game().litters.some((l) => l.bornDay === game().day && l.puppies.length))
+    useApp.setState({ panel: 'breeding', breedingTab: 'litters' });
+}
+
+// ---------------------------------------------------------------------------
+// Breeding
+// ---------------------------------------------------------------------------
+
+export function planLitter(damId: string, sireId: string): void {
+  let ok = false;
+  commit((g) => {
+    ok = !!breedRule(g, damId, sireId);
+  });
+  const g = game();
+  const p = g.pregnancies.find((x) => x.damId === damId);
+  if (ok && p) {
+    const dam = g.dogs.find((d) => d.id === damId)!;
+    toast(`${dam.name} and ${p.sireName}: puppies due on day ${p.dueDay}.`, 'good');
+    useApp.setState({ breedingTab: 'litters' });
+  } else toast('That pairing is not possible right now.', 'warn');
+}
+
+export function runDnaTest(dogId: string): void {
+  let ok = false;
+  commit((g) => {
+    ok = dnaTest(g, dogId);
+  });
+  const dog = game().dogs.find((d) => d.id === dogId);
+  if (ok && dog)
+    toast(`${dog.name}'s coat genes are in: ${formatGenotype(dog.genome.loci)}.`, 'good');
+  else toast('Could not test: check your money.', 'warn');
+}
+
+export function keepPup(litterId: string, puppyId: string, name: string): void {
+  let kept: Dog | null = null;
+  commit((g) => {
+    kept = keepPuppy(g, litterId, puppyId, name);
+  });
+  if (kept) toast(`${(kept as Dog).name} is staying! A run is ready for them.`, 'good');
+  else toast('No free run: you have room for six dogs.', 'warn');
+}
+
+export function placePup(litterId: string, puppyId: string): void {
+  let placed: { name: string; home: string; fee: number } | null = null;
+  commit((g) => {
+    placed = placePuppy(g, litterId, puppyId);
+  });
+  if (placed) {
+    const p = placed as { name: string; home: string; fee: number };
+    toast(`${p.name} is going to ${p.home}. +$${p.fee}`, 'good');
+  }
+}
+
+/** Tester tool: jump to the morning the next litter is due. */
+export function devSkipToLitter(): void {
+  const g = game();
+  const due = Math.min(...g.pregnancies.map((p) => p.dueDay));
+  if (Number.isFinite(due)) devSkipDays(Math.max(1, due - g.day));
+}
+
+/** Tester tool: jump to when the puppies can leave their mother. */
+export function devSkipToPuppiesReady(): void {
+  const g = game();
+  const pups = g.litters.flatMap((l) => l.puppies);
+  if (!pups.length) return;
+  const days = 7 - ((g.day - 1) % 7);
+  devSkipDays(days);
 }
 
 /** The season recap has been read. */
@@ -1123,6 +1228,8 @@ export function closeRecap(): void {
     g.recap = null;
   });
   useApp.setState({ panel: null });
+  if (game().litters.some((l) => l.bornDay === game().day))
+    useApp.setState({ panel: 'breeding', breedingTab: 'litters' });
 }
 
 export function restEvening(): void {
@@ -1159,7 +1266,7 @@ export function restoreThing(id: string): void {
 export function devSkipDays(days: number): void {
   for (let i = 0; i < days; i++) commit((g) => sleepRule(g));
   goHome('house');
-  if (game().recap) useApp.setState({ panel: 'season' });
+  afterWaking();
 }
 
 /** Tester tool: jump to the morning of the next Sunday. */
@@ -1186,6 +1293,7 @@ export function devAdoptQuick(): void {
     g.dogs.push(dog);
     g.activeDogId = dog.id;
     g.season.skills[dog.id] = { ...dog.skills };
+    registerDog(g, dog, 'Larchwood Rescue');
     g.shelter = [];
     if (g.kennelName === '') g.kennelName = 'Test';
     g.story = 'settle';
