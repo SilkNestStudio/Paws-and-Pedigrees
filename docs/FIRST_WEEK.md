@@ -43,6 +43,26 @@ day-to-day game; since October 3 play carries on past it, with seasons, weekly t
   whistle as it veers and cast it back into the water. The dog's Water aptitude now matters.
 - **Jobs** come back on the noticeboard each season, and there are more of them.
 
+## Breeding (added October 4)
+
+- **Start:** restore Grandpa's whelping room ($80) at the puppy paddock, east of the kennel runs.
+- **Plan a litter:** choose a dam (one of your females, at least 18 months old, resting two seasons between litters)
+  and a sire: your own male, or a stud from the stud book (five titled dogs from rival kennels, $60 to $220).
+  The forecast shows litter size, the inbreeding coefficient (computed from the pedigree), likely coat colours with
+  their odds once both parents are DNA tested ($25 each; studs come tested), and a range for each talent based on
+  what you know about the parents, so dogs you have worked a lot give clearer forecasts. Merle to merle pairings are
+  refused (double merle health risk).
+- **Litters:** puppies arrive five days after mating (2 to 7, smaller for small dams). Each puppy draws its own genes
+  from both parents: coat colour by Mendelian inheritance, talents by the infinitesimal model. The dam does lessons
+  only while in whelp. Puppies tumble about the paddock with their mother; first impressions of each puppy's
+  boldness and keenness show on its card.
+- **Puppies' futures:** at three months (the next season) keep a puppy (it needs one of the six runs; field work
+  from nine months) or place it with a family for a fee that rises with the parents' titles, the puppy's quality and
+  your trial record. Puppies still undecided at six months are placed for half the fee.
+- **Records:** every dog's sire, dam and grandparents, the breeder, its litters and (once tested) its coat genotype
+  appear in the office ledger.
+- **Tester tools:** "Skip to the litter" and "Skip until the puppies can leave" appear in the menu when relevant.
+
 ## Systems in the slice
 
 - **Time:** each day has morning, afternoon and evening. Lessons, field work, jobs and competitions each use one part
@@ -90,14 +110,18 @@ dog's hidden aptitudes.
 
 - Buildings, trees, hedges, fences and yard items are Blender-made (`public/models/props.glb`, laid out in `src/render/world/PropWorld.tsx`). Foliage is smooth blobs that don't sway yet, windows and doors are solid, and props have no collision except the buildings at home.
 - Characters are Blender-made but still procedural art: no blinking or facial expressions yet, and some foot sliding at unusual speeds. A hired artist could replace the base models later without changing the game.
-- Breeding, puppies, retirement, regional and national events, and other disciplines (agility, herding) are not built
-  yet. Trial rules and prices are first proposals, open to tuning.
+- Retirement, old age, puppy training classes, regional and national events, and other disciplines (agility, herding)
+  are not built yet. Trial and breeding rules and prices are first proposals, open to tuning. Whether a puppy inherits
+  a parent's "premium touched" record is set to yes for now; the fair-league rule is still open.
 - Dogs in the runs are shown resting; they don't move about yet.
 - Saves are local to the browser (IndexedDB database `paws-rebuild`).
 
 ## Checking it
 
-- `npm test`: rules, simulations, story, rivals, seasons, trials, adoption and water (63 tests).
+- `npm test`: rules, simulations, story, rivals, seasons, trials, adoption, water and breeding (71 tests).
 - `node scripts/week-playthrough.mjs [label] [phone]`: plays the first week, the season change, a Larkspur trial and a
   second adoption in Edge, with screenshots in `.browser.local/` (dev server on port 5180).
 - `node scripts/water-check.mjs [label]`: restores the pond, runs the three water set-ups and an Open water round.
+- `node scripts/breeding-check.mjs [label] [phone]`: restores the whelping room, pairs a dam with a stud, whelps,
+  shows the puppies in the paddock, keeps one and places one, and opens the pedigree.
+- `node scripts/dog-probe.mjs`: measures how the dog moves and turns at home and in the field (catches spinning).

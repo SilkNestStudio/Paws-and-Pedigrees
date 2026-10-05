@@ -1,6 +1,6 @@
 # Paws & Pedigrees: product vision and direction
 
-Last updated: October 3, 2026.
+Last updated: October 4, 2026.
 
 ## October 1, 2026: approved full redesign (supersedes the implementation direction below)
 
@@ -61,6 +61,15 @@ Do not build start to finish. Each phase must pass a playtest gate with the owne
   the bank, and handling (stop whistle, cast back in) fixes it. Agility and herding remain Phase 4. All prices, trial
   thresholds and rival strengths are first proposals for tuning. See [The first week](FIRST_WEEK.md), "After the first
   week". Awaiting the owner's playtest.
+- **Breeding first (October 4):** the owner reported the dog circling and drifting out of view (fixed: dogs no longer
+  orbit their target or spin on arrival, and wait longer and stay in view when left alone) and asked for breeding
+  next, because it is what the investor most wants the game to involve; the other systems are needed support. Built:
+  Grandpa's whelping room restoration and puppy paddock, a stud book of titled rival studs, a pairing planner with
+  forecasts (litter size, inbreeding from the pedigree, coat odds after DNA tests, talent ranges from the keeper's
+  knowledge of each parent, merle-to-merle refused), five-day gestation, litters of genetically distinct puppies
+  shown in 3D, keep-or-place decisions at three months with placement fees, and pedigrees in the ledger. Numbers are
+  proposals. Not yet built: puppy development and evaluation activities, retirement, health testing beyond coat
+  DNA, and selling your own male's stud services. Awaiting the owner's and investor's reaction.
 - **Visual inheritance intro is kept.** Recommended form: a short illustrated letter from Grandpa (existing illustrations reusable at first), then the arrival played in 3D — through the gate at dusk, into the trophy room with his photos and ledger, past the empty runs — with kennel naming at the gate sign. Built in Phase 2, after the core mechanics are proven.
 
 ## Read this first

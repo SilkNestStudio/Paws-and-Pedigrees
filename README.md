@@ -24,6 +24,8 @@ Other commands:
 | `npm run format` | Prettier |
 | `node scripts/week-playthrough.mjs [label] [phone]` | Plays the first week, the season change, a Larkspur trial and a second adoption in Edge, with screenshots in `.browser.local/` (dev server on port 5180) |
 | `node scripts/water-check.mjs [label]` | Restores the duck pond and runs the water set-ups and an Open water round |
+| `node scripts/breeding-check.mjs [label] [phone]` | Walks through breeding: whelping room, stud, litter, puppies, keep and place, pedigree |
+| `node scripts/dog-probe.mjs` | Measures dog movement in the browser to catch spinning or drifting |
 | `node scripts/dogshots.mjs [seed]` | Screenshots of the dog viewer in several poses |
 
 Open `/?view=dogs&seed=1` for the development dog viewer.
