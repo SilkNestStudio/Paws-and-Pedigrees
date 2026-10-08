@@ -642,6 +642,11 @@ function Bed({ game }: { game: GameState }) {
     <div className="panel card narrow">
       <div className="kicker">The farmhouse</div>
       <h2>{game.block === 'night' ? 'Time for bed' : `It's ${game.block}`}</h2>
+      <div className="button-row">
+        <button className="button secondary" onClick={() => useApp.setState({ panel: 'office' })}>
+          Grandpa's office (the ledger)
+        </button>
+      </div>
       {dog && (
         <ul className="notes">
           <li className={dog.fullness < 30 && !game.bowlFilled ? 'warn' : ''}>

@@ -57,8 +57,8 @@ export interface Block2 {
 }
 
 export const HOME_SPOTS: Spot[] = [
-  { id: 'office', pos: { x: -16, z: 57.2 }, reach: 2.6, label: 'Office' },
-  { id: 'house', pos: { x: -11, z: 57.2 }, reach: 2.4, label: 'Front door (bed)' },
+  // One farmhouse door: Grandpa's office, bed and resting are all inside.
+  { id: 'office', pos: { x: -16, z: 57.2 }, reach: 2.6, label: 'Farmhouse door' },
   { id: 'runs', pos: { x: 10, z: 52.8 }, reach: 2.6, label: 'Kennel runs' },
   { id: 'bowl', pos: { x: 13.5, z: 52.4 }, reach: 2.2, label: 'Food bowl' },
   { id: 'pantry', pos: { x: 22.5, z: 57 }, reach: 2.4, label: 'Pantry' },
@@ -67,7 +67,7 @@ export const HOME_SPOTS: Spot[] = [
   { id: 'van', pos: { x: 26, z: 70 }, reach: 3.2, label: 'Van' },
   { id: 'gateSign', pos: { x: 0, z: 79 }, reach: 3, label: 'Gate sign' },
   { id: 'scentGarden', pos: { x: -30, z: 49 }, reach: 4, label: 'Overgrown corner' },
-  { id: 'paddock', pos: { x: 31, z: 50.6 }, reach: 2.8, label: 'Puppy paddock' },
+  { id: 'paddock', pos: { x: 31, z: 50.9 }, reach: 2.6, label: 'Puppy paddock' },
 ];
 
 /** The puppy paddock beside the kennel block, where litters grow up. */

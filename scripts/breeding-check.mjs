@@ -93,7 +93,7 @@ await page.evaluate(() => {
 });
 await menu('Skip a day');
 await finishDialogs();
-await walkTo(31, 50.4);
+await walkTo(31, 50.6);
 await page.keyboard.press('KeyE');
 await wait(500);
 await shot('whelping-room');
@@ -134,7 +134,7 @@ console.log(
 );
 await clickButton('Close');
 await wait(300);
-await walkTo(31, 49.4);
+await walkTo(31, 49.2);
 await page.evaluate(() => {
   window.__game.live.home.keeper.heading = 0;
 });
@@ -149,7 +149,7 @@ if ((await panel()) === 'season') {
   await clickButton('On to');
   await wait(400);
 }
-await walkTo(31, 50.4);
+await walkTo(31, 50.6);
 await page.keyboard.press('KeyE');
 await wait(600);
 if ((await panel()) !== 'breeding') {
@@ -174,6 +174,11 @@ await page.keyboard.press('KeyE');
 await wait(600);
 await finishDialogs();
 await wait(400);
+if ((await panel()) === 'bed') {
+  await shot('farmhouse');
+  await clickButton("Grandpa's office");
+  await wait(300);
+}
 await clickButton('Legacy');
 await wait(300);
 await shot('ledger-pedigree');

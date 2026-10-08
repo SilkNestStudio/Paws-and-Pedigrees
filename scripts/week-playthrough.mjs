@@ -334,7 +334,7 @@ console.log('day 1', JSON.stringify(await app()));
 // Bed, then day 2: Mara at the gate.
 await clickButton('Back home');
 await wait(1000);
-await walkTo(-11, 56);
+await walkTo(-16, 56);
 await use();
 await shot('bed');
 await clickButton('Go to bed');
@@ -448,7 +448,7 @@ await shot('end-of-week');
 console.log('end of week one', JSON.stringify(await app()));
 
 // Week two: go to bed, read the season recap, then jump to Sunday's trial.
-await walkTo(-11, 56);
+await walkTo(-16, 56);
 await use();
 await wait(400);
 await clickButton('Go to bed');

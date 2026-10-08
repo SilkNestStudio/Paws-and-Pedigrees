@@ -12,6 +12,7 @@ import { useApp, type Place } from '../app/store';
 import { input } from '../app/input';
 import * as act from '../app/actions';
 import { useIndicators } from '../render/Targets';
+import { useSpotLabels } from '../render/Spots';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
@@ -29,6 +30,7 @@ export function Hud() {
       <TopBar snap={snap} />
       {snap.kind === 'home' ? <ObjectiveCard /> : <ActivityCard snap={snap} />}
       {(snap.field || snap.search) && <TargetLabels />}
+      {snap.kind === 'home' && !busy && <SpotNameLabels />}
       <TopRight snap={snap} />
       {snap.lesson?.feedback && snap.lesson.time - snap.lesson.feedback.time < 3 && (
         <div className={`coach card ${snap.lesson.feedback.tone}`}>{snap.lesson.feedback.text}</div>
@@ -272,6 +274,25 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
       )}
       {(snap.field || snap.search) && showMap && <MiniMap snap={snap} />}
     </div>
+  );
+}
+
+/** Names over the places you can use at home; the one in reach says which key to press. */
+function SpotNameLabels() {
+  const list = useSpotLabels((s) => s.list);
+  return (
+    <>
+      {list.map((l) => (
+        <div
+          key={l.id}
+          className={`spot-label ${l.ready ? 'ready' : ''}`}
+          style={{ left: `${l.x}%`, top: `${l.y}%` }}
+        >
+          {l.text}
+          {l.ready && <b>{isTouch ? ' · tap the button' : ' · press E'}</b>}
+        </div>
+      ))}
+    </>
   );
 }
 

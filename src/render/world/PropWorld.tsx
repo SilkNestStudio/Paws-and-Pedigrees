@@ -253,7 +253,7 @@ function Paddock() {
       </mesh>
       <Prop name="Bales" at={{ x: 33, z: 57, rot: Math.PI / 2, scale: 0.8 }} />
       <Prop name="WaterBowl" at={{ x: 29, z: 53.3 }} />
-      <Prop name="GateSign" at={{ x: 34.9, z: 51.6, rot: -0.5, scale: 0.5 }} signs={signs} />
+      <Prop name="GateSign" at={{ x: 28.3, z: 52.0, rot: Math.PI, scale: 0.5 }} signs={signs} />
     </>
   );
 }

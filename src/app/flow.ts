@@ -313,7 +313,7 @@ export function openBreeding(tab: 'plan' | 'litters' | 'studs'): void {
 
 const SPAWNS: Record<string, Vec2> = {
   arrive: { x: 0, z: 78 },
-  house: { x: -11, z: 55.5 },
+  house: { x: -16, z: 55.6 },
   fieldGate: { x: 0, z: 47.5 },
   van: { x: 23, z: 68 },
 };
@@ -346,10 +346,11 @@ export function activateSpot(spot: SpotId): void {
   const g = game();
   switch (spot) {
     case 'office':
+      // The farmhouse door. The first visit goes straight to Grandpa's ledger.
       commit((d) => addFlag(d, 'saw:office'));
       if (!hasFlag(g, 'saw:office'))
         say(LINES.ledger!(g), () => useApp.setState({ panel: 'office' }));
-      else useApp.setState({ panel: 'office' });
+      else useApp.setState({ panel: 'bed' });
       break;
     case 'runs':
       commit((d) => addFlag(d, 'saw:runs'));

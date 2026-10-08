@@ -99,6 +99,13 @@ day-to-day game; since October 3 play carries on past it, with seasons, weekly t
 Menu → Tester tools: +$200 and food, skip a day, skip to Sunday (trial day), adopt instantly, delete the save, and the
 dog's hidden aptitudes.
 
+## Finding your way at home
+
+- Every place you can use has a ring on the ground and its name floating above it. When you are close enough, the
+  ring turns orange and the label says "press E" (on a phone, the big button).
+- The farmhouse has one door: Grandpa's office, going to bed and resting together are all inside. The puppy paddock
+  is entered from its south side, facing the yard.
+
 ## Seeing what matters in the field
 
 - When you stand still, your keeper turns to face what matters: the item in the air, then your dog when it is out, then the newest fall or the blind stake.

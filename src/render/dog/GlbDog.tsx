@@ -179,6 +179,8 @@ interface Rig {
   dummy: THREE.Object3D;
   ball: THREE.Object3D;
   scale: number;
+  /** The clip's pose for bones that body language turns on top (see useFrame). */
+  basePose: Map<THREE.Bone, THREE.Quaternion>;
   dispose: () => void;
 }
 
@@ -304,6 +306,23 @@ function buildRig(
     dummy,
     ball,
     scale,
+    basePose: new Map(
+      [
+        'spine_01',
+        'neck_02',
+        'head',
+        'tail_01',
+        'tail_02',
+        'tail_03',
+        'tail_04',
+        'tail_05',
+        'ear_L',
+        'ear_R',
+      ]
+        .map((n) => bones[n])
+        .filter((b): b is THREE.Bone => !!b)
+        .map((b) => [b, b.quaternion.clone()] as const),
+    ),
     dispose: () => {
       mixer.stopAllAction();
       disposables.forEach((d) => d.dispose());
@@ -319,7 +338,17 @@ export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
   // Rebuild only when the genes change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rig = useMemo(() => buildRig(gltf, dog), [gltf, dog.genome]);
-  useEffect(() => () => rig.dispose(), [rig]);
+  useEffect(() => {
+    // Development builds expose rigs so browser checks can measure bone motion.
+    const list = import.meta.env.DEV
+      ? ((window as unknown as { __rigs?: Rig[] }).__rigs ??= [])
+      : null;
+    list?.push(rig);
+    return () => {
+      list?.splice(list.indexOf(rig), 1);
+      rig.dispose();
+    };
+  }, [rig]);
 
   const state = useRef({
     clip: 'Idle' as ClipName,
@@ -382,7 +411,13 @@ export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
     }
     const current = actions[s.clip];
     if (current) current.timeScale = timeScale;
+    // Body language is layered on top of the clip by rotating bones. The mixer
+    // only rewrites a bone when the clip's value changes, so in a still pose
+    // (sitting, lying) those extra turns would pile up frame after frame and
+    // the head would spin. Put the bones back to the clip's own pose first.
+    for (const [bone, q] of rig.basePose) bone.quaternion.copy(q);
     mixer.update(dt);
+    for (const [bone, q] of rig.basePose) q.copy(bone.quaternion);
 
     // Layer body language on top of the clip.
     if (bones.spine_01) bones.spine_01.rotateZ(s.lean * 0.5);

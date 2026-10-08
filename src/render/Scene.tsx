@@ -22,6 +22,7 @@ import { live, useApp, type Place } from '../app/store';
 import { cameraState } from '../app/input';
 import { driveKeeper, framingReach, steerState } from './steer';
 import { TargetBeacons, TargetTracker } from './Targets';
+import { SpotRings, SpotTracker } from './Spots';
 import { publish } from '../app/hud';
 import { tapGround, walkTarget } from '../app/actions';
 import { activityFinished, fieldFor, homeDogAte, MARA_POS } from '../app/flow';
@@ -700,6 +701,8 @@ function GoalBeacon() {
 
 export function landmarkPos(id: Landmark): Vec2 | null {
   if (id === 'mara') return MARA_POS;
+  // Bed and the office share the farmhouse door.
+  if (id === 'house') return HOME_SPOTS.find((s) => s.id === 'office')!.pos;
   if (id === 'dog') return live.home?.dog?.pos ?? null;
   return HOME_SPOTS.find((s) => s.id === id)?.pos ?? null;
 }
@@ -1116,6 +1119,8 @@ export function Scene() {
       <FallFlags />
       <TargetBeacons />
       <TargetTracker />
+      <SpotRings />
+      <SpotTracker />
       <AimLine />
       <DogBeacon />
       <GoalBeacon />

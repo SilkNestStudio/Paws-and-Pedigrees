@@ -59,7 +59,7 @@ export interface HudSnapshot {
 export const useHud = create<{ snap: HudSnapshot | null }>(() => ({ snap: null }));
 
 const SPOT_ACTIONS: Record<SpotId, string> = {
-  office: 'Open the office',
+  office: 'Go into the farmhouse',
   house: 'Go inside (bed)',
   runs: 'Fill the food bowl',
   bowl: 'Fill the food bowl',
