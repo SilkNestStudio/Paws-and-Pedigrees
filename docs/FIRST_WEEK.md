@@ -99,6 +99,20 @@ day-to-day game; since October 3 play carries on past it, with seasons, weekly t
 Menu → Tester tools: +$200 and food, skip a day, skip to Sunday (trial day), adopt instantly, delete the save, and the
 dog's hidden aptitudes.
 
+## Lessons and trial guidance (added October 7)
+
+- **Coaching in lessons:** while a dog's skill in a lesson is below 40%, the moment its response finishes a ring
+  flashes round it and the prompt says what to do: green "Now! Yes!" for the real thing or a step worth rewarding at
+  this stage, red "Don't reward that one" otherwise. It fades out as the skill grows, so the timing becomes yours.
+- **Beginner dogs give you something to reward:** an untrained dog now offers a hesitant sit, a creep, a glance back
+  at the whistle, a near-miss at the scent boxes, or the right pile about half the time, and improves from there.
+  Marks within a tenth of a second early count as on time.
+- **The goal card after the Fun Day** says exactly what earns a title: two qualifying runs, where a qualifying run is
+  50+ in every round and 165+ in total. It lists the dog's Steady, Stop whistle and Directions levels against a
+  target for the level (Novice: 50%, 35%, 25%; proposals), when and where the next trial is, and the entry fee.
+- **How trials work** card after the Fun Day (and once when loading an older save), also linked from the van.
+- **After each trial** the standings name the weakest round and what to practise for it.
+
 ## Finding your way at home
 
 - Every place you can use has a ring on the ground and its name floating above it. When you are close enough, the

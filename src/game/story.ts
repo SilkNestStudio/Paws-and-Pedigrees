@@ -1,6 +1,7 @@
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState, type StoryStep } from './state';
 import { daysUntilSunday, isTrialDay, nextTrialDay } from './calendar';
-import { QUALIFY, TRIAL_RULES, trialLevel } from './events';
+import { QUALIFY, READINESS, TRIAL_RULES, trialLevel } from './events';
+import { LESSONS } from '../sim/training';
 
 /**
  * The first week's story and the "what next?" guidance. The objective shown
@@ -164,16 +165,32 @@ function trialObjective(state: GameState): Objective {
   const when = today ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
   const steps = [
     {
-      text: `Qualifying runs for the ${rules.name} title: ${qs} of ${QUALIFY.toTitle}`,
+      text: `Earn ${QUALIFY.toTitle} qualifying runs (${qs} so far). A qualifying run: ${QUALIFY.minRound}+ in every round and ${QUALIFY.minTotal}+ in total at a Sunday trial`,
       done: dog.titles.includes(level),
     },
+    // The lessons that matter most for this level, with a level to aim for.
+    ...READINESS[level].map((r) => {
+      const now = Math.round(dog.skills[r.cue] * 100);
+      const aim = Math.round(r.target * 100);
+      return {
+        text: `${LESSONS[r.cue].title} lesson: ${now}% (aim for ${aim}%) at the field gate`,
+        done: now >= aim,
+      };
+    }),
     {
-      text: `Enter the ${rules.name} trial at Larkspur (Sunday, ${when}; $${rules.entryFee} entry)`,
+      text: `Enter the ${rules.name} trial: Larkspur, by van, Sunday (${when}), $${rules.entryFee}`,
       done: entered,
     },
-    { text: 'Train the weak spots at the field gate', done: false },
-    { text: `Take jobs to keep money and food coming in`, done: state.money >= rules.entryFee },
+    {
+      text: `Keep $${rules.entryFee} for the entry: noticeboard jobs pay`,
+      done: state.money >= rules.entryFee,
+    },
   ];
+  if (level === 'open' && !hasFlag(state, 'restored:duckPond'))
+    steps.splice(4, 0, {
+      text: "Open trials end with a water blind: restore Grandpa's duck pond ($150) and practise",
+      done: false,
+    });
   if (!hasFlag(state, 'restored:scentGarden'))
     steps.push({ text: "Restore Grandpa's scent garden ($90)", done: false });
   if (!hasFlag(state, 'restored:whelpingRoom'))
@@ -203,7 +220,8 @@ function trialObjective(state: GameState): Objective {
         ? 'van'
         : state.food < 2
           ? 'van'
-          : daysUntilSunday(state.day) <= 1
+          : daysUntilSunday(state.day) <= 1 ||
+              READINESS[level].some((r) => dog.skills[r.cue] < r.target)
             ? 'fieldGate'
             : 'noticeboard',
   };

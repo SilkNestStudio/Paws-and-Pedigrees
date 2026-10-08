@@ -171,7 +171,11 @@ export function startNewGame(): void {
 export function continueGame(): void {
   const g = game();
   if (g.story === 'letter') useApp.setState({ screen: { kind: 'letter', page: 0 } });
-  else goHome(g.dogs.length ? 'house' : 'arrive');
+  else {
+    goHome(g.dogs.length ? 'house' : 'arrive');
+    // Saves from before the trials guide was added still get to read it once.
+    if (g.story === 'afterFunDay') showIntro('trials');
+  }
 }
 
 export async function resetGame(): Promise<void> {
@@ -231,6 +235,15 @@ const INTROS: Record<string, { title: string; lines: string[] }> = {
       '2. Keep your dog steady. If it starts to quiver, press "Sit".',
       '3. Click or tap on the fall to send your dog. It runs to where it saw it land and hunts with its nose.',
       '4. If it hunts in the wrong place, blow the whistle (Space), then click where you want it to go.',
+    ],
+  },
+  trials: {
+    title: 'How trials work',
+    lines: [
+      'Every Sunday from the second week there is a field trial at Larkspur. Take the van. Three rounds: a mark, a search and a blind, each scored out of 100.',
+      'A qualifying run means at least 50 in every round and 165 or more in total. Your placing does not matter for that. Two qualifying runs earn the title, and your dog moves up a level.',
+      'Your goal card lists the lessons to build up first. "Steady to the throw" stops your dog breaking on the mark (that costs 40 points); the "Stop whistle" and "Directions drill" let you handle the blind.',
+      'Practise each round at home: marks and blinds at the training field gate, searches from the noticeboard jobs. After each trial you will be told which round to work on.',
     ],
   },
   breeding: {
@@ -313,7 +326,7 @@ export function openBreeding(tab: 'plan' | 'litters' | 'studs'): void {
 
 const SPAWNS: Record<string, Vec2> = {
   arrive: { x: 0, z: 78 },
-  house: { x: -16, z: 55.6 },
+  house: { x: -16, z: 54.6 },
   fieldGate: { x: 0, z: 47.5 },
   van: { x: 23, z: 68 },
 };
@@ -329,8 +342,8 @@ export function goHome(spawn: SpotId | 'arrive' = 'arrive'): void {
     eventSeed(g, `home-${get().runId}`),
     at,
     g.bowlFilled,
-    // At the runs, face the dogs so the camera stays out in the yard.
-    spawn === 'runs' ? 0 : Math.PI,
+    // At the runs or the farmhouse, face the building so the camera stays out in the yard.
+    spawn === 'runs' || spawn === 'house' ? 0 : Math.PI,
   );
   useApp.setState({ screen: { kind: 'home' }, panel: null, runId: nextRun(), homeSpawn: spawn });
 }
@@ -1079,24 +1092,27 @@ export function leaveEvent(): void {
   const { record, title } = done.outcome;
   const best = done.def.rounds[record.bestRound]!;
   if (done.def.kind === 'funday') {
-    say([
-      {
-        speaker: 'Mara',
-        text:
-          record.placing === 1
-            ? `You won it! In your very first week. Your grandpa would be over the moon.`
-            : `${ordinal(record.placing)} place. Victor will be insufferable, but you saw it too, didn't you? ${dog.name} has a real gift for ${best.skill}.`,
-      },
-      {
-        speaker: 'Mara',
-        text: 'That is what you build on. From next week there is a proper trial at Larkspur every Sunday. Two qualifying runs earn a Novice title, then come the Open trials, and one day, the Hollowmere Cup.',
-      },
-      {
-        speaker: 'Mara',
-        text: 'Seven days make a season out here, and the dogs grow up with them. Train the weak spots, take the jobs, fix up the place. See you at Larkspur.',
-      },
-      { speaker: 'You', text: 'The cup Grandpa used to win. One day.' },
-    ]);
+    say(
+      [
+        {
+          speaker: 'Mara',
+          text:
+            record.placing === 1
+              ? `You won it! In your very first week. Your grandpa would be over the moon.`
+              : `${ordinal(record.placing)} place. Victor will be insufferable, but you saw it too, didn't you? ${dog.name} has a real gift for ${best.skill}.`,
+        },
+        {
+          speaker: 'Mara',
+          text: 'That is what you build on. From next week there is a proper trial at Larkspur every Sunday. Two qualifying runs earn a Novice title, then come the Open trials, and one day, the Hollowmere Cup.',
+        },
+        {
+          speaker: 'Mara',
+          text: 'Seven days make a season out here, and the dogs grow up with them. Train the weak spots, take the jobs, fix up the place. See you at Larkspur.',
+        },
+        { speaker: 'You', text: 'The cup Grandpa used to win. One day.' },
+      ],
+      () => showIntro('trials'),
+    );
     return;
   }
   const level = TRIAL_RULES[done.def.level!].name;

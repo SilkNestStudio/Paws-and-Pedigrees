@@ -327,8 +327,10 @@ function cueSit(t: TrainingSession): void {
   keeperAct(t.keeper, 'call');
   const roll = responseRoll(t);
   let def: ResponseDef;
-  if (roll > 0.55) def = SIT_RESPONSES.sit!;
-  else if (roll > 0.38) def = SIT_RESPONSES.slowSit!;
+  // Thresholds are set so a beginner dog offers a hesitant sit about half the
+  // time: something to reward from the very first session.
+  if (roll > 0.45) def = SIT_RESPONSES.sit!;
+  else if (roll > 0.05) def = SIT_RESPONSES.slowSit!;
   else {
     const wanderWeight = (100 - t.params.skills.sit * 100) / 100 + (1 - t.params.bond) * 0.5;
     const pickId = weighted(t.rng, { down: 1.2, spin: 0.8, look: 1.5, wander: wanderWeight });
@@ -346,7 +348,11 @@ function throwForStay(t: TrainingSession, gentle: boolean): void {
   launchBall(t, add(HOME, gentle ? { x: 1.5, z: -4 } : { x: 4, z: -18 }), gentle ? 0.8 : 1.3);
   const roll = responseRoll(t, (t.drive - 50) / 250 - (gentle ? 0.3 : 0));
   const def =
-    roll > 0.5 ? STAY_RESPONSES.hold! : roll > 0.22 ? STAY_RESPONSES.creep! : STAY_RESPONSES.break!;
+    roll > 0.45
+      ? STAY_RESPONSES.hold!
+      : roll > -0.05
+        ? STAY_RESPONSES.creep!
+        : STAY_RESPONSES.break!;
   // Creeping and breaking start partway through the flight; holding is judged on landing.
   t.pendingResponse = {
     at: t.time + (def.id === 'hold' ? 0.05 : 0.35 + random(t.rng) * 0.3),
@@ -397,9 +403,9 @@ function cueFind(t: TrainingSession): void {
   boxes.forEach((b, i) => (b.hot = i === hot));
   const roll = responseRoll(t) + t.params.scentThreshold * -0.4 + 0.1;
   const def =
-    roll > 0.45
+    roll > 0.3
       ? INDICATE_RESPONSES.correct!
-      : roll > 0.2
+      : roll > -0.05
         ? INDICATE_RESPONSES.linger!
         : INDICATE_RESPONSES.false!;
   const empty = boxes.map((_, i) => i).filter((i) => i !== hot);
@@ -424,8 +430,8 @@ function cueCast(t: TrainingSession, pile: 'left' | 'right' | 'back'): void {
   const roll = responseRoll(t) + 0.12;
   let def: ResponseDef;
   let goTo: Vec2 | null = target;
-  if (roll > 0.42) def = CAST_RESPONSES.correct!;
-  else if (roll > 0.12) {
+  if (roll > 0.25) def = CAST_RESPONSES.correct!;
+  else if (roll > -0.1) {
     def = CAST_RESPONSES.wrong!;
     // Dogs tend to repeat the last direction they were sent.
     const others = t.scene.piles.filter((p) => p.id !== pile);
@@ -483,8 +489,9 @@ export function mark(t: TrainingSession): MarkResult | null {
     );
   } else {
     let timing: number;
+    // A tenth of a second early is as good as on time: nobody can do better than that.
     if (offset < -0.35) timing = 0.35;
-    else if (offset < 0) timing = 0.85;
+    else if (offset < -0.1) timing = 0.85;
     else if (offset <= t.window) timing = 1;
     // Past the window the lesson fades fast: by a second late it barely teaches anything.
     else timing = Math.exp(-(offset - t.window) / 0.3);
@@ -545,6 +552,33 @@ export function mark(t: TrainingSession): MarkResult | null {
   t.results.push(result);
   beginReset(t, 1.1);
   return result;
+}
+
+/** Coaching shows the moment to mark until the dog's skill in this lesson reaches this level. */
+export const COACH_UNTIL = 0.4;
+
+export interface Coaching {
+  kind: 'now' | 'shape' | 'no';
+  text: string;
+}
+
+/**
+ * While you are both learning, the coach points out the moment: worth a Yes!,
+ * a step worth rewarding at this stage, or one to let pass. It fades once the
+ * dog's skill passes COACH_UNTIL, so the timing becomes yours to judge.
+ */
+export function coaching(t: TrainingSession): Coaching | null {
+  const r = t.current;
+  if (!r || r.marked || t.phase !== 'responding' || t.skill >= COACH_UNTIL) return null;
+  if (t.time < r.completeAt - 0.05 || t.time > r.completeAt + t.window) return null;
+  const name = t.dogName;
+  if (r.def.quality >= 0.9) return { kind: 'now', text: `Now! That's it: Yes! (Space)` };
+  if (r.def.quality > 0 && r.def.quality >= t.skill - 0.05)
+    return {
+      kind: 'shape',
+      text: `"${r.def.label}": a step in the right direction. Reward it now: Yes!`,
+    };
+  return { kind: 'no', text: `"${r.def.label}". Don't reward that one; let ${name} try again.` };
 }
 
 const formatOffset = (offset: number) => `${offset >= 0 ? '+' : ''}${offset.toFixed(2)}s`;
@@ -893,8 +927,8 @@ function animateStop(t: TrainingSession, dt: number): void {
   }
   if (t.phase === 'resetting') return;
   const target = dog.target ?? t.scene.ball.pos;
-  const chasing =
-    !r || r.def.id === 'ignore' || (r.def.id === 'glance' && t.time > r.completeAt + 0.4);
+  // A glance back is on the run: the dog checks its stride, looks, and carries on.
+  const chasing = !r || r.def.id === 'ignore' || r.def.id === 'glance';
   if (chasing) {
     dog.pose = 'stand';
     // A glance back checks the stride for a moment, so you can see it happen.

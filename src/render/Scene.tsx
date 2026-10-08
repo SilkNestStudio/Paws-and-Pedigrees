@@ -7,7 +7,7 @@ import { activeDog, hasFlag } from '../game/state';
 import { objective, type Landmark } from '../game/story';
 import { FIXED_DT, aimTarget, stepSession, type RetrieveSession } from '../sim/retrieve';
 import { stepSearch, type SearchSession } from '../sim/search';
-import { stepTraining, type TrainingSession } from '../sim/training';
+import { coaching, stepTraining, type TrainingSession } from '../sim/training';
 import {
   HOME_SOLIDS,
   HOME_SPOTS,
@@ -279,14 +279,19 @@ function CameraRig() {
       const k = t.keeper.pos;
       const d = t.dog.pos;
       target = { x: (k.x + d.x) / 2, z: (k.z + d.z) / 2 };
+      // Lean toward the dog in the far-ranging lessons so its response is easy to see.
+      if (t.lesson === 'stop' || t.lesson === 'cast')
+        target = { x: k.x + (d.x - k.x) * 0.7, z: k.z + (d.z - k.z) * 0.7 };
       dist =
         t.lesson === 'sit'
           ? 5
           : t.lesson === 'indicate'
             ? 9
             : t.lesson === 'cast'
-              ? 22
-              : Math.max(9, distance(k, d) * 0.9 + 6);
+              ? 15
+              : t.lesson === 'stop'
+                ? Math.min(16, Math.max(8, distance(k, d) * 0.45 + 6))
+                : Math.max(9, distance(k, d) * 0.9 + 6);
       pitch =
         t.lesson === 'sit'
           ? 0.3
@@ -324,6 +329,32 @@ function CameraRig() {
 // ---------------------------------------------------------------------------
 // Props and markers
 // ---------------------------------------------------------------------------
+
+/** In lessons, while you're learning: a ring round the dog at the moment to mark (green) or not (red). */
+function CoachRing() {
+  const ring = useMemo(() => {
+    const m = new THREE.Mesh(
+      new THREE.RingGeometry(0.75, 0.95, 40),
+      new THREE.MeshBasicMaterial({ color: '#3f8a4f', transparent: true, depthWrite: false }),
+    );
+    m.rotation.x = -Math.PI / 2;
+    m.visible = false;
+    return m;
+  }, []);
+  useFrame((state) => {
+    const t = live.lesson;
+    const c = t ? coaching(t) : null;
+    ring.visible = !!c;
+    if (!t || !c) return;
+    const d = t.dog.pos;
+    ring.position.set(d.x, heightAt(d.x, d.z) + 0.05, d.z);
+    ring.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 14) * 0.08);
+    const m = ring.material as THREE.MeshBasicMaterial;
+    m.color.set(c.kind === 'no' ? '#c0392b' : '#3fbf5f');
+    m.opacity = 0.9;
+  });
+  return <primitive object={ring} />;
+}
 
 /** Rings spreading on the water round a swimming dog. */
 function SwimRipple() {
@@ -1116,6 +1147,7 @@ export function Scene() {
       </group>
       <Items />
       <SwimRipple />
+      <CoachRing />
       <FallFlags />
       <TargetBeacons />
       <TargetTracker />

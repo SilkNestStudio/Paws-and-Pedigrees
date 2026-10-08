@@ -444,6 +444,9 @@ await clickButton('Head home');
 await wait(1200);
 await shot('after-funday');
 await finishDialogs();
+await wait(300);
+await shot('trials-guide');
+await closeIntro();
 await shot('end-of-week');
 console.log('end of week one', JSON.stringify(await app()));
 

@@ -109,6 +109,40 @@ export const TRIAL_RULES: Record<
   },
 };
 
+/**
+ * Training to aim for before trialling at each level (proposals). Below these,
+ * the dog tends to break on the mark, ignore the stop whistle on the blind, or
+ * refuse directions, and qualifying gets hard.
+ */
+export const READINESS: Record<TrialLevel, { cue: 'stay' | 'stop' | 'cast'; target: number }[]> = {
+  novice: [
+    { cue: 'stay', target: 0.5 },
+    { cue: 'stop', target: 0.35 },
+    { cue: 'cast', target: 0.25 },
+  ],
+  open: [
+    { cue: 'stay', target: 0.7 },
+    { cue: 'stop', target: 0.55 },
+    { cue: 'cast', target: 0.5 },
+  ],
+  excellent: [
+    { cue: 'stay', target: 0.85 },
+    { cue: 'stop', target: 0.7 },
+    { cue: 'cast', target: 0.65 },
+  ],
+};
+
+/** Plain advice for the round that went worst. */
+export function adviceFor(kind: RoundKind, water: boolean, dogName: string): string {
+  if (water)
+    return `Water was the weak round. Practise at Grandpa's duck pond (restore it from the field gate) and stop ${dogName} the moment it heads for the bank.`;
+  if (kind === 'mark')
+    return `The mark was the weak round. Train "Steady to the throw" so ${dogName} waits to be sent (breaking costs 40 points), and practise marks at the field gate.`;
+  if (kind === 'search')
+    return `The search was the weak round. Take search jobs from the noticeboard, and watch ${dogName}'s tail and nose before trusting an indication.`;
+  return `The blind was the weak round. Train the "Stop whistle" and "Directions drill", then practise blinds at the field gate.`;
+}
+
 /** A qualifying run: every round at least `minRound` and a total of at least `minTotal`. */
 export const QUALIFY = { minRound: 50, minTotal: 165, toTitle: 2 };
 

@@ -843,3 +843,18 @@
   color: #fff;
   font-size: 14px;
 }
+
+/* Lesson coaching: the moment to mark */
+.hint.coach-now,
+.hint.coach-shape {
+  background: #3f8a4f;
+  color: #fff;
+  font-weight: 800;
+  transform: translateX(-50%) scale(1.08);
+}
+
+.hint.coach-no {
+  background: #b5482a;
+  color: #fff;
+  font-weight: 800;
+}

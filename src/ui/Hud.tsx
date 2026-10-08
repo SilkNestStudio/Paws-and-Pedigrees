@@ -37,7 +37,9 @@ export function Hud() {
       )}
       <Events snap={snap} />
       {!busy && snap.hint && !(isTouch && snap.kind === 'home') && (
-        <div className="hint card">{snap.hint}</div>
+        <div className={`hint card ${snap.lesson?.coach ? `coach-${snap.lesson.coach}` : ''}`}>
+          {snap.hint}
+        </div>
       )}
       {!busy && <Actions snap={snap} />}
       {!busy && snap.kind !== 'lesson' && isTouch && <Stick />}

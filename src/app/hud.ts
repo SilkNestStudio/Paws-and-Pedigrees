@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { distance, type Vec2 } from '../core/math';
 import type { DogMode } from '../sim/agents';
-import { LESSONS, type Feedback, type Lesson, type TrainingSession } from '../sim/training';
+import {
+  LESSONS,
+  type Feedback,
+  type Lesson,
+  type TrainingSession,
+  coaching,
+} from '../sim/training';
 import type { ItemKind, ItemState, RetrieveSession, SessionEvent } from '../sim/retrieve';
 import type { SearchSession } from '../sim/search';
 import { HOME_SPOTS, type HomeSession, type SpotId } from '../sim/home';
@@ -53,6 +59,7 @@ export interface HudSnapshot {
     interest: number;
     feedback: Feedback | null;
     time: number;
+    coach: 'now' | 'shape' | 'no' | null;
   } | null;
 }
 
@@ -169,6 +176,8 @@ function searchHint(s: SearchSession): string {
 
 function lessonHint(t: TrainingSession): string {
   if (t.phase === 'done') return 'Session over.';
+  const coach = coaching(t);
+  if (coach) return coach.text;
   if (t.phase === 'idle') {
     if (t.lesson === 'cast') return 'Click a pile (or press 1, 2, 3) to send your dog to it.';
     if (t.lesson === 'stop') return 'Press "Throw", then whistle while your dog runs.';
@@ -262,6 +271,7 @@ export function publish(): void {
         interest: t.interest,
         feedback: t.feedback,
         time: t.time,
+        coach: coaching(t)?.kind ?? null,
       },
     };
   }

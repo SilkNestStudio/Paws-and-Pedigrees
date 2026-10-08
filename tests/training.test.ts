@@ -73,12 +73,13 @@ describe('marker training', () => {
   });
 
   it('rewarding the wrong response makes things worse', () => {
+    // Marking the dog for running to the wrong pile teaches it the wrong thing.
     const t = session(
-      'sit',
-      trainer('sit', 0.1, (q) => q < 0.5),
-      0.4,
+      'cast',
+      trainer('cast', 0.1, (q) => q === 0),
+      0.15,
     );
-    expect(t.skill).toBeLessThan(0.4);
+    expect(t.skill).toBeLessThan(0.15);
   });
 
   it('a good session makes a real difference to the sit', () => {

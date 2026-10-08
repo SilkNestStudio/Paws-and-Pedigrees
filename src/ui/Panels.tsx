@@ -12,7 +12,10 @@ import {
   SHOP,
 } from '../game/rules';
 import { ageText, FIRST_TRIAL_DAY, nextTrialDay } from '../game/calendar';
-import { QUALIFY, TRIAL_RULES, trialLevel } from '../game/events';
+import { adviceFor, QUALIFY, TRIAL_RULES, trialLevel } from '../game/events';
+
+/** Index of the lowest-scoring round. */
+const worstRound = (rounds: number[]) => rounds.indexOf(Math.min(...rounds));
 import { FREE_PLAY, RETRIEVE_SETUPS, WATER_SETUPS } from '../sim/exercises';
 import { LESSONS, type Lesson } from '../sim/training';
 import { useApp } from '../app/store';
@@ -813,6 +816,16 @@ function Standings({ game }: { game: GameState }) {
               : `No qualifying run (needs ${QUALIFY.minRound}+ in every round and ${QUALIFY.minTotal}+ in total).`}
           </li>
         )}
+        {def.kind === 'trial' && dog && (
+          <li className="info">
+            {adviceFor(
+              def.rounds[worstRound(record.entries.find((e) => e.player)!.rounds)]!.kind,
+              !!def.rounds[worstRound(record.entries.find((e) => e.player)!.rounds)]!.retrieve
+                ?.water,
+              dog.name,
+            )}
+          </li>
+        )}
         {title && dog && (
           <li className="discovery">
             ★ {dog.name} earned the {TRIAL_RULES[title].name} title: {dogWithTitles(dog)}.
@@ -894,7 +907,12 @@ function TrialRow({ game }: { game: GameState }) {
   return (
     <div className="row">
       <div className="grow">
-        <div className="title">Larkspur trial ground</div>
+        <div className="title">
+          Larkspur trial ground{' '}
+          <button className="link" onClick={() => showIntro('trials', true)}>
+            How trials work
+          </button>
+        </div>
         <div className="sub">
           {ranToday
             ? 'You ran today. The next trial is next Sunday.'
