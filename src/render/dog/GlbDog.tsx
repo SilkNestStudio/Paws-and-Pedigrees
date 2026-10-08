@@ -430,9 +430,11 @@ export function GlbDog({ dog, view }: { dog: Dog; view: () => DogView }) {
       const dx = v.lookAt.x - v.pos.x;
       const dz = v.lookAt.z - v.pos.z;
       const rel = wrapAngle(Math.atan2(dx, dz) - v.heading);
-      const behind = Math.max(0, Math.min(1, (Math.abs(rel) - 1.3) / 0.9));
       const near = Math.max(0, Math.min(1, (Math.hypot(dx, dz) - 0.8) / 0.8));
-      yaw = Math.max(-1, Math.min(1, rel)) * (1 - behind) * near;
+      // Looking back over a shoulder: stay on the side the head is already
+      // turned, rather than flipping sides as the target passes behind.
+      const side = Math.abs(rel) > 2.2 ? (s.yaw >= 0 ? 1 : -1) : Math.max(-1, Math.min(1, rel));
+      yaw = side * near;
     }
     s.yaw += (yaw - s.yaw) * damp(4, dt);
     bones.neck_02?.rotateZ(s.yaw * 0.45);

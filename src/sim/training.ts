@@ -373,12 +373,14 @@ function whistleDuringRun(t: TrainingSession): void {
   // Closer to the ball = more excited = harder to stop.
   const excitement = clamp01(1 - toBall / 25);
   const roll = responseRoll(t, excitement * 0.35);
+  // Even an untrained dog usually glances back at a whistle: that is the first
+  // thing to reward. Real stops come as the skill builds.
   const def =
-    roll > 0.6
+    roll > 0.55
       ? STOP_RESPONSES.stopSit!
-      : roll > 0.38
+      : roll > 0.3
         ? STOP_RESPONSES.stopStand!
-        : roll > 0.12
+        : roll > -0.12
           ? STOP_RESPONSES.glance!
           : STOP_RESPONSES.ignore!;
   t.pendingResponse = { at: t.time + 0.15 + (1 - t.skill) * 0.35, def, target: null };
@@ -646,14 +648,18 @@ function startResponse(t: TrainingSession, def: ResponseDef, target: Vec2 | null
     t.current.releaseAt = t.current.completeAt + hold;
   }
   if (t.lesson === 'stop') {
+    // "Finished" is what the player sees: braked to a stop, or settled into the sit.
     const brakeTime = t.dog.speed / (t.params.accel * 2);
+    const toSitPose = Math.max(0, t.dog.speed - 0.5) / (t.params.accel * 2);
     t.current.completeAt =
       t.time +
       (def.id === 'glance'
         ? 0.3
         : def.id === 'ignore'
           ? 0.2
-          : brakeTime + (def.id === 'stopSit' ? 0.35 : 0.1));
+          : def.id === 'stopSit'
+            ? toSitPose + 0.25
+            : brakeTime + 0.1);
     t.current.releaseAt = t.current.completeAt + (def.id === 'glance' ? 0.7 : hold);
   }
   if (t.lesson === 'cast') {
@@ -891,7 +897,17 @@ function animateStop(t: TrainingSession, dt: number): void {
     !r || r.def.id === 'ignore' || (r.def.id === 'glance' && t.time > r.completeAt + 0.4);
   if (chasing) {
     dog.pose = 'stand';
-    const reached = steerToward(dog, params, field, target, params.gallop, dt, 0.8);
+    // A glance back checks the stride for a moment, so you can see it happen.
+    const glancing = r?.def.id === 'glance' && t.time < r.completeAt + 0.4;
+    const reached = steerToward(
+      dog,
+      params,
+      field,
+      target,
+      glancing ? params.trot * 0.8 : params.gallop,
+      dt,
+      0.8,
+    );
     dog.tell = {
       ears: 'back',
       tail: 'neutral',
