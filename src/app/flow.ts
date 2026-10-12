@@ -1,5 +1,12 @@
 import { createRng, random } from '../core/rng';
-import { CUE_LABELS, type Dog } from '../core/dog/dog';
+import {
+  CUE_LABELS,
+  qualifiersIn,
+  SPORTS,
+  titlesIn,
+  type Dog,
+  type ExtraSport,
+} from '../core/dog/dog';
 import type { Vec2 } from '../core/math';
 import { createFounderGenome } from '../core/genetics/genome';
 import { observe, ACTIVITY_OBSERVATIONS } from '../core/dog/knowledge';
@@ -56,11 +63,14 @@ import {
   type PupOutcome,
 } from '../sim/puppies';
 import {
+  agilityShow,
   enterEvent,
   funDayEvent,
   QUALIFY,
+  qualifyTotal,
   recordEvent,
   rivalScore,
+  SPORT_INFO,
   studPupRival,
   trialEvent,
   trialLevel,
@@ -68,7 +78,13 @@ import {
   type EventDef,
   type EventOutcome,
 } from '../game/events';
-import { isTrialDay } from '../game/calendar';
+import { isShowDay, isTrialDay } from '../game/calendar';
+import {
+  agilityLearning,
+  buildAgilityReport,
+  createAgilitySession,
+  type AgilityCourse,
+} from '../sim/agility';
 import { deleteGame, loadGame, saveGame } from '../game/save';
 import { createHomeSession, fillHomeBowl, HOME_SPOTS, type SpotId } from '../sim/home';
 import { createRetrieveSession } from '../sim/retrieve';
@@ -156,6 +172,7 @@ function clearLive(): void {
   live.search = null;
   live.lesson = null;
   live.puppies = null;
+  live.agility = null;
 }
 
 function nextRun(): number {
@@ -310,6 +327,24 @@ const INTROS: Record<string, { title: string; lines: string[] }> = {
       '1. Click or tap the ground to say "Search here!". Your dog quarters back and forth across the wind.',
       '2. Watch its body language. Slow, careful sniffing means a real scent. Bouncy, excited sniffing usually means a rabbit or picnic smell.',
       '3. When your dog indicates (sits and stares, or paws at a spot), choose "Show me!" if you trust it, or "Search on" if you don\'t.',
+    ],
+  },
+  agility: {
+    title: 'How agility works',
+    lines: [
+      'Run the numbered obstacles in order, as fast and as cleanly as you can. Your dog takes the obstacle you are running toward, so the line you run is everything.',
+      'Press "Go!" (Space) to start, then run ahead of your dog toward the next number. A dog that cannot see where you are heading runs past, or picks an obstacle for itself.',
+      '"Here" (R) calls your dog off a wrong obstacle. "Easy" (F) steadies it for a tight turn or the A-frame, where it must touch the yellow at the bottom. "Go on" (Space) sends it ahead to the obstacle in front of it.',
+      'A bar down, a refusal, a missed contact or popping out of the weave poles costs 5 points. A wrong obstacle costs 20. Each second over the standard time costs 2.',
+      'Obstacles taken cleanly in practice build the Obstacles skill. A skilled dog reads you from further away and makes fewer mistakes.',
+    ],
+  },
+  shows: {
+    title: 'Saturday shows',
+    lines: [
+      'Every Saturday there is an agility show on the village green. Take the van. Two rounds over the same course, the second run the other way about.',
+      'A qualifying run means at least 50 in each round and 110 in total. Two qualifying runs earn an agility title (AN, then AO, then AX) and your dog moves up a level.',
+      "Agility titles count for your kennel's reputation and for a stud dog's fee, just like field titles.",
     ],
   },
   lesson: {
@@ -521,7 +556,9 @@ export function nameKennel(name: string): void {
 // Travel
 // ---------------------------------------------------------------------------
 
-export function travel(dest: 'shelter' | 'village' | 'green' | 'trial' | 'home'): void {
+export function travel(
+  dest: 'shelter' | 'village' | 'green' | 'trial' | 'home' | ExtraSport,
+): void {
   useApp.setState({ panel: null });
   if (dest === 'shelter') {
     commit((g) => {
@@ -536,6 +573,8 @@ export function travel(dest: 'shelter' | 'village' | 'green' | 'trial' | 'home')
     beginFunDay();
   } else if (dest === 'trial') {
     beginTrial();
+  } else if (dest === 'agility' || dest === 'herding') {
+    beginShow(dest);
   } else goHome('van');
 }
 
@@ -717,6 +756,79 @@ export function startLesson(lesson: Lesson): void {
   showIntro('lesson');
 }
 
+/** Practice runs in one agility session. */
+export const AGILITY_RUNS = 3;
+
+export function startAgility(
+  course: AgilityCourse,
+  opts: { round?: number; place?: Place; run?: number } = {},
+): void {
+  const run = opts.run ?? 0;
+  if (opts.round === undefined && run === 0 && !allowed('agility')) return;
+  const g = game();
+  const dog = activeDog(g)!;
+  const place = opts.place ?? 'home';
+  clearLive();
+  live.agility = createAgilitySession(
+    dog,
+    course,
+    fieldFor(place),
+    eventSeed(g, `agility-${course.id}-${g.results.length}-${run}`),
+  );
+  useApp.setState({
+    screen: { kind: 'agility', place, course, round: opts.round, run },
+    panel: null,
+    runId: nextRun(),
+  });
+  showIntro('agility');
+}
+
+function finishAgilityActivity(): void {
+  const s = live.agility;
+  const screen = get().screen;
+  if (!s || screen.kind !== 'agility') return;
+  const report = buildAgilityReport(s);
+  if (screen.round !== undefined) return finishRound(screen.round, report.score, report.notes);
+  const before = s.skill;
+  const after = Math.min(1, before + agilityLearning(s));
+  let discoveries: ResultView['discoveries'] = [];
+  commit((g) => {
+    addFlag(g, 'practised:agility');
+    discoveries = finishActivity(g, {
+      kind: 'agility',
+      title: screen.course.title,
+      score: report.score,
+      grade: report.grade,
+      observe: 'agility',
+      skill: { cue: 'agility', value: after },
+      extra: screen.run > 0,
+    });
+  });
+  const left = AGILITY_RUNS - 1 - screen.run;
+  useApp.setState({
+    panel: 'result',
+    result: {
+      title: `${screen.course.title}: run ${screen.run + 1} of ${AGILITY_RUNS}`,
+      grade: report.grade,
+      score: report.score,
+      seconds: report.seconds,
+      notes: report.notes,
+      discoveries,
+      pay: 0,
+      skill: { name: CUE_LABELS.agility.name, before, after },
+      withScore: true,
+      runsLeft: left,
+      next: left > 0 ? 'again' : 'home',
+    },
+  });
+}
+
+/** Ends a practice session before all its runs are used. */
+export function stopPractice(): void {
+  useApp.setState({ result: null, panel: null });
+  goHome('fieldGate');
+}
+
 const SEARCH_AREAS: Record<string, { item: string; center: Vec2; radius: number }> = {
   'mara-keys': { item: "Mara's keys", center: { x: -10, z: -24 }, radius: 10 },
   'hollins-glove': { item: 'the glove', center: { x: 16, z: -22 }, radius: 16 },
@@ -760,6 +872,7 @@ export function activityFinished(): void {
   else if (screen.kind === 'search') finishSearchActivity();
   else if (screen.kind === 'lesson') finishLessonActivity();
   else if (screen.kind === 'puppies') finishPuppySession();
+  else if (screen.kind === 'agility') finishAgilityActivity();
 }
 
 // ---------------------------------------------------------------------------
@@ -1009,7 +1122,10 @@ export function abandonActivity(): void {
     finishPuppySession();
     return;
   }
-  if ((screen.kind === 'retrieve' || screen.kind === 'search') && screen.round !== undefined) {
+  if (
+    (screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'agility') &&
+    screen.round !== undefined
+  ) {
     finishRound(screen.round, 0, [{ text: 'Retired from the round.', tone: 'warn' }]);
     return;
   }
@@ -1027,6 +1143,8 @@ export function closeResult(): void {
   if (!r) return;
   if (r.next === 'eventNext') return nextRound();
   if (r.next === 'eventDone') return finishEvent();
+  if (r.next === 'again' && screen.kind === 'agility')
+    return startAgility(screen.course, { place: screen.place, run: screen.run + 1 });
   const g = game();
   if (screen.kind === 'search' && screen.job?.id === 'mara-keys') {
     goHome('van');
@@ -1059,12 +1177,70 @@ export function todaysTrial(g: GameState): EventDef | null {
   const dog = activeDog(g);
   if (!dog || !isTrialDay(g.day)) return null;
   if (g.trials.some((t) => t.day === g.day && t.dogId === dog.id)) return null;
+  if (!canStartActivity(g, 'funday').ok) return null;
   const level = trialLevel(dog);
   // A youngster by one of your stud dogs may be running for the kennel that booked him.
   const booking = level === 'excellent' ? null : studPupDue(g, g.day);
   const sire = booking ? g.dogs.find((d) => d.id === booking.studId) : undefined;
   const guest = booking && sire ? (studPupRival(booking, sire, level) ?? undefined) : undefined;
   return trialEvent(g.seed, g.day, level, guest);
+}
+
+/** Today's Saturday show in a sport, if the active dog can enter it. */
+export function todaysShow(g: GameState, sport: ExtraSport): EventDef | null {
+  const dog = activeDog(g);
+  if (!dog || !g.funDay || !isShowDay(g.day)) return null;
+  if (g.trials.some((t) => t.day === g.day && t.dogId === dog.id)) return null;
+  if (!canStartActivity(g, 'funday').ok) return null;
+  return sport === 'agility' ? agilityShow(g.seed, g.day, trialLevel(dog, 'agility')) : null;
+}
+
+/** Why the active dog can't compete today, for the van's rows. */
+export function entryProblem(g: GameState): string | null {
+  const check = canStartActivity(g, 'funday');
+  return check.ok ? null : check.reason;
+}
+
+export function beginShow(sport: ExtraSport): void {
+  const g = game();
+  const def = todaysShow(g, sport);
+  if (!def || g.block === 'night') {
+    toast('There is no show for you to enter right now. Shows run every Saturday.', 'info');
+    goHome('van');
+    return;
+  }
+  let paid = false;
+  commit((d) => {
+    paid = enterEvent(d, def);
+  });
+  if (!paid) {
+    toast(`The entry fee is $${def.entryFee}. Noticeboard jobs pay.`, 'warn');
+    goHome('van');
+    return;
+  }
+  const first = !g.trials.some((t) => t.sport === sport);
+  const dog = activeDog(g)!;
+  const names = def.rivals.map((r) => `${r.handler} with ${r.dog.name}`).join(', ');
+  beginEvent(def);
+  say(
+    [
+      {
+        speaker: 'Mara',
+        text: first
+          ? `Your first agility show! Two rounds over the same course, the second the other way about. Today you're up against ${names}.`
+          : `${def.name} today. Running against ${names}.`,
+      },
+      ...(first
+        ? [
+            {
+              speaker: 'Mara' as const,
+              text: `Walk the numbers in your head before you say "Go". At least ${QUALIFY.minRound} in each round and ${qualifyTotal(def.rounds.length)} in total is a qualifying run; two of those and ${dog.name} has an agility title.`,
+            },
+          ]
+        : []),
+    ],
+    () => showIntro('shows'),
+  );
 }
 
 function beginFunDay(): void {
@@ -1106,7 +1282,7 @@ function beginTrial(): void {
 function trialIntro(def: EventDef): Line[] {
   const g = game();
   const dog = activeDog(g)!;
-  const first = g.trials.length === 0;
+  const first = !g.trials.some((t) => (t.sport ?? 'field') === 'field');
   const names = def.rivals.map((r) => `${r.handler} with ${r.dog.name}`).join(', ');
   const lines: Line[] = [
     {
@@ -1148,7 +1324,9 @@ function startRound(index: number): void {
   const ev = get().event;
   if (!ev) return;
   const round = ev.def.rounds[index]!;
-  if (round.kind === 'search') startSearch(round.search!, { round: index, place: ev.def.place });
+  if (round.kind === 'agility') startAgility(round.course!, { round: index, place: ev.def.place });
+  else if (round.kind === 'search')
+    startSearch(round.search!, { round: index, place: ev.def.place });
   else startFieldWork(round.retrieve!, { round: index, place: ev.def.place });
 }
 
@@ -1231,7 +1409,8 @@ function finishEvent(): void {
   commit((d) => {
     outcome = recordEvent(d, ev.def, ev.player, ev.rivals);
     d.knowledge[dog.id] ??= {};
-    for (const o of ['mark', 'search', 'blind'] as const) {
+    const sport = ev.def.sport ?? 'field';
+    for (const o of sport === 'field' ? (['mark', 'search', 'blind'] as const) : [sport]) {
       observe(
         createRng(eventSeed(d, `${ev.def.id}-${o}`)),
         dog,
@@ -1278,14 +1457,16 @@ export function leaveEvent(): void {
     );
     return;
   }
-  const level = TRIAL_RULES[done.def.level!].name;
-  const qs = dog.qualifiers[done.def.level!] ?? 0;
+  const sport = done.def.sport ?? 'field';
+  const level = `${sport === 'field' ? '' : `${SPORT_INFO[sport].name} `}${TRIAL_RULES[done.def.level!].name}`;
+  const qs = qualifiersIn(dog, sport, done.def.level!);
   const pronoun = dog.sex === 'female' ? 'her' : 'his';
+  const when = sport === 'field' ? 'Sunday' : 'Saturday';
   say([
     {
       speaker: 'Mara',
       text: title
-        ? `A ${level} title! It's official: ${dogWithTitles(dog)}. From next Sunday you run at ${TRIAL_RULES[trialLevel(dog)].name} level. Harder work, bigger prizes.`
+        ? `A ${level} title! It's official: ${dogWithTitles(dog)}. From next ${when} you run at ${TRIAL_RULES[trialLevel(dog, sport)].name} level. Harder work, bigger prizes.`
         : record.qualified
           ? `A qualifying run! That's ${qs} of ${QUALIFY.toTitle} toward the ${level} title.`
           : `No qualifying run today. Look at the round that let you down: that's this week's training. ${dog.name} was at ${pronoun} best in ${best.skill}.`,
@@ -1293,13 +1474,19 @@ export function leaveEvent(): void {
   ]);
 }
 
-/** Short title letters after a dog's name: Novice → FN, Open → FO, Excellent → FX. */
-export const titleLetters = (level: string): string =>
-  level === 'novice' ? 'FN' : level === 'open' ? 'FO' : 'FX';
+/** Short title letters after a dog's name: field Novice → FN, agility Open → AO, and so on. */
+export const titleLetters = (level: string, sport: (typeof SPORTS)[number] = 'field'): string =>
+  SPORT_INFO[sport].letter + (level === 'novice' ? 'N' : level === 'open' ? 'O' : 'X');
 
-/** "Pepper FN FO" */
+/** "Pepper FO AN": the name with the highest title held in each sport. */
 export const dogWithTitles = (dog: Dog): string =>
-  [dog.name, ...dog.titles.map(titleLetters)].join(' ');
+  [
+    dog.name,
+    ...SPORTS.flatMap((s) => {
+      const held = titlesIn(dog, s);
+      return held.length ? [titleLetters(held[held.length - 1]!, s)] : [];
+    }),
+  ].join(' ');
 
 export const ordinal = (n: number) =>
   n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;

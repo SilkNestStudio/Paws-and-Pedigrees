@@ -14,12 +14,24 @@ import { HOME_SPOTS, type HomeSession, type SpotId } from '../sim/home';
 import { windAt } from '../sim/scent';
 import { cameraState } from './input';
 import { PUP_ACTIVITIES, pupHint } from '../sim/puppies';
+import { OBSTACLE_NAMES, standardTime, type AgilitySession } from '../sim/agility';
 import { live, useApp } from './store';
 import { MARA_POS } from './flow';
 
 /** A light snapshot of whatever is live, refreshed about ten times a second for the interface. */
 export interface HudSnapshot {
-  kind: 'home' | 'retrieve' | 'search' | 'lesson' | 'shelter' | 'puppies';
+  kind: 'home' | 'retrieve' | 'search' | 'lesson' | 'shelter' | 'puppies' | 'agility';
+  /** A round of agility. */
+  agility?: {
+    phase: AgilitySession['phase'];
+    next: number;
+    total: number;
+    seconds: number;
+    standard: number;
+    faults: number;
+    keeper: Vec2;
+    dog: Vec2;
+  };
   /** A puppy session in the paddock. */
   puppies?: {
     mode: 'raise' | 'evaluate';
@@ -204,6 +216,27 @@ function lessonHint(t: TrainingSession): string {
   return 'Watch closely… press Yes! (Space) at the right moment.';
 }
 
+function agilityHint(s: AgilitySession): string {
+  const name = s.dogName;
+  if (s.phase === 'ready')
+    return `Look over the numbers, then press "Go!" (Space). ${name} takes whatever you run toward.`;
+  if (s.phase === 'complete') return 'Home!';
+  const next = s.course.obstacles[s.next]!;
+  const n = s.next + 1;
+  if (s.target && s.target.index !== s.next && s.state === 'seek')
+    return `${name} is eyeing number ${s.target.index + 1}! Call "Here" (R).`;
+  if (s.state === 'commit' && s.target?.index === s.next) {
+    if (next.kind === 'frame')
+      return 'Say "Easy" (F) so the yellow contact is touched on the way down.';
+    return s.course.obstacles[s.next + 1]
+      ? `Good. Now get ahead toward number ${n + 1}.`
+      : 'Last one!';
+  }
+  if (!s.target)
+    return `Run toward number ${n} (the ${OBSTACLE_NAMES[next.kind]}) and face it: ${name} follows your line.`;
+  return `${name} is heading for number ${n}.`;
+}
+
 export function publish(): void {
   const screen = useApp.getState().screen;
   let snap: HudSnapshot | null = null;
@@ -286,6 +319,34 @@ export function publish(): void {
         feedback: t.feedback,
         time: t.time,
         coach: coaching(t)?.kind ?? null,
+      },
+    };
+  }
+  if (live.agility) {
+    const s = live.agility;
+    const st = s.stats;
+    snap = {
+      kind: 'agility',
+      dogName: s.dogName,
+      tell: s.dog.tell.text,
+      dogMode: null,
+      hint: agilityHint(s),
+      cameraYaw: cameraState.yaw,
+      wind: null,
+      events: s.events.slice(-2),
+      home: null,
+      field: null,
+      search: null,
+      lesson: null,
+      agility: {
+        phase: s.phase,
+        next: s.next,
+        total: s.course.obstacles.length,
+        seconds: st.startedAt === null ? 0 : (st.finishedAt ?? s.time) - st.startedAt,
+        standard: standardTime(s.course),
+        faults: 5 * (st.bars + st.refusals + st.contacts + st.weaves) + 20 * st.offCourse,
+        keeper: { ...s.keeper.pos },
+        dog: { ...s.dog.pos },
       },
     };
   }

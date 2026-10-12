@@ -1,10 +1,14 @@
 import { chance, createRng, hashString, int, pick, range, shuffle, type Rng } from '../core/rng';
 import {
+  addQualifier,
+  addTitle,
   createPuppy,
   generateRescue,
+  titlesIn,
   TRIAL_LEVELS,
   type Cue,
   type Dog,
+  type Sport,
   type TrialLevel,
 } from '../core/dog/dog';
 import { createFounderGenome } from '../core/genetics/genome';
@@ -16,6 +20,13 @@ import { createRetrieveSession } from '../sim/retrieve';
 import { buildReport } from '../sim/report';
 import { buildSearchReport, createSearchSession, type SearchSetup } from '../sim/search';
 import { playRetrieve, playSearch } from '../sim/bots';
+import {
+  buildAgilityReport,
+  createAgilitySession,
+  playAgility,
+  type AgilityCourse,
+} from '../sim/agility';
+import { showCourse } from '../sim/courses';
 import { activeDog, note, type GameState } from './state';
 import { addReputation, REPUTATION, type StudBooking } from './reputation';
 
@@ -27,7 +38,7 @@ export type { TrialLevel } from '../core/dog/dog';
  * same rounds through the same simulation with their own dogs and handling
  * skill, so their scores come from play, not from a dice roll.
  */
-export type RoundKind = 'mark' | 'search' | 'blind';
+export type RoundKind = 'mark' | 'search' | 'blind' | 'agility';
 export type EventPlace = 'green' | 'trial';
 export type RivalLook = 'victor' | 'billy' | 'ruth' | 'sam' | 'grace' | 'hamish' | 'dora';
 
@@ -40,6 +51,7 @@ export interface EventRound {
   skill: string;
   retrieve?: RetrieveSetup;
   search?: SearchSetup;
+  course?: AgilityCourse;
 }
 
 export interface Rival {
@@ -57,6 +69,8 @@ export interface Rival {
 export interface EventDef {
   id: string;
   kind: 'funday' | 'trial';
+  /** Which sport's titles this counts toward. Field trials if not given. */
+  sport?: Sport;
   name: string;
   place: EventPlace;
   level: TrialLevel | null;
@@ -79,6 +93,7 @@ export interface EventEntry {
 export interface EventRecord {
   id: string;
   kind: 'funday' | 'trial';
+  sport?: Sport;
   name: string;
   day: number;
   level: TrialLevel | null;
@@ -142,8 +157,24 @@ export const READINESS: Record<TrialLevel, { cue: 'stay' | 'stop' | 'cast'; targ
   ],
 };
 
+/** Entry fees and prizes at the Saturday shows (proposals). */
+export const SHOW_RULES: Record<TrialLevel, { entryFee: number; prizes: number[] }> = {
+  novice: { entryFee: 8, prizes: [40, 25, 12] },
+  open: { entryFee: 15, prizes: [80, 50, 25] },
+  excellent: { entryFee: 25, prizes: [130, 75, 40] },
+};
+
+/** How each sport is named, and the letter its titles carry after a dog's name. */
+export const SPORT_INFO: Record<Sport, { name: string; letter: string; where: string }> = {
+  field: { name: 'Field trial', letter: 'F', where: 'Larkspur' },
+  agility: { name: 'Agility', letter: 'A', where: 'the village green' },
+  herding: { name: 'Sheepdog', letter: 'H', where: 'Fell Top Farm' },
+};
+
 /** Plain advice for the round that went worst. */
 export function adviceFor(kind: RoundKind, water: boolean, dogName: string): string {
+  if (kind === 'agility')
+    return `Faults and time decide an agility round. Practise in Grandpa's ring: clean obstacles build ${dogName}'s skill, and running ahead of your dog keeps it on the right line.`;
   if (water)
     return `Water was the weak round. Practise at Grandpa's duck pond (restore it from the field gate) and stop ${dogName} the moment it heads for the bank.`;
   if (kind === 'mark')
@@ -156,13 +187,17 @@ export function adviceFor(kind: RoundKind, water: boolean, dogName: string): str
 /** A qualifying run: every round at least `minRound` and a total of at least `minTotal`. */
 export const QUALIFY = { minRound: 50, minTotal: 165, toTitle: 2 };
 
+/** The total needed over an event's rounds (165 over three, 110 over two). */
+export const qualifyTotal = (rounds: number): number => Math.round((QUALIFY.minTotal * rounds) / 3);
+
 export const qualifies = (rounds: number[]): boolean =>
   rounds.every((r) => r >= QUALIFY.minRound) &&
-  rounds.reduce((a, b) => a + b, 0) >= QUALIFY.minTotal;
+  rounds.reduce((a, b) => a + b, 0) >= qualifyTotal(rounds.length);
 
-/** The level a dog enters next: the first one it has no title for. */
-export function trialLevel(dog: Dog): TrialLevel {
-  return TRIAL_LEVELS.find((l) => !dog.titles.includes(l)) ?? 'excellent';
+/** The level a dog enters next in a sport: the first one it has no title for. */
+export function trialLevel(dog: Dog, sport: Sport = 'field'): TrialLevel {
+  const held = titlesIn(dog, sport);
+  return TRIAL_LEVELS.find((l) => !held.includes(l)) ?? 'excellent';
 }
 
 export const titleName = (level: TrialLevel): string => `${TRIAL_RULES[level].name} title`;
@@ -204,6 +239,8 @@ export function createRivals(seed: number): Rival[] {
     cast: 0.8,
     deliver: 0.9,
     indicate: 0.7,
+    agility: 0.5,
+    herd: 0,
   };
   duchess.bond = 70;
   const pickles = withFounder(rng, 'Pickles', 'beagle', -0.2);
@@ -216,6 +253,8 @@ export function createRivals(seed: number): Rival[] {
     cast: 0.1,
     deliver: 0.4,
     indicate: 0.1,
+    agility: 0.1,
+    herd: 0,
   };
   pickles.bond = 60;
   return [
@@ -391,8 +430,20 @@ const LEVEL_SKILLS: Record<TrialLevel, Record<Cue, number>> = {
     cast: 0.1,
     deliver: 0.5,
     indicate: 0.15,
+    agility: 0.3,
+    herd: 0.3,
   },
-  open: { sit: 0.85, stay: 0.75, recall: 0.8, stop: 0.65, cast: 0.55, deliver: 0.8, indicate: 0.5 },
+  open: {
+    sit: 0.85,
+    stay: 0.75,
+    recall: 0.8,
+    stop: 0.65,
+    cast: 0.55,
+    deliver: 0.8,
+    indicate: 0.5,
+    agility: 0.6,
+    herd: 0.6,
+  },
   excellent: {
     sit: 0.95,
     stay: 0.9,
@@ -401,6 +452,8 @@ const LEVEL_SKILLS: Record<TrialLevel, Record<Cue, number>> = {
     cast: 0.8,
     deliver: 0.9,
     indicate: 0.7,
+    agility: 0.85,
+    herd: 0.85,
   },
 };
 
@@ -648,6 +701,44 @@ export function trialEvent(
 }
 
 // ---------------------------------------------------------------------------
+// Saturday shows: agility on the village green
+// ---------------------------------------------------------------------------
+
+/** The agility show on a given Saturday at a given level: two rounds over the same course, mirrored. */
+export function agilityShow(gameSeed: number, day: number, level: TrialLevel): EventDef {
+  const seed = (gameSeed ^ Math.imul(day, 6151) ^ 0xa911) >>> 0;
+  const rng = createRng(seed);
+  const pool = RIVAL_POOL.filter((r) => r.levels.includes(level));
+  const rivals = shuffle(rng, pool)
+    .slice(0, 3)
+    .map((spec) => rivalFromSpec(spec, level));
+  const flip = int(rng, 0, 1);
+  const rules = SHOW_RULES[level];
+  return {
+    id: `agility-${day}`,
+    kind: 'trial',
+    sport: 'agility',
+    name: `Village ${TRIAL_RULES[level].name} Agility Show`,
+    place: 'green',
+    level,
+    rounds: [0, 1].map((r) => {
+      const course = showCourse(level, r, flip);
+      return {
+        kind: 'agility' as const,
+        title: course.title,
+        short: `Round ${r + 1}`,
+        skill: r === 0 ? 'the first round' : 'the second round',
+        course,
+      };
+    }),
+    rivals,
+    entryFee: rules.entryFee,
+    prizes: rules.prizes,
+    seed: seed % 99991,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Playing rivals, standings and recording the result
 // ---------------------------------------------------------------------------
 
@@ -660,6 +751,10 @@ export function rivalScore(def: EventDef, rival: Rival, roundIndex: number): num
   const seed = def.seed + roundIndex * 101 + (hashString(rival.id) % 1000);
   const rng = createRng(seed ^ int(createRng(seed), 1, 1e6));
   const field = fieldForEvent(def.place);
+  if (round.kind === 'agility') {
+    const s = createAgilitySession(rival.dog, round.course!, field, seed + 31);
+    return buildAgilityReport(playAgility(s, rival.skill, rng)).score;
+  }
   if (round.kind === 'search') {
     const s = createSearchSession(rival.dog, round.search!, field, seed + 11);
     return buildSearchReport(playSearch(s, rival.skill, rng)).score;
@@ -739,9 +834,11 @@ export function recordEvent(
   const placing = table.entries.findIndex((e) => e.player) + 1;
   const prize = def.prizes[placing - 1] ?? 0;
   const qualified = def.kind === 'trial' && qualifies(playerRounds);
+  const sport: Sport = def.sport ?? 'field';
   const record: EventRecord = {
     id: def.id,
     kind: def.kind,
+    sport,
     name: def.name,
     day: state.day,
     level: def.level,
@@ -764,10 +861,9 @@ export function recordEvent(
     if (placing === 1) addReputation(state, REPUTATION.trialWin);
     if (qualified) addReputation(state, REPUTATION.qualifyingRun);
     if (qualified && def.level) {
-      const count = (dog.qualifiers[def.level] ?? 0) + 1;
-      dog.qualifiers[def.level] = count;
-      if (count >= QUALIFY.toTitle && !dog.titles.includes(def.level)) {
-        dog.titles.push(def.level);
+      const count = addQualifier(dog, sport, def.level);
+      if (count >= QUALIFY.toTitle && !titlesIn(dog, sport).includes(def.level)) {
+        addTitle(dog, sport, def.level);
         title = def.level;
         addReputation(state, REPUTATION.title);
       }
@@ -778,7 +874,9 @@ export function recordEvent(
     state,
     `${def.name}: ${ordinal(placing)} of ${table.entries.length}${prize ? ` ($${prize})` : ''}.` +
       `${qualified ? ' A qualifying run!' : ''} ${dog.name} was best at ${best.skill}.` +
-      (title ? ` ${dog.name} earned the ${titleName(title)}.` : ''),
+      (title
+        ? ` ${dog.name} earned the ${sport === 'field' ? '' : `${SPORT_INFO[sport].name} `}${titleName(title)}.`
+        : ''),
   );
   return { record, title };
 }

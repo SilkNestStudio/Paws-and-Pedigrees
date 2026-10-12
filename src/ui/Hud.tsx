@@ -7,6 +7,7 @@ import { dogWithTitles } from '../app/flow';
 import { objective } from '../game/story';
 import { fieldFor, abandonActivity, go } from '../app/flow';
 import { LESSONS } from '../sim/training';
+import { OBSTACLE_LENGTH } from '../sim/agility';
 import { useHud, type HudSnapshot } from '../app/hud';
 import { useApp, type Place } from '../app/store';
 import { input } from '../app/input';
@@ -29,7 +30,7 @@ export function Hud() {
     <div className="hud">
       <TopBar snap={snap} />
       {snap.kind === 'home' ? <ObjectiveCard /> : <ActivityCard snap={snap} />}
-      {(snap.field || snap.search) && <TargetLabels />}
+      {(snap.field || snap.search || snap.agility) && <TargetLabels />}
       {snap.kind === 'home' && !busy && <SpotNameLabels />}
       <TopRight snap={snap} />
       {snap.lesson?.feedback && snap.lesson.time - snap.lesson.feedback.time < 3 && (
@@ -170,7 +171,9 @@ function ActivityCard({ snap }: { snap: HudSnapshot }) {
   const screen = useApp((s) => s.screen);
   const event = useApp((s) => s.event);
   const roundIndex =
-    screen.kind === 'retrieve' || screen.kind === 'search' ? (screen.round ?? 0) : 0;
+    screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'agility'
+      ? (screen.round ?? 0)
+      : 0;
   const eventLine = event
     ? `${event.def.name} · round ${roundIndex + 1} of ${event.def.rounds.length}`
     : '';
@@ -193,6 +196,9 @@ function ActivityCard({ snap }: { snap: HudSnapshot }) {
   } else if (screen.kind === 'lesson') {
     title = LESSONS[screen.lesson].title;
     sub = LESSONS[screen.lesson].how;
+  } else if (screen.kind === 'agility') {
+    title = screen.course.title;
+    sub = screen.round !== undefined ? eventLine : screen.course.summary;
   } else if (screen.kind === 'shelter') {
     title = 'Larchwood Rescue';
     sub = 'Play with each dog, then choose.';
@@ -201,10 +207,26 @@ function ActivityCard({ snap }: { snap: HudSnapshot }) {
     sub = `${snap.puppies.summary} (${Math.min(snap.puppies.done + 1, snap.puppies.total)} of ${snap.puppies.total})`;
   }
   const l = snap.lesson;
+  const a = snap.agility;
   return (
     <div className={`objective card activity ${l ? 'lesson' : ''}`}>
       <div className="objective-title">{title}</div>
       <div className="sub">{sub}</div>
+      {a && (
+        <>
+          <div className="stat-row">
+            <span>
+              Obstacle {Math.min(a.next + 1, a.total)} of {a.total}
+            </span>
+            <span className={a.seconds > a.standard ? 'over' : ''}>
+              {a.seconds.toFixed(1)} s of {a.standard} s
+            </span>
+          </div>
+          <div className="stat-row muted">
+            <span>{a.faults ? `Faults: ${a.faults}` : 'Clear so far'}</span>
+          </div>
+        </>
+      )}
       {l && (
         <>
           <div className="stat-row">
@@ -288,6 +310,7 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
     screen.kind === 'retrieve' ||
     screen.kind === 'search' ||
     screen.kind === 'lesson' ||
+    screen.kind === 'agility' ||
     screen.kind === 'puppies';
   return (
     <div className="top-right">
@@ -305,6 +328,7 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
         </button>
       )}
       {(snap.field || snap.search) && showMap && <MiniMap snap={snap} />}
+      {snap.agility && <CourseMap snap={snap} />}
     </div>
   );
 }
@@ -469,7 +493,107 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
   );
 }
 
+/** The numbered course from above, with you and your dog on it. */
+function CourseMap({ snap }: { snap: HudSnapshot }) {
+  const screen = useApp((s) => s.screen);
+  const a = snap.agility;
+  if (screen.kind !== 'agility' || !a) return null;
+  const course = screen.course;
+  const xs = [...course.obstacles.map((o) => o.pos.x), course.start.x];
+  const zs = [...course.obstacles.map((o) => o.pos.z), course.start.z];
+  const minX = Math.min(...xs) - 4;
+  const minZ = Math.min(...zs) - 4;
+  const w = Math.max(...xs) + 4 - minX;
+  const h = Math.max(...zs) + 4 - minZ;
+  return (
+    <div className="minimap card course-map">
+      <svg viewBox={`${minX} ${minZ} ${w} ${h}`}>
+        <rect x={minX} y={minZ} width={w} height={h} fill="#8fb35f" />
+        <polyline
+          points={[course.start, ...course.obstacles.map((o) => o.pos)]
+            .map((p) => `${p.x},${p.z}`)
+            .join(' ')}
+          fill="none"
+          stroke="#fff"
+          strokeOpacity={0.45}
+          strokeWidth={0.25}
+          strokeDasharray="0.8 0.6"
+        />
+        {course.obstacles.map((o, i) => {
+          const len = OBSTACLE_LENGTH[o.kind] / 2;
+          const dx = Math.sin(o.heading);
+          const dz = Math.cos(o.heading);
+          const across = o.kind === 'jump';
+          // Jumps are drawn as a bar across the path; the rest along it.
+          const ex = across ? dz * 0.9 : dx * len;
+          const ez = across ? -dx * 0.9 : dz * len;
+          const state = i < a.next ? 'done' : i === a.next ? 'next' : 'todo';
+          return (
+            <g key={i} opacity={state === 'done' ? 0.45 : 1}>
+              <line
+                x1={o.pos.x - ex}
+                y1={o.pos.z - ez}
+                x2={o.pos.x + ex}
+                y2={o.pos.z + ez}
+                stroke={o.kind === 'tunnel' ? '#3f6fb5' : o.kind === 'frame' ? '#c8452f' : '#fff'}
+                strokeWidth={o.kind === 'jump' ? 0.5 : 1}
+                strokeLinecap="round"
+              />
+              <circle
+                cx={o.pos.x + dz * 1.9}
+                cy={o.pos.z - dx * 1.9}
+                r={1.25}
+                fill={state === 'next' ? '#ffb347' : '#fff'}
+              />
+              <text
+                x={o.pos.x + dz * 1.9}
+                y={o.pos.z - dx * 1.9 + 0.62}
+                fontSize={1.7}
+                fontWeight={700}
+                textAnchor="middle"
+                fill="#22352a"
+              >
+                {i + 1}
+              </text>
+            </g>
+          );
+        })}
+        <circle
+          cx={a.keeper.x}
+          cy={a.keeper.z}
+          r={0.9}
+          fill="#22352a"
+          stroke="#fff"
+          strokeWidth={0.3}
+        />
+        <circle cx={a.dog.x} cy={a.dog.z} r={0.9} fill="#d9622b" stroke="#fff" strokeWidth={0.3} />
+      </svg>
+    </div>
+  );
+}
+
 function Actions({ snap }: { snap: HudSnapshot }) {
+  if (snap.agility) {
+    const ready = snap.agility.phase === 'ready';
+    return (
+      <div className="actions">
+        {!ready && (
+          <>
+            <button className="action" onClick={act.steady}>
+              Easy<small>F</small>
+            </button>
+            <button className="action" onClick={act.recall}>
+              Here!<small>R</small>
+            </button>
+          </>
+        )}
+        <button className="action primary" onClick={act.whistle}>
+          {ready ? 'Go!' : 'Go on'}
+          <small>Space</small>
+        </button>
+      </div>
+    );
+  }
   if (snap.kind === 'puppies' && snap.puppies) {
     const idle = snap.puppies.phase !== 'round';
     return snap.puppies.mode === 'evaluate' ? (
@@ -623,15 +747,17 @@ function Keys({ snap }: { snap: HudSnapshot }) {
   const text =
     snap.kind === 'home'
       ? 'WASD walk · Shift jog · E use · F pat your dog · R call · drag or Q to look'
-      : snap.kind === 'lesson'
-        ? 'Space: Yes! · F: cue · drag to look around'
-        : snap.kind === 'puppies'
-          ? snap.puppies?.mode === 'evaluate'
-            ? 'Say what you saw: 1 keen · 2 unsure · 3 worried'
-            : 'Space: Good pup! · X: make it easier'
-          : snap.kind === 'search'
-            ? 'WASD walk · click: search here · Space: show me · X: search on · R: here'
-            : 'WASD walk · click: send / throw / direct · Space whistle · R here · F sit · T throw';
+      : snap.kind === 'agility'
+        ? 'WASD run (hold Shift) · Space: Go / Go on · R: Here · F: Easy'
+        : snap.kind === 'lesson'
+          ? 'Space: Yes! · F: cue · drag to look around'
+          : snap.kind === 'puppies'
+            ? snap.puppies?.mode === 'evaluate'
+              ? 'Say what you saw: 1 keen · 2 unsure · 3 worried'
+              : 'Space: Good pup! · X: make it easier'
+            : snap.kind === 'search'
+              ? 'WASD walk · click: search here · Space: show me · X: search on · R: here'
+              : 'WASD walk · click: send / throw / direct · Space whistle · R here · F sit · T throw';
   return <div className="keys card">{text}</div>;
 }
 

@@ -10,6 +10,7 @@ import type { SearchSession, SearchSetup } from '../sim/search';
 import type { RetrieveSetup } from '../sim/exercises';
 import type { Lesson, TrainingSession } from '../sim/training';
 import type { PupActivity, PuppySession } from '../sim/puppies';
+import type { AgilityCourse, AgilitySession } from '../sim/agility';
 
 /**
  * Interface state. The saved game lives in `game`; live simulations live in
@@ -27,6 +28,7 @@ export type Screen =
   | { kind: 'retrieve'; place: Place; setup: RetrieveSetup; job?: Job; round?: number }
   | { kind: 'search'; place: Place; setup: SearchSetup; job?: Job; round?: number }
   | { kind: 'lesson'; lesson: Lesson }
+  | { kind: 'agility'; place: Place; course: AgilityCourse; round?: number; run: number }
   | { kind: 'puppies'; litterId: string; activity: PupActivity; mode: 'raise' | 'evaluate' };
 
 export type Panel =
@@ -62,7 +64,11 @@ export interface ResultView {
   suggestion?: string;
   /** No score to show (puppy sessions). */
   plain?: boolean;
-  next: 'home' | 'eventNext' | 'eventDone' | 'shelter';
+  /** Show the score as well as the skill bar. */
+  withScore?: boolean;
+  /** Practice runs still to go this session. */
+  runsLeft?: number;
+  next: 'home' | 'eventNext' | 'eventDone' | 'shelter' | 'again';
 }
 
 export interface IntroCard {
@@ -91,7 +97,8 @@ export const live: {
   search: SearchSession | null;
   lesson: TrainingSession | null;
   puppies: PuppySession | null;
-} = { home: null, field: null, search: null, lesson: null, puppies: null };
+  agility: AgilitySession | null;
+} = { home: null, field: null, search: null, lesson: null, puppies: null, agility: null };
 
 export interface AppState {
   game: GameState | null;

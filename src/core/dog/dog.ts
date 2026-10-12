@@ -9,7 +9,17 @@ import { chance, int, pick, range, weighted, type Rng } from '../rng';
  * Learned cues. Each has a reliability from 0 (unknown) to 1 (rock solid).
  * Skills are trained, never inherited.
  */
-export const CUES = ['sit', 'stay', 'recall', 'stop', 'cast', 'deliver', 'indicate'] as const;
+export const CUES = [
+  'sit',
+  'stay',
+  'recall',
+  'stop',
+  'cast',
+  'deliver',
+  'indicate',
+  'agility',
+  'herd',
+] as const;
 export type Cue = (typeof CUES)[number];
 
 export const CUE_LABELS: Record<Cue, { name: string; meaning: string }> = {
@@ -20,6 +30,11 @@ export const CUE_LABELS: Record<Cue, { name: string; meaning: string }> = {
   cast: { name: 'Directions', meaning: 'Goes left, right or back when you signal' },
   deliver: { name: 'Delivery', meaning: 'Brings items all the way to your hand' },
   indicate: { name: 'Indicate', meaning: 'Sits and stares at a find instead of guessing' },
+  agility: {
+    name: 'Obstacles',
+    meaning: 'Takes jumps, tunnels and weave poles from your running line',
+  },
+  herd: { name: 'Herding', meaning: 'Flanks, walks up and lies down on the whistle around sheep' },
 };
 
 export type Sex = 'female' | 'male';
@@ -28,6 +43,11 @@ export type Origin = 'shelter' | 'bred' | 'purchased';
 /** Field trial levels, in order. Two qualifying runs at a level earn its title. */
 export const TRIAL_LEVELS = ['novice', 'open', 'excellent'] as const;
 export type TrialLevel = (typeof TRIAL_LEVELS)[number];
+
+/** Sports with their own titles. Field trials came first, so their titles live in `titles`. */
+export const SPORTS = ['field', 'agility', 'herding'] as const;
+export type Sport = (typeof SPORTS)[number];
+export type ExtraSport = Exclude<Sport, 'field'>;
 
 export interface Dog {
   id: string;
@@ -67,7 +87,40 @@ export interface Dog {
   rearing?: Partial<Record<Aptitude, number>>;
   /** Offered to other kennels as a stud dog. */
   atStud?: boolean;
+  /** Titles and qualifying runs in agility and herding. */
+  sportTitles?: Partial<Record<ExtraSport, TrialLevel[]>>;
+  sportQualifiers?: Partial<Record<ExtraSport, Partial<Record<TrialLevel, number>>>>;
 }
+
+export const titlesIn = (dog: Dog, sport: Sport): TrialLevel[] =>
+  sport === 'field' ? dog.titles : (dog.sportTitles?.[sport] ?? []);
+
+export const qualifiersIn = (dog: Dog, sport: Sport, level: TrialLevel): number =>
+  (sport === 'field' ? dog.qualifiers[level] : dog.sportQualifiers?.[sport]?.[level]) ?? 0;
+
+/** Counts a qualifying run and returns the new total at that level. */
+export function addQualifier(dog: Dog, sport: Sport, level: TrialLevel): number {
+  const count = qualifiersIn(dog, sport, level) + 1;
+  if (sport === 'field') dog.qualifiers[level] = count;
+  else {
+    dog.sportQualifiers ??= {};
+    (dog.sportQualifiers[sport] ??= {})[level] = count;
+  }
+  return count;
+}
+
+export function addTitle(dog: Dog, sport: Sport, level: TrialLevel): void {
+  if (titlesIn(dog, sport).includes(level)) return;
+  if (sport === 'field') dog.titles.push(level);
+  else {
+    dog.sportTitles ??= {};
+    (dog.sportTitles[sport] ??= []).push(level);
+  }
+}
+
+/** Every title a dog holds, across all sports. */
+export const titleCount = (dog: Dog): number =>
+  SPORTS.reduce((n, s) => n + titlesIn(dog, s).length, 0);
 
 /** A dog's aptitude on the 1-99 scale (50 = average dog). */
 export function aptitude(dog: Dog, which: Aptitude): number {
@@ -203,6 +256,8 @@ export function generateRescue(rng: Rng, name?: string): Dog {
       cast: 0,
       deliver: range(rng, 0.2, 0.45),
       indicate: 0,
+      agility: 0,
+      herd: 0,
     },
     bond: int(rng, 10, 20),
     fullness: 60,
@@ -266,7 +321,17 @@ export function createPuppy(
     premiumTouched: sire.premiumTouched || dam.premiumTouched,
     sireId: sire.id,
     damId: dam.id,
-    skills: { sit: 0, stay: 0, recall: 0.1, stop: 0, cast: 0, deliver: 0, indicate: 0 },
+    skills: {
+      sit: 0,
+      stay: 0,
+      recall: 0.1,
+      stop: 0,
+      cast: 0,
+      deliver: 0,
+      indicate: 0,
+      agility: 0,
+      herd: 0,
+    },
     bond: 40,
     fullness: 80,
     energy: 100,

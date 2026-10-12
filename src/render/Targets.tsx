@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { distance, type Vec2 } from '../core/math';
 import { live } from '../app/store';
 import { heightAt } from './world/terrain';
+import { OBSTACLE_NAMES } from '../sim/agility';
 
 /**
  * Making the important places in a field easy to see: a tall light beam and
@@ -54,6 +55,17 @@ export function currentTargets(): Target[] {
     out.push({ id: 'area', label: 'Search area', pos: s.setup.hintCenter, colour: '#f3c14b' });
     if (distance(s.dog.pos, s.keeper.pos) > 12)
       out.push({ id: 'dog', label: s.dogName, pos: s.dog.pos, colour: '#e2622d' });
+  }
+  const a = live.agility;
+  if (a && a.phase !== 'complete') {
+    const o = a.course.obstacles[a.next];
+    if (o)
+      out.push({
+        id: `obstacle-${a.next}`,
+        label: `${a.next + 1}: ${OBSTACLE_NAMES[o.kind]}`,
+        pos: o.pos,
+        colour: '#ffb347',
+      });
   }
   return out;
 }
@@ -130,7 +142,7 @@ export function TargetTracker() {
     timer.current += dt;
     if (timer.current < 0.08) return;
     timer.current = 0;
-    const keeper = live.field?.keeper.pos ?? live.search?.keeper.pos;
+    const keeper = live.field?.keeper.pos ?? live.search?.keeper.pos ?? live.agility?.keeper.pos;
     const list: Indicator[] = [];
     for (const t of currentTargets()) {
       v.set(t.pos.x, heightAt(t.pos.x, t.pos.z) + 1.2, t.pos.z).project(camera);

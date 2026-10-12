@@ -875,3 +875,14 @@
   color: #2f6b3c;
   font-weight: 700;
 }
+
+/* Agility: the course map and the clock */
+.minimap.course-map svg {
+  aspect-ratio: auto;
+  height: auto;
+  max-height: 210px;
+}
+.stat-row .over {
+  color: #c0392b;
+  font-weight: 700;
+}

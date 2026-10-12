@@ -13,6 +13,7 @@ import {
 import { callBack, doubtAlert, searchHere, trustAlert } from '../sim/search';
 import { giveCue, mark, type CueChoice } from '../sim/training';
 import { callDog, greetDog } from '../sim/home';
+import { callHere, easy, goOn } from '../sim/agility';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
 import { live, useApp } from './store';
 import { MARA_POS, petDog, talkToMara, activateSpot } from './flow';
@@ -26,7 +27,10 @@ import { MARA_POS, petDog, talkToMara, activateSpot } from './flow';
 export const walkTarget: { point: Vec2 | null } = { point: null };
 
 export function whistle(): void {
-  if (live.field) {
+  if (live.agility) {
+    playCue();
+    goOn(live.agility);
+  } else if (live.field) {
     playWhistle();
     blowWhistle(live.field);
   } else if (live.lesson?.lesson === 'stop') {
@@ -39,14 +43,20 @@ export function whistle(): void {
 }
 
 export function steady(): void {
-  if (live.field) {
+  if (live.agility) {
+    playCue();
+    easy(live.agility);
+  } else if (live.field) {
     playCue();
     steadyDog(live.field);
   }
 }
 
 export function recall(): void {
-  if (live.field) {
+  if (live.agility) {
+    playRecall();
+    callHere(live.agility);
+  } else if (live.field) {
     playRecall();
     recallDog(live.field);
   } else if (live.search) {

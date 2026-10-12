@@ -9,6 +9,9 @@ import { FIXED_DT, aimTarget, stepSession, type RetrieveSession } from '../sim/r
 import { stepSearch, type SearchSession } from '../sim/search';
 import { coaching, stepTraining, type TrainingSession } from '../sim/training';
 import { stepPuppies, type PupActivity } from '../sim/puppies';
+import { OBSTACLE_LENGTH, stepAgility } from '../sim/agility';
+import { HOME_RING, PRACTICE_COURSES, SHOW_RING } from '../sim/courses';
+import { AgilityCourseView, AgilityRing } from './world/Agility';
 import {
   HOME_SOLIDS,
   HOME_SPOTS,
@@ -44,7 +47,8 @@ import { inWater } from '../sim/field';
 const aim: { point: Vec2 | null } = { point: null };
 
 function placeOf(screen: ReturnType<typeof useApp.getState>['screen']): Place {
-  if (screen.kind === 'retrieve' || screen.kind === 'search') return screen.place;
+  if (screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'agility')
+    return screen.place;
   if (screen.kind === 'shelter') return 'shelter';
   return 'home';
 }
@@ -83,6 +87,7 @@ function Runner() {
     }
     if (live.field) driveKeeper(live.field.keeper, dt, paused);
     if (live.search) driveKeeper(live.search.keeper, dt, paused);
+    if (live.agility) driveKeeper(live.agility.keeper, dt, paused);
 
     if (!paused) {
       acc.current += Math.min(dt, 0.1);
@@ -92,6 +97,7 @@ function Runner() {
         if (live.search) stepSearch(live.search, FIXED_DT);
         if (live.lesson) stepTraining(live.lesson, FIXED_DT);
         if (live.puppies) stepPuppies(live.puppies, FIXED_DT);
+        if (live.agility) stepAgility(live.agility, FIXED_DT);
         acc.current -= FIXED_DT;
       }
     } else acc.current = 0;
@@ -105,6 +111,7 @@ function Runner() {
       (live.search && live.search.phase === 'complete' && live.search) ||
       (live.lesson && live.lesson.phase === 'done' && live.lesson) ||
       (live.puppies && live.puppies.phase === 'done' && live.puppies) ||
+      (live.agility && live.agility.phase === 'complete' && live.agility) ||
       null;
     if (done && finished.current !== done) {
       finished.current = done;
@@ -255,7 +262,12 @@ function CameraRig() {
     let pitch = cameraState.pitch;
     let autoYaw: number | null = null;
 
-    const keeper = live.home?.keeper ?? live.field?.keeper ?? live.search?.keeper ?? null;
+    const keeper =
+      live.home?.keeper ??
+      live.field?.keeper ??
+      live.search?.keeper ??
+      live.agility?.keeper ??
+      null;
     if (keeper) {
       // Behind the keeper, turning with them. Out in the field the camera rises
       // and pulls back so whatever matters (the fall, the stake, the circle,
@@ -277,6 +289,11 @@ function CameraRig() {
       } else dist = 8.5;
       if (cameraState.watchDog && (live.field || live.search))
         target = (live.field ?? live.search)!.dog.pos;
+      // In the ring, look down a little more so the numbers ahead can be read.
+      if (live.agility) {
+        pitch += 0.16;
+        dist = Math.max(dist, 11);
+      }
     } else if (live.puppies) {
       target = { x: 31, z: 55.2 };
       dist = portrait ? 8 : 7.5;
@@ -836,6 +853,35 @@ function dogView(): DogView | null {
       carrying: null,
     };
   }
+  if (live.agility) {
+    const s = live.agility;
+    const d = s.dog;
+    let pos = d.pos;
+    let heading = d.heading;
+    const o = s.state === 'commit' && s.target ? s.course.obstacles[s.target.index] : undefined;
+    if (o?.kind === 'weave' && s.target?.inside) {
+      // Bend in and out of the poles.
+      const through = fromHeading(o.heading);
+      const along = (d.pos.x - o.pos.x) * through.x + (d.pos.z - o.pos.z) * through.z;
+      const phase = ((along + OBSTACLE_LENGTH.weave / 2) / 0.45) * Math.PI;
+      pos = {
+        x: d.pos.x + through.z * Math.sin(phase) * 0.26,
+        z: d.pos.z - through.x * Math.sin(phase) * 0.26,
+      };
+      heading += Math.cos(phase) * 0.55;
+    }
+    return {
+      pos,
+      heading,
+      speed: d.speed,
+      pose: d.pose,
+      tell: d.tell,
+      lookAt: s.state === 'wait' || s.state === 'done' ? s.keeper.pos : null,
+      carrying: null,
+      // Out of sight in the tunnel; in the air over jumps and the A-frame.
+      groundY: d.hidden ? -30 : d.lift > 0 ? heightAt(pos.x, pos.z) + d.lift : undefined,
+    };
+  }
   return null;
 }
 
@@ -852,7 +898,12 @@ function keeperView(): KeeperView {
       watch: null,
     };
   }
-  const k = live.home?.keeper ?? live.field?.keeper ?? live.search?.keeper ?? live.lesson?.keeper;
+  const k =
+    live.home?.keeper ??
+    live.field?.keeper ??
+    live.search?.keeper ??
+    live.lesson?.keeper ??
+    live.agility?.keeper;
   if (!k)
     return {
       pos: { x: 0, z: 78 },
@@ -1086,7 +1137,7 @@ function Bystanders({ place }: { place: Place }) {
   const maraHere =
     (place === 'home' && game.story === 'meetMara') ||
     (place === 'orchard' && screen.kind === 'search' && screen.job?.id === 'mara-keys') ||
-    (place === 'trial' && !!event);
+    ((place === 'trial' || place === 'green') && !!event && event.def.kind === 'trial');
   const maraPos =
     place === 'home' ? MARA_POS : place === 'trial' ? { x: -16, z: 17 } : { x: -20, z: 16 };
   const rivals = event && event.def.place === place ? event.def.rivals : [];
@@ -1179,6 +1230,7 @@ export function Scene() {
   const game = useApp((s) => s.game);
   const place = placeOf(screen);
   const pondRestored = !!game && hasFlag(game, 'restored:duckPond');
+  const ringRestored = !!game && hasFlag(game, 'restored:agilityRing');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const field = useMemo(() => fieldFor(place), [place, pondRestored]);
 
@@ -1206,6 +1258,7 @@ export function Scene() {
           live.home?.keeper.pos ??
           live.field?.keeper.pos ??
           live.search?.keeper.pos ??
+          live.agility?.keeper.pos ??
           live.lesson?.keeper.pos ?? { x: 0, z: 70 }
         }
       />
@@ -1241,6 +1294,10 @@ export function Scene() {
             </Suspense>
             <WindFlag x={-24} z={8} heading={wind.heading} strength={strength} />
             <WindFlag x={30} z={-40} heading={wind.heading} strength={strength} />
+            {ringRestored && <AgilityRing center={HOME_RING} />}
+            {ringRestored && screen.kind !== 'agility' && (
+              <AgilityCourseView course={PRACTICE_COURSES[0]!} />
+            )}
           </>
         )}
         {place === 'orchard' && (
@@ -1258,6 +1315,7 @@ export function Scene() {
               <VillageGreenExtras />
             </Suspense>
             <WindFlag x={-30} z={10} heading={wind.heading} strength={strength} />
+            {screen.kind === 'agility' && <AgilityRing center={SHOW_RING} />}
           </>
         )}
         {place === 'shelter' && (
@@ -1295,6 +1353,7 @@ export function Scene() {
         {live.field && <BlindStakes session={live.field} />}
         {live.search && <SearchMarkers session={live.search} />}
         {live.lesson && <LessonProps lesson={live.lesson} />}
+        {screen.kind === 'agility' && <AgilityCourseView course={screen.course} />}
       </group>
     </>
   );

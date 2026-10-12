@@ -104,4 +104,15 @@ export const ACTIVITY_OBSERVATIONS: Record<string, Observation[]> = {
     { aptitude: 'biddability', precision: 16 },
     { aptitude: 'focus', precision: 18 },
   ],
+  agility: [
+    { aptitude: 'agility', precision: 10 },
+    { aptitude: 'speed', precision: 12 },
+    { aptitude: 'confidence', precision: 16 },
+  ],
+  herding: [
+    { aptitude: 'focus', precision: 12 },
+    { aptitude: 'biddability', precision: 12 },
+    { aptitude: 'stamina', precision: 14 },
+    { aptitude: 'power', precision: 16 },
+  ],
 };

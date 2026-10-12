@@ -23,6 +23,8 @@ export function testDog(
     cast: 0,
     deliver: 0.6,
     indicate: 0,
+    agility: 0,
+    herd: 0,
     ...skills,
   };
   dog.bond = 40;

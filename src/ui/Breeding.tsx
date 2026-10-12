@@ -35,7 +35,6 @@ import {
   restoreThing,
   runDnaTest,
   startPuppySession,
-  titleLetters,
   toggleStud,
 } from '../app/flow';
 import { coatSwatch } from './swatch';
@@ -179,10 +178,7 @@ function PlanTab({ game }: { game: GameState }) {
                 >
                   <Swatch dog={d} />
                   <span>
-                    <b>
-                      {d.name}
-                      {d.titles.length ? ` ${d.titles.map(titleLetters).join(' ')}` : ''}
-                    </b>
+                    <b>{dogWithTitles(d)}</b>
                     <small>
                       {stud
                         ? `${stud.kennel} · $${stud.fee}`
@@ -551,9 +547,7 @@ function StudsTab({ game }: { game: GameState }) {
           <div key={s.dog.id} className="row">
             <Swatch dog={s.dog} size={36} />
             <div className="grow">
-              <div className="title">
-                {s.dog.name} {s.dog.titles.map(titleLetters).join(' ')}
-              </div>
+              <div className="title">{dogWithTitles(s.dog)}</div>
               <div className="sub">
                 {s.kennel} ({s.owner}) · {describeMix(s.dog.breedMix)} · {coatOf(s.dog).name}
               </div>

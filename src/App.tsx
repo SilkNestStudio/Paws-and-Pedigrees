@@ -49,6 +49,11 @@ function useKeyboard() {
           if (e.code === 'KeyT') act.throwsPlease();
           if (e.code === 'KeyV') cameraState.watchDog = !cameraState.watchDog;
           break;
+        case 'agility':
+          if (e.code === 'Space') act.whistle();
+          if (e.code === 'KeyR') act.recall();
+          if (e.code === 'KeyF') act.steady();
+          break;
         case 'search':
           if (e.code === 'Space') act.showMe();
           if (e.code === 'KeyX') act.searchOn();

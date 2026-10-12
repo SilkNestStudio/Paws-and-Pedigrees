@@ -1,6 +1,6 @@
 import { clamp } from '../core/math';
 import { chance, createRng, hashString, int, pick } from '../core/rng';
-import { aptitude, type Dog } from '../core/dog/dog';
+import { aptitude, titleCount, type Dog } from '../core/dog/dog';
 import { APTITUDE_LABELS, APTITUDES, type Aptitude } from '../core/genetics/traits';
 import { note, type GameState } from './state';
 
@@ -127,13 +127,13 @@ export const BOOKING_KENNELS: { id: string; kennel: string }[] = [
 export function studProblem(dog: Dog): string | null {
   if (dog.sex !== 'male') return 'Only males stand at stud.';
   if (dog.ageMonths < 12) return 'Too young.';
-  if (!dog.titles.length) return 'Other kennels want proof: he needs a trial title first.';
+  if (!titleCount(dog)) return 'Other kennels want proof: he needs a title first.';
   return null;
 }
 
 /** What other kennels will pay: titles first, then the kennel's name. */
 export const studFee = (state: GameState, dog: Dog): number =>
-  Math.round((30 + dog.titles.length * 35 + state.reputation * 0.8) / 5) * 5;
+  Math.round((30 + titleCount(dog) * 35 + state.reputation * 0.8) / 5) * 5;
 
 export function setAtStud(state: GameState, dogId: string, on: boolean): boolean {
   const dog = state.dogs.find((d) => d.id === dogId);
@@ -148,7 +148,7 @@ export function seasonalBookings(state: GameState): StudBooking[] {
   for (const dog of state.dogs) {
     if (!dog.atStud || studProblem(dog)) continue;
     const rng = createRng(hashString(`${dog.id}-stud-${state.day}`));
-    const appeal = clamp(0.15 + dog.titles.length * 0.2 + state.reputation / 150, 0, 0.95);
+    const appeal = clamp(0.15 + titleCount(dog) * 0.2 + state.reputation / 150, 0, 0.95);
     for (let n = 0; n < 2; n++) {
       if (!chance(rng, appeal * (n === 0 ? 1 : 0.45))) break;
       const taken = made.filter((b) => b.studId === dog.id).map((b) => b.kennel);

@@ -20,6 +20,7 @@ import {
 import {
   ageText,
   isSeasonStart,
+  isShowDay,
   isTrialDay,
   MONTHS_PER_SEASON,
   seasonOf,
@@ -106,13 +107,23 @@ export const RESTORATIONS: Restoration[] = [
     unlocks:
       'Water work in your field: a mark into the pond, a mark across it, and a water blind. Open-level trials at Larkspur include a water blind.',
   },
+  {
+    id: 'agilityRing',
+    name: "Grandpa's agility ring",
+    cost: 110,
+    description:
+      'Jumps, a tunnel, weave poles and an A-frame, stacked in the barn under a tarpaulin. Repaint them and set them out in the corner of the training field.',
+    unlocks:
+      'Obstacle practice at home, from four jumps to a full course. Agility shows are held on the village green every Saturday.',
+  },
 ];
 
 // ---------------------------------------------------------------------------
 // Energy, food and the calendar
 // ---------------------------------------------------------------------------
 
-export type ActivityKind = 'lesson' | 'mark' | 'blind' | 'search' | 'free' | 'funday';
+export type ActivityKind =
+  'lesson' | 'mark' | 'blind' | 'search' | 'free' | 'funday' | 'agility' | 'herding';
 
 export const ACTIVITY_ENERGY: Record<ActivityKind, number> = {
   lesson: 12,
@@ -121,6 +132,8 @@ export const ACTIVITY_ENERGY: Record<ActivityKind, number> = {
   search: 20,
   free: 0,
   funday: 0,
+  agility: 18,
+  herding: 20,
 };
 
 /** Activities that use up the current part of the day. */
@@ -131,6 +144,8 @@ const TAKES_TIME: Record<ActivityKind, boolean> = {
   search: true,
   free: false,
   funday: true,
+  agility: true,
+  herding: true,
 };
 
 export const isHungry = (dog: Dog) => dog.fullness < 30;
@@ -142,7 +157,7 @@ export function canStartActivity(
 ): { ok: true } | { ok: false; reason: string } {
   const dog = activeDog(state);
   if (!dog) return { ok: false, reason: 'You need a dog first.' };
-  const hard = kind === 'mark' || kind === 'blind' || kind === 'search' || kind === 'funday';
+  const hard = kind !== 'lesson' && kind !== 'free';
   if (hard && state.pregnancies.some((p) => p.damId === dog.id))
     return {
       ok: false,
@@ -237,6 +252,8 @@ export function sleep(state: GameState): string[] {
   if (state.day === FUN_DAY) messages.push("It's Sunday: the Village Fun Day is this afternoon!");
   if (isTrialDay(state.day))
     messages.push("It's Sunday: trial day at Larkspur. Enter from the van.");
+  if (isShowDay(state.day) && state.funDay)
+    messages.push("It's Saturday: show day. Enter from the van.");
   messages.unshift(`${dayName(state.day)} morning.`);
   return messages;
 }
@@ -428,6 +445,8 @@ export interface ActivityOutcome {
   pay?: number;
   jobId?: string;
   skill?: { cue: Cue; value: number };
+  /** Another go in the same session: no more energy or time. */
+  extra?: boolean;
 }
 
 /**
@@ -437,7 +456,7 @@ export interface ActivityOutcome {
 export function finishActivity(state: GameState, outcome: ActivityOutcome): Discovery[] {
   const dog = activeDog(state);
   if (!dog) return [];
-  dog.energy = clamp(dog.energy - ACTIVITY_ENERGY[outcome.kind], 0, 100);
+  if (!outcome.extra) dog.energy = clamp(dog.energy - ACTIVITY_ENERGY[outcome.kind], 0, 100);
   if (outcome.skill) dog.skills[outcome.skill.cue] = outcome.skill.value;
   if (outcome.score > 0 && outcome.kind !== 'lesson') dog.bond = clamp(dog.bond + 1, 0, 100);
   if (outcome.pay) state.money += outcome.pay;
@@ -457,7 +476,7 @@ export function finishActivity(state: GameState, outcome: ActivityOutcome): Disc
       grade: outcome.grade,
     });
   }
-  if (TAKES_TIME[outcome.kind]) passTime(state);
+  if (TAKES_TIME[outcome.kind] && !outcome.extra) passTime(state);
 
   if (!outcome.observe) return [];
   state.knowledge[dog.id] ??= {};

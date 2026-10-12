@@ -30,6 +30,12 @@ export function nextTrialDay(day: number): number {
   return Math.max(sunday, FIRST_TRIAL_DAY);
 }
 
+/** Saturdays are show days: agility on the village green, sheep up at Fell Top. */
+export const FIRST_SHOW_DAY = 13;
+export const isShowDay = (day: number): boolean => day >= FIRST_SHOW_DAY && weekday(day) === 5;
+export const nextShowDay = (day: number): number =>
+  Math.max(day + ((5 - weekday(day) + 7) % 7), FIRST_SHOW_DAY);
+
 export const seasonLabel = (day: number): string => `${seasonOf(day)}, year ${yearOf(day)}`;
 
 /** "about 2 years" / "1 year 3 months" / "9 months". */

@@ -1,5 +1,6 @@
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState, type StoryStep } from './state';
-import { daysUntilSunday, isTrialDay, nextTrialDay } from './calendar';
+import { daysUntilSunday, isTrialDay, nextShowDay, nextTrialDay } from './calendar';
+import { titlesIn } from '../core/dog/dog';
 import { QUALIFY, READINESS, TRIAL_RULES, trialLevel } from './events';
 import { LESSONS } from '../sim/training';
 
@@ -160,7 +161,7 @@ function trialObjective(state: GameState): Objective {
   const rules = TRIAL_RULES[level];
   const qs = dog.qualifiers[level] ?? 0;
   const today = isTrialDay(state.day);
-  const entered = state.trials.some((t) => t.day === state.day);
+  const entered = state.trials.some((t) => t.day === state.day && (t.sport ?? 'field') === 'field');
   const days = nextTrialDay(state.day) - state.day;
   const when = today ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
   const steps = [
@@ -193,6 +194,17 @@ function trialObjective(state: GameState): Objective {
     });
   if (!hasFlag(state, 'restored:scentGarden'))
     steps.push({ text: "Restore Grandpa's scent garden ($90)", done: false });
+  if (hasFlag(state, 'restored:agilityRing')) {
+    const sat = nextShowDay(state.day) - state.day;
+    steps.push({
+      text: `Agility: obstacle skill ${Math.round(dog.skills.agility * 100)}%. Show on the village green on Saturday (${sat === 0 ? 'today' : sat === 1 ? 'tomorrow' : `in ${sat} days`})`,
+      done: titlesIn(dog, 'agility').length > 0,
+    });
+  } else
+    steps.push({
+      text: "Optional: restore Grandpa's agility ring ($110) at the field gate for a second sport",
+      done: false,
+    });
   if (!hasFlag(state, 'restored:whelpingRoom'))
     steps.push({
       text: "Restore Grandpa's whelping room ($80) at the puppy paddock to start breeding",
