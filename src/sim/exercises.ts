@@ -171,9 +171,35 @@ export const WATER_SETUPS: RetrieveSetup[] = [
   },
 ];
 
+/** Sandy Cove: water marks in the sea, and a run on the sand. */
+export const BEACH_SETUPS: RetrieveSetup[] = [
+  {
+    id: 'beach-surf',
+    title: 'Into the surf',
+    summary: 'A dummy thrown a little way out. Small waves, firm sand, an easy swim.',
+    focus: 'Confidence in water',
+    marks: [{ from: { x: 12, z: -38 }, landing: { x: 3, z: -50 } }],
+    blinds: [],
+    windDeg: 20,
+    windStrength: 0.4,
+    water: true,
+  },
+  {
+    id: 'beach-long',
+    title: 'The long swim',
+    summary: 'A mark well out beyond the breakers. A real test of a water dog.',
+    focus: 'Stamina and a straight line in water',
+    marks: [{ from: { x: -16, z: -39 }, landing: { x: -7, z: -63 } }],
+    blinds: [],
+    windDeg: 300,
+    windStrength: 0.5,
+    water: true,
+  },
+];
+
 export function setupById(id: string): RetrieveSetup {
   if (id === FREE_PLAY.id) return FREE_PLAY;
-  const found = [...RETRIEVE_SETUPS, ...WATER_SETUPS].find((s) => s.id === id);
+  const found = [...RETRIEVE_SETUPS, ...WATER_SETUPS, ...BEACH_SETUPS].find((s) => s.id === id);
   if (!found) throw new Error(`Unknown retrieve set-up: ${id}`);
   return found;
 }

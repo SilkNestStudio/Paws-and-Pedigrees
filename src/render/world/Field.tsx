@@ -3,7 +3,9 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Field as FieldData } from '../../sim/field';
 import { coverAt, waterAt } from '../../sim/field';
-import { heightAt, scatter, waterLevel } from './terrain';
+import { heightAt, scatter, waterLevel, withTerrain } from './terrain';
+import type { Season } from '../../game/calendar';
+import { SEASON_LOOKS } from './seasons';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
@@ -30,25 +32,33 @@ const GROUND: Record<FieldData['style'], { inside: string; outside: string; yard
   shelter: { inside: '#8aa85a', outside: '#7d9a4f', yard: '#8aa85a' },
   trial: { inside: '#82ac50', outside: '#719646', yard: '#82ac50' },
   fell: { inside: '#8ba556', outside: '#7b944d', yard: '#8ba556' },
+  beach: { inside: '#e3d4a4', outside: '#d6c692', yard: '#e3d4a4' },
 };
 
 const groundCache = new Map<string, THREE.BufferGeometry>();
+let groundSeason: Season = 'Summer';
 const grassCache = new Map<string, { short: THREE.InstancedMesh; tall: THREE.InstancedMesh }>();
 
 /** The ground for a place, built once and kept, so travelling back is instant. */
 /** Places look different once water is restored, so it is part of the cache key. */
 const placeKey = (field: FieldData) => `${field.style}${field.ponds?.length ? '+water' : ''}`;
 
-export function groundGeometry(field: FieldData): THREE.BufferGeometry {
+export function groundGeometry(field: FieldData, season: Season = 'Summer'): THREE.BufferGeometry {
+  // The ground changes colour with the seasons: last season's is thrown away.
+  if (season !== groundSeason) {
+    groundCache.forEach((g) => g.dispose());
+    groundCache.clear();
+    groundSeason = season;
+  }
   const cached = groundCache.get(placeKey(field));
   if (cached) return cached;
-  const built = buildGround(field);
+  const built = withTerrain(field.style, () => buildGround(field, season));
   groundCache.set(placeKey(field), built);
   return built;
 }
 
-export function Ground({ field }: { field: FieldData }) {
-  const geometry = groundGeometry(field);
+export function Ground({ field, season = 'Summer' }: { field: FieldData; season?: Season }) {
+  const geometry = groundGeometry(field, season);
   return (
     <mesh geometry={geometry} receiveShadow dispose={null}>
       <meshStandardMaterial vertexColors roughness={0.95} />
@@ -56,7 +66,12 @@ export function Ground({ field }: { field: FieldData }) {
   );
 }
 
-function buildGround(field: FieldData): THREE.BufferGeometry {
+function buildGround(field: FieldData, season: Season): THREE.BufferGeometry {
+  const beach = field.style === 'beach';
+  const [seasonColour, seasonAmount] = SEASON_LOOKS[season].ground;
+  const tint = new THREE.Color(seasonColour);
+  const wetSand = new THREE.Color('#b8a577');
+  const mud = new THREE.Color('#6d5f43');
   const size = 300;
   const segments = isTouch ? 110 : 170;
   const g = new THREE.PlaneGeometry(size, size, segments, segments);
@@ -81,9 +96,10 @@ function buildGround(field: FieldData): THREE.BufferGeometry {
     base.set(yard ? palette.yard : inField ? palette.inside : palette.outside);
     base.offsetHSL(n * 0.02 - 0.01, 0, stripe + (n - 0.5) * 0.05);
     if (cover > 0) base.lerp(new THREE.Color('#8d8a43'), cover * 0.7);
-    // A muddy shore, and dark silt under the water.
+    if (!beach) base.lerp(tint, seasonAmount);
+    // A muddy shore (wet sand on the beach), and dark silt under the water.
     const shore = shoreAt(field, { x, z });
-    if (shore > 0) base.lerp(new THREE.Color('#6d5f43'), shore * 0.75);
+    if (shore > 0) base.lerp(beach ? wetSand : mud, shore * 0.75);
     colours[i * 3] = base.r;
     colours[i * 3 + 1] = base.g;
     colours[i * 3 + 2] = base.b;
@@ -155,13 +171,19 @@ function swayMaterial(tint: string): THREE.MeshLambertMaterial {
 export function grassMeshes(field: FieldData) {
   const cached = grassCache.get(placeKey(field));
   if (cached) return cached;
-  const built = buildGrass(field);
+  const built = withTerrain(field.style, () => buildGrass(field));
   grassCache.set(placeKey(field), built);
   return built;
 }
 
-export function Grass({ field }: { field: FieldData }) {
+export function Grass({ field, season = 'Summer' }: { field: FieldData; season?: Season }) {
   const { short, tall } = grassMeshes(field);
+  // Fresh in spring, golden in autumn, frosted in winter.
+  const [r, g, b] = SEASON_LOOKS[season].grass;
+  (short.material as THREE.MeshLambertMaterial).color.setRGB(r, g, b);
+  (tall.material as THREE.MeshLambertMaterial).color
+    .set('#e6d9a0')
+    .multiply(new THREE.Color(Math.min(r, 1.4), Math.min(g, 1.4), Math.min(b, 1.5)));
   return (
     <>
       <primitive object={short} />
@@ -182,7 +204,8 @@ function buildGrass(field: FieldData) {
     const x = field.minX - 20 + scatter(i, 1) * (field.maxX - field.minX + 40);
     const extra = field.style === 'training' ? 44 : 8;
     const z = field.minZ - 20 + scatter(i, 2) * (field.maxZ - field.minZ + 20 + extra);
-    if (shoreAt(field, { x, z }) > 0.5) {
+    // No grass in the water, or on the open sand of the beach (only in the dunes behind).
+    if (shoreAt(field, { x, z }) > 0.5 || (field.style === 'beach' && (z < 13 || i % 4 !== 0))) {
       shortMesh.setMatrixAt(i, matrix.makeScale(0, 0, 0));
       continue;
     }
@@ -400,6 +423,20 @@ export function Ponds({ field }: { field: FieldData }) {
       }),
     [],
   );
+  if (field.style === 'beach') {
+    // The sea runs to the horizon; the sand rises out of it to make the shoreline.
+    const sea = field.ponds![0]!;
+    return (
+      <mesh
+        position={[0, waterLevel(sea) + 0.03, -150]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        material={material}
+        receiveShadow
+      >
+        <planeGeometry args={[520, 260]} />
+      </mesh>
+    );
+  }
   return (
     <>
       {(field.ponds ?? []).map((pond, i) => (

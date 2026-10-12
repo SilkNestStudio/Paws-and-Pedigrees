@@ -44,7 +44,8 @@ import { kennelType, REPUTATION_LEVELS, reputationName } from '../game/reputatio
 
 /** Index of the lowest-scoring round. */
 const worstRound = (rounds: number[]) => rounds.indexOf(Math.min(...rounds));
-import { FREE_PLAY, RETRIEVE_SETUPS, WATER_SETUPS } from '../sim/exercises';
+import { BEACH_SETUPS, FREE_PLAY, RETRIEVE_SETUPS, WATER_SETUPS } from '../sim/exercises';
+import { SEASON_EFFECTS, seasonOf } from '../game/calendar';
 import { LESSONS, type Lesson } from '../sim/training';
 import { useApp } from '../app/store';
 import { BreedingPanel, PedigreeBlock, WhelpingRoomPanel } from './Breeding';
@@ -130,6 +131,7 @@ export function Panels() {
       {panel === 'whelping' && <WhelpingRoomPanel game={game} />}
       {panel === 'fellTop' && <FellTopPanel game={game} />}
       {panel === 'cupPick' && <CupPickPanel game={game} />}
+      {panel === 'beach' && <BeachPanel game={game} />}
       {panel === 'vet' && <VetPanel game={game} />}
       {panel === 'market' && <MarketPanel game={game} />}
       {panel === 'help' && <HelpPanel />}
@@ -560,6 +562,22 @@ function VanPanel({ game }: { game: GameState }) {
           </div>
         )}
         {hasDog && game.funDay && <ShowRow game={game} sport="herding" />}
+        {hasDog && game.funDay && (
+          <div className="row">
+            <div className="grow">
+              <div className="title">Sandy Cove</div>
+              <div className="sub">
+                The beach: water marks in the sea, or just a run on the sand together.
+              </div>
+            </div>
+            <button
+              className="button secondary"
+              onClick={() => useApp.setState({ panel: 'beach' })}
+            >
+              See the beach
+            </button>
+          </div>
+        )}
         {hasDog && !game.funDay && game.day < FIRST_TRIAL_DAY && (
           <div className="row">
             <div className="grow">
@@ -828,6 +846,74 @@ function FieldGate({ game }: { game: GameState }) {
           How does this work?
         </button>
         <Close />
+      </div>
+    </div>
+  );
+}
+
+/** Sandy Cove: the sea for water work, and the sand for play. */
+function BeachPanel({ game }: { game: GameState }) {
+  const dog = activeDog(game);
+  if (!dog) return null;
+  const best = (title: string) =>
+    game.results.filter((r) => r.title === title).reduce((b, r) => Math.max(b, r.score), -1);
+  const night = game.block === 'night';
+  return (
+    <div className="panel card">
+      <div className="kicker">Sandy Cove · {game.block}</div>
+      <h2>A day at the beach</h2>
+      <p className="lead">
+        Water work without a pond of your own. A first visit each day lifts {dog.name}'s bond a
+        little, whatever you do there.
+      </p>
+      <div className="list">
+        <div className="row">
+          <div className="grow">
+            <div className="title">A run on the sand</div>
+            <div className="sub">Throw the ball, paddle, enjoy your dog. Uses no time.</div>
+          </div>
+          <button
+            className="button"
+            onClick={() =>
+              go('Driving to Sandy Cove…', () =>
+                startFieldWork(
+                  { ...FREE_PLAY, id: 'beach-free', title: 'A run on the sand' },
+                  { place: 'beach' },
+                ),
+              )
+            }
+          >
+            Play
+          </button>
+        </div>
+        {BEACH_SETUPS.map((s) => {
+          const b = best(s.title);
+          return (
+            <div key={s.id} className="row">
+              <div className="grow">
+                <div className="title">{s.title}</div>
+                <div className="sub">{s.summary}</div>
+              </div>
+              {b >= 0 && <span className="badge good">Best {b}</span>}
+              <span className="badge">-{ACTIVITY_ENERGY.mark} energy</span>
+              <button
+                className="button"
+                disabled={night}
+                onClick={() =>
+                  go('Driving to Sandy Cove…', () => startFieldWork(s, { place: 'beach' }))
+                }
+              >
+                Go
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="button-row">
+        <button className="link" onClick={() => showIntro('water', true)}>
+          How does water work?
+        </button>
+        <Close label="Stay home" />
       </div>
     </div>
   );
@@ -1226,6 +1312,7 @@ function SeasonRecapPanel({ game }: { game: GameState }) {
             {Math.round(g.after * 100)}%
           </li>
         ))}
+        <li className="info">{SEASON_EFFECTS[seasonOf(game.day)].note}</li>
         {(r.news ?? []).map((n) => (
           <li key={n} className="good">
             {n}

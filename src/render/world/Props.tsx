@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { heightAt } from './terrain';
+import type { Season } from '../../game/calendar';
+import { SEASON_LOOKS } from './seasons';
 
 /**
  * The Blender-made environment (public/models/props.glb, built by
@@ -80,6 +82,33 @@ function useLibrary() {
       },
     };
   }, [gltf]);
+}
+
+/** The colours the leaves were made with, so each season can be tinted from the same start. */
+const leafBase = new Map<string, THREE.Color>();
+
+/**
+ * Tints the leaves of every tree, hedge and bush for the season. The props
+ * share their materials, so one pass colours every copy.
+ */
+export function SeasonLeaves({ season }: { season: Season }) {
+  const gltf = useGLTF(PROPS_URL) as unknown as { scene: THREE.Group };
+  useMemo(() => {
+    const leaves = SEASON_LOOKS[season].leaves;
+    const seen = new Set<string>();
+    gltf.scene.traverse((o) => {
+      const material = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (!material?.isMaterial || seen.has(material.uuid)) return;
+      seen.add(material.uuid);
+      const tint = leaves[material.name];
+      const base = leafBase.get(material.uuid);
+      if (!tint && !base) return;
+      if (!base) leafBase.set(material.uuid, material.color.clone());
+      material.color.copy(leafBase.get(material.uuid)!);
+      if (tint) material.color.lerp(new THREE.Color(tint[0]), tint[1]);
+    });
+  }, [gltf, season]);
+  return null;
 }
 
 export interface Placement {

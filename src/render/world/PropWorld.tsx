@@ -370,6 +370,51 @@ export function ShelterWorld({ field }: { field: Field }) {
   );
 }
 
+const BEACH_ROCKS: Placement[] = [
+  { x: -54, z: -30, rot: 0.4, scale: 2.4 },
+  { x: -57, z: -44, rot: 1.9, scale: 3 },
+  { x: -52, z: -52, rot: 2.6, scale: 2 },
+  { x: 55, z: -34, rot: 1.1, scale: 2.6 },
+  { x: 58, z: -48, rot: 0.2, scale: 3.2 },
+  { x: 52, z: -56, rot: 2.2, scale: 1.8 },
+  { x: -30, z: -8, rot: 0.9, scale: 0.8 },
+  { x: 24, z: 2, rot: 2.4, scale: 0.7 },
+];
+
+/** Sandy Cove: a strand between two rocky points, with beach huts and dune grass behind. */
+export function BeachWorld({ field }: { field: Field }) {
+  const sign = useSignTexture(['Sandy Cove', 'dogs welcome all year'], { bg: '#3f6e8c' });
+  const groynes = useMemo(
+    () => [...along([-46, 8], [-46, -40], 3), ...along([46, 8], [46, -40], 3)],
+    [],
+  );
+  const marram = useMemo<Placement[]>(
+    () =>
+      Array.from({ length: 34 }, (_, i) => ({
+        x: field.minX + scatter(i, 21) * (field.maxX - field.minX),
+        z: 13 + scatter(i, 22) * 14,
+        rot: scatter(i, 23) * 6.28,
+        scale: 0.9 + scatter(i, 24) * 0.8,
+      })),
+    [field],
+  );
+  return (
+    <>
+      <Props name="Rock" items={BEACH_ROCKS} />
+      <Props name="FenceSection" items={groynes} />
+      <Props name="TallGrassClump" items={marram} shadows={false} />
+      <Prop name="Tent" at={{ x: -16, z: 27, rot: Math.PI, scale: 0.8 }} />
+      <Prop name="Tent" at={{ x: -4, z: 28.5, rot: Math.PI, scale: 0.8 }} />
+      <Prop name="Bench" at={{ x: 10, z: 22, rot: Math.PI }} />
+      <Prop name="Van" at={{ x: 24, z: 30 }} />
+      <mesh position={[4, heightAt(4, 27) + 2.6, 27]}>
+        <planeGeometry args={[5, 1.4]} />
+        <meshStandardMaterial map={sign} side={THREE.DoubleSide} />
+      </mesh>
+    </>
+  );
+}
+
 const FELL_ROCKS: Placement[] = [
   { x: -30, z: -8, rot: 0.4, scale: 1.4 },
   { x: 28, z: -16, rot: 2.1, scale: 1.2 },

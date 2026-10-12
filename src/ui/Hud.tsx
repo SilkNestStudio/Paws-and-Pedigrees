@@ -457,7 +457,13 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
           act.tapGround({ x: w.x, z: w.y });
         }}
       >
-        <rect x={field.minX} y={field.minZ} width={w} height={h} fill="#8fb35f" />
+        <rect
+          x={field.minX}
+          y={field.minZ}
+          width={w}
+          height={h}
+          fill={field.style === 'beach' ? '#e3d4a4' : '#8fb35f'}
+        />
         {field.cover.map((c, i) => (
           <circle
             key={i}

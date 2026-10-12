@@ -41,6 +41,7 @@ import { Kennel } from './world/Kennel';
 import { Yard } from './world/Yard';
 import { Orchard, Shelter, VillageGreen, VillageGreenExtras } from './world/Places';
 import {
+  BeachWorld,
   FellWorld,
   GreenWorld,
   HomeWorld,
@@ -49,7 +50,9 @@ import {
   TrialWorld,
 } from './world/PropWorld';
 import { Lighting, Sky } from './world/Atmosphere';
-import { heightAt, waterLevel } from './world/terrain';
+import { heightAt, setTerrain, waterLevel } from './world/terrain';
+import { seasonOf } from '../game/calendar';
+import { SeasonLeaves } from './world/Props';
 import { inWater } from '../sim/field';
 
 /** Where the pointer is on the ground (desktop), for the aim line. */
@@ -1307,6 +1310,9 @@ export function Scene() {
   const ringRestored = !!game && hasFlag(game, 'restored:agilityRing');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const field = useMemo(() => fieldFor(place), [place, pondRestored]);
+  // The ground's shape belongs to the place (the beach has its own).
+  setTerrain(field.style);
+  const season = seasonOf(game?.day ?? 1);
 
   const current: Dog | null = useMemo(() => {
     if (!game) return null;
@@ -1326,8 +1332,12 @@ export function Scene() {
     <>
       <Runner />
       <CameraRig />
-      <Sky />
+      <Sky season={season} />
+      <Suspense fallback={null}>
+        <SeasonLeaves season={season} />
+      </Suspense>
       <Lighting
+        season={season}
         focus={() =>
           live.home?.keeper.pos ??
           live.field?.keeper.pos ??
@@ -1339,8 +1349,8 @@ export function Scene() {
       />
       <WindClock heading={wind.heading} strength={strength} />
       <group key={place}>
-        <Ground field={field} />
-        <Grass field={field} />
+        <Ground field={field} season={season} />
+        <Grass field={field} season={season} />
         <Ponds field={field} />
         {place === 'home' && (
           <>
@@ -1402,6 +1412,11 @@ export function Scene() {
         {place === 'fell' && (
           <Suspense fallback={null}>
             <FellWorld field={field} />
+          </Suspense>
+        )}
+        {place === 'beach' && (
+          <Suspense fallback={null}>
+            <BeachWorld field={field} />
           </Suspense>
         )}
         {place === 'trial' && (

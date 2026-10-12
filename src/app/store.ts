@@ -18,7 +18,7 @@ import type { HerdingSession, HerdingSetup } from '../sim/herding';
  * `live` (outside React, stepped every frame). Game rules never live here:
  * flow.ts calls the pure rules in src/game and stores the result.
  */
-export type Place = 'home' | 'orchard' | 'green' | 'shelter' | 'trial' | 'fell';
+export type Place = 'home' | 'orchard' | 'green' | 'shelter' | 'trial' | 'fell' | 'beach';
 
 export type Screen =
   | { kind: 'loading' }
@@ -53,6 +53,7 @@ export type Panel =
   | 'whelping'
   | 'fellTop'
   | 'cupPick'
+  | 'beach'
   | 'vet'
   | 'market'
   | 'album'

@@ -30,6 +30,34 @@ export function nextTrialDay(day: number): number {
   return Math.max(sunday, FIRST_TRIAL_DAY);
 }
 
+/**
+ * What each season does to the work (first proposals): `scent` scales how
+ * strong a scent must be before a dog notices it (below 1 is easier), and
+ * `stamina` how long a dog can gallop.
+ */
+export const SEASON_EFFECTS: Record<Season, { scent: number; stamina: number; note: string }> = {
+  Spring: {
+    scent: 1,
+    stamina: 1,
+    note: "Spring: mild days and good going. The breeders' market is in the village on Monday and Tuesday.",
+  },
+  Summer: {
+    scent: 1.06,
+    stamina: 0.9,
+    note: 'Summer: dry air carries less scent, and the heat tires a dog sooner. A fine season for the beach.',
+  },
+  Autumn: {
+    scent: 0.93,
+    stamina: 1,
+    note: 'Autumn: damp air holds scent well, so searches and blinds are a little easier.',
+  },
+  Winter: {
+    scent: 0.97,
+    stamina: 1.06,
+    note: 'Winter: cold, clear days, and dogs keep going longer. The Hollowmere Cup is run on the last Sunday.',
+  },
+};
+
 /** Saturdays are show days: agility on the village green, sheep up at Fell Top. */
 export const FIRST_SHOW_DAY = 13;
 export const isShowDay = (day: number): boolean => day >= FIRST_SHOW_DAY && weekday(day) === 5;

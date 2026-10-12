@@ -2,11 +2,14 @@ import { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec2 } from '../../core/math';
+import type { Season } from '../../game/calendar';
+import { SEASON_LOOKS } from './seasons';
 
 const SUN_DIRECTION = new THREE.Vector3(-0.55, 0.62, 0.55).normalize();
 
 /** Gradient sky dome with a soft sun glow; late afternoon. */
-export function Sky() {
+export function Sky({ season = 'Summer' }: { season?: Season }) {
+  const look = SEASON_LOOKS[season];
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -38,6 +41,8 @@ export function Sky() {
       }),
     [],
   );
+  (material.uniforms.uTop!.value as THREE.Color).set(look.skyTop);
+  (material.uniforms.uHorizon!.value as THREE.Color).set(look.skyHorizon);
   return (
     <mesh material={material} scale={400} renderOrder={-1}>
       <sphereGeometry args={[1, 32, 16]} />
@@ -49,7 +54,8 @@ export function Sky() {
  * Sun and sky light. The sun's shadow camera follows the action so shadows
  * stay crisp near the keeper and dog without a huge shadow map.
  */
-export function Lighting({ focus }: { focus: () => Vec2 }) {
+export function Lighting({ focus, season = 'Summer' }: { focus: () => Vec2; season?: Season }) {
+  const look = SEASON_LOOKS[season];
   const sun = useRef<THREE.DirectionalLight>(null);
   const { scene } = useThree();
   const target = useMemo(() => {
@@ -76,8 +82,8 @@ export function Lighting({ focus }: { focus: () => Vec2 }) {
       <hemisphereLight args={['#cfe0f2', '#58703a', 1.1]} />
       <directionalLight
         ref={sun}
-        color="#fff0d8"
-        intensity={2.6}
+        color={look.sun}
+        intensity={look.sunStrength}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-38}
@@ -89,7 +95,7 @@ export function Lighting({ focus }: { focus: () => Vec2 }) {
         shadow-bias={-0.0004}
         shadow-normalBias={0.04}
       />
-      <fog attach="fog" args={['#e9e0cb', 70, 300]} />
+      <fog attach="fog" args={[look.fog, look.fogNear, 300]} />
     </>
   );
 }

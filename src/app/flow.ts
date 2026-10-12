@@ -82,7 +82,14 @@ import {
   type EventDef,
   type EventOutcome,
 } from '../game/events';
-import { isCupDay, isShowDay, isTrialDay, nextCupDay } from '../game/calendar';
+import {
+  isCupDay,
+  isShowDay,
+  isTrialDay,
+  nextCupDay,
+  SEASON_EFFECTS,
+  seasonOf,
+} from '../game/calendar';
 import { ageRetirements, mentorBonus, retireDog, retireProblem, runsFree } from '../game/kennel';
 import {
   bringLegacyHome,
@@ -125,6 +132,7 @@ import {
 import { createTrainingSession, lessonSummary, LESSONS, type Lesson } from '../sim/training';
 import { FREE_PLAY, RETRIEVE_SETUPS, type RetrieveSetup } from '../sim/exercises';
 import {
+  createBeach,
   createFellTop,
   createOrchard,
   createShelterYard,
@@ -220,6 +228,8 @@ export function fieldFor(place: Place): Field {
       return createTrialGround();
     case 'fell':
       return createFellTop();
+    case 'beach':
+      return createBeach();
     default: {
       const g = get().game;
       return createTrainingField({ pond: !!g && hasFlag(g, 'restored:duckPond') });
@@ -785,6 +795,18 @@ export function startFieldWork(
     eventSeed(g, `field-${setup.id}-${g.results.length}`),
     fieldFor(place),
   );
+  // The season is in the air: scent carries differently, and heat tires a dog.
+  const weather = SEASON_EFFECTS[seasonOf(g.day)];
+  live.field.params.scentThreshold *= weather.scent;
+  live.field.params.staminaMax *= weather.stamina;
+  live.field.dog.stamina = live.field.params.staminaMax;
+  // A day at the beach is a treat in itself.
+  if (place === 'beach' && !hasFlag(g, `beach:${g.day}`))
+    commit((d) => {
+      addFlag(d, `beach:${d.day}`);
+      const out = activeDog(d);
+      if (out) out.bond = Math.min(100, out.bond + 2);
+    });
   useApp.setState({
     screen: { kind: 'retrieve', place, setup, job: opts.job, round: opts.round },
     panel: null,
@@ -808,6 +830,7 @@ export function startSearch(
     fieldFor(place),
     eventSeed(g, `search-${setup.title}-${g.results.length}`),
   );
+  live.search.params.scentThreshold *= SEASON_EFFECTS[seasonOf(g.day)].scent;
   useApp.setState({
     screen: { kind: 'search', place, setup, job: opts.job, round: opts.round },
     panel: null,
@@ -1272,7 +1295,7 @@ export function abandonActivity(): void {
   goHome(
     screen.kind === 'search' ||
       screen.kind === 'herding' ||
-      (screen.kind === 'retrieve' && screen.place === 'orchard')
+      (screen.kind === 'retrieve' && (screen.place === 'orchard' || screen.place === 'beach'))
       ? 'van'
       : 'fieldGate',
   );
@@ -1300,7 +1323,7 @@ export function closeResult(): void {
   goHome(
     screen.kind === 'search' ||
       screen.kind === 'herding' ||
-      (screen.kind === 'retrieve' && screen.place === 'orchard')
+      (screen.kind === 'retrieve' && (screen.place === 'orchard' || screen.place === 'beach'))
       ? 'van'
       : 'fieldGate',
   );

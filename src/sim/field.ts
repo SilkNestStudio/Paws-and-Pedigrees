@@ -25,7 +25,7 @@ export interface Pond {
   rz: number;
 }
 
-export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter' | 'trial' | 'fell';
+export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter' | 'trial' | 'fell' | 'beach';
 
 export interface Field {
   style: FieldStyle;
@@ -183,6 +183,30 @@ export function createFellTop(): Field {
       { pos: { x: 40, z: -34 }, radius: 1.3 },
       { pos: { x: -38, z: -52 }, radius: 1.2 },
     ],
+  };
+}
+
+/** The sea at Sandy Cove: the shore curves across the far end of the beach. */
+export const SEA: Pond = { center: { x: 0, z: -95 }, rx: 90, rz: 55 };
+
+/**
+ * Sandy Cove: a wide strand with the sea beyond it, for water work and a run
+ * on the sand. The water's edge is about 50 m from the top of the beach.
+ */
+export function createBeach(): Field {
+  return {
+    style: 'beach',
+    minX: -50,
+    maxX: 50,
+    minZ: -72,
+    maxZ: 22,
+    line: { x: 0, z: -26 },
+    cover: [
+      { center: { x: -34, z: 14 }, radius: 6, density: 0.45 },
+      { center: { x: 30, z: 16 }, radius: 5, density: 0.45 },
+    ],
+    trees: [],
+    ponds: [SEA],
   };
 }
 
