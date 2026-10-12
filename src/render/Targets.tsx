@@ -67,6 +67,17 @@ export function currentTargets(): Target[] {
         colour: '#ffb347',
       });
   }
+  const h = live.herding;
+  if (h && h.phase !== 'complete') {
+    const g = h.setup.gates[h.task];
+    const pos = g ? { x: (g.a.x + g.b.x) / 2, z: (g.a.z + g.b.z) / 2 } : h.setup.pen.center;
+    out.push({
+      id: `herd-${h.task}`,
+      label: g ? `${h.task + 1}: ${g.label}` : `${h.task + 1}: the pen`,
+      pos,
+      colour: '#ffb347',
+    });
+  }
   return out;
 }
 
@@ -142,7 +153,11 @@ export function TargetTracker() {
     timer.current += dt;
     if (timer.current < 0.08) return;
     timer.current = 0;
-    const keeper = live.field?.keeper.pos ?? live.search?.keeper.pos ?? live.agility?.keeper.pos;
+    const keeper =
+      live.field?.keeper.pos ??
+      live.search?.keeper.pos ??
+      live.agility?.keeper.pos ??
+      live.herding?.keeper.pos;
     const list: Indicator[] = [];
     for (const t of currentTargets()) {
       v.set(t.pos.x, heightAt(t.pos.x, t.pos.z) + 1.2, t.pos.z).project(camera);

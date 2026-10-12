@@ -8,6 +8,7 @@ import { objective } from '../game/story';
 import { fieldFor, abandonActivity, go } from '../app/flow';
 import { LESSONS } from '../sim/training';
 import { OBSTACLE_LENGTH } from '../sim/agility';
+import { wallsOf, type HerdCommand } from '../sim/herding';
 import { useHud, type HudSnapshot } from '../app/hud';
 import { useApp, type Place } from '../app/store';
 import { input } from '../app/input';
@@ -30,7 +31,7 @@ export function Hud() {
     <div className="hud">
       <TopBar snap={snap} />
       {snap.kind === 'home' ? <ObjectiveCard /> : <ActivityCard snap={snap} />}
-      {(snap.field || snap.search || snap.agility) && <TargetLabels />}
+      {(snap.field || snap.search || snap.agility || snap.herding) && <TargetLabels />}
       {snap.kind === 'home' && !busy && <SpotNameLabels />}
       <TopRight snap={snap} />
       {snap.lesson?.feedback && snap.lesson.time - snap.lesson.feedback.time < 3 && (
@@ -56,7 +57,11 @@ export function Hud() {
         </div>
       )}
       {!busy && <Actions snap={snap} />}
-      {!busy && snap.kind !== 'lesson' && snap.kind !== 'puppies' && isTouch && <Stick />}
+      {!busy &&
+        snap.kind !== 'lesson' &&
+        snap.kind !== 'puppies' &&
+        snap.kind !== 'herding' &&
+        isTouch && <Stick />}
       {!busy && !isTouch && <Keys snap={snap} />}
     </div>
   );
@@ -171,7 +176,10 @@ function ActivityCard({ snap }: { snap: HudSnapshot }) {
   const screen = useApp((s) => s.screen);
   const event = useApp((s) => s.event);
   const roundIndex =
-    screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'agility'
+    screen.kind === 'retrieve' ||
+    screen.kind === 'search' ||
+    screen.kind === 'agility' ||
+    screen.kind === 'herding'
       ? (screen.round ?? 0)
       : 0;
   const eventLine = event
@@ -196,6 +204,9 @@ function ActivityCard({ snap }: { snap: HudSnapshot }) {
   } else if (screen.kind === 'lesson') {
     title = LESSONS[screen.lesson].title;
     sub = LESSONS[screen.lesson].how;
+  } else if (screen.kind === 'herding') {
+    title = screen.setup.title;
+    sub = screen.round !== undefined ? eventLine : screen.setup.summary;
   } else if (screen.kind === 'agility') {
     title = screen.course.title;
     sub = screen.round !== undefined ? eventLine : screen.course.summary;
@@ -208,10 +219,38 @@ function ActivityCard({ snap }: { snap: HudSnapshot }) {
   }
   const l = snap.lesson;
   const a = snap.agility;
+  const h = snap.herding;
   return (
     <div className={`objective card activity ${l ? 'lesson' : ''}`}>
       <div className="objective-title">{title}</div>
       <div className="sub">{sub}</div>
+      {h && (
+        <>
+          <ul className="task-list">
+            {h.tasks.map((t, i) => (
+              <li key={i} className={i < h.task ? 'done' : i === h.task ? 'now' : ''}>
+                {i < h.task ? '✓' : '○'} {i + 1}. {t.label[0]!.toUpperCase()}
+                {t.label.slice(1)}
+                {i <= h.task && t.through > 0 ? ` (${t.through} of ${h.flock})` : ''}
+              </li>
+            ))}
+            <li className={h.task >= h.tasks.length ? 'now' : ''}>
+              ○ {h.tasks.length + 1}. The pen{h.penned ? ` (${h.penned} of ${h.flock} in)` : ''}
+            </li>
+          </ul>
+          <div className="stat-row">
+            <span className={h.seconds > h.standard ? 'over' : ''}>
+              {Math.floor(h.seconds)} s of {h.standard} s
+            </span>
+            <span>Time is called at {h.limit} s</span>
+          </div>
+          {h.harried > 0 && (
+            <div className="stat-row muted">
+              <span>Sheep scattered: {h.harried}</span>
+            </div>
+          )}
+        </>
+      )}
       {a && (
         <>
           <div className="stat-row">
@@ -311,6 +350,7 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
     screen.kind === 'search' ||
     screen.kind === 'lesson' ||
     screen.kind === 'agility' ||
+    screen.kind === 'herding' ||
     screen.kind === 'puppies';
   return (
     <div className="top-right">
@@ -329,6 +369,7 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
       )}
       {(snap.field || snap.search) && showMap && <MiniMap snap={snap} />}
       {snap.agility && <CourseMap snap={snap} />}
+      {snap.herding && <FlockMap snap={snap} />}
     </div>
   );
 }
@@ -572,7 +613,109 @@ function CourseMap({ snap }: { snap: HudSnapshot }) {
   );
 }
 
+/** The pasture from above: gates, pen, sheep, your dog and you. */
+function FlockMap({ snap }: { snap: HudSnapshot }) {
+  const screen = useApp((s) => s.screen);
+  const h = snap.herding;
+  if (screen.kind !== 'herding' || !h) return null;
+  const setup = screen.setup;
+  const walls = wallsOf(setup);
+  const minX = -34;
+  const minZ = -58;
+  const w = 68;
+  const height = 76;
+  const pen = setup.pen;
+  return (
+    <div className="minimap card course-map">
+      <svg viewBox={`${minX} ${minZ} ${w} ${height}`}>
+        <rect x={minX} y={minZ} width={w} height={height} fill="#8ba556" />
+        <rect
+          x={pen.center.x - pen.size / 2}
+          y={pen.center.z - pen.size / 2}
+          width={pen.size}
+          height={pen.size}
+          fill="#d8c27a"
+        />
+        {walls.map((s, i) => (
+          <line
+            key={i}
+            x1={s.a.x}
+            y1={s.a.z}
+            x2={s.b.x}
+            y2={s.b.z}
+            stroke="#5a4028"
+            strokeWidth={0.8}
+            strokeLinecap="round"
+          />
+        ))}
+        {setup.gates.map((g, i) => {
+          const x = (g.a.x + g.b.x) / 2;
+          const z = (g.a.z + g.b.z) / 2;
+          return (
+            <g key={i} opacity={i < h.task ? 0.45 : 1}>
+              <circle cx={x} cy={z} r={2.3} fill={i === h.task ? '#ffb347' : '#fff'} />
+              <text
+                x={x}
+                y={z + 1.1}
+                fontSize={3.1}
+                fontWeight={700}
+                textAnchor="middle"
+                fill="#22352a"
+              >
+                {i + 1}
+              </text>
+            </g>
+          );
+        })}
+        {h.sheep.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.z}
+            r={1.2}
+            fill="#fff"
+            stroke="#3a332d"
+            strokeWidth={0.3}
+          />
+        ))}
+        <circle
+          cx={h.keeper.x}
+          cy={h.keeper.z}
+          r={1.5}
+          fill="#22352a"
+          stroke="#fff"
+          strokeWidth={0.4}
+        />
+        <circle cx={h.dog.x} cy={h.dog.z} r={1.5} fill="#d9622b" stroke="#fff" strokeWidth={0.4} />
+      </svg>
+    </div>
+  );
+}
+
 function Actions({ snap }: { snap: HudSnapshot }) {
+  if (snap.herding) {
+    const h = snap.herding;
+    const ready = h.phase === 'ready';
+    const button = (cmd: HerdCommand, label: string, key: string, primary = false) => (
+      <button
+        className={`action ${primary ? 'primary' : ''} ${h.suggest === cmd ? 'suggested' : ''}`}
+        disabled={ready && cmd !== 'comeBy' && cmd !== 'away'}
+        onClick={() => act.herd(cmd)}
+      >
+        {label}
+        <small>{key}</small>
+      </button>
+    );
+    return (
+      <div className="actions herding">
+        {button('thatllDo', "That'll do", 'R')}
+        {button('comeBy', '↶ Come by', 'A')}
+        {button('walkUp', 'Walk up', 'W')}
+        {button('away', 'Away ↷', 'D')}
+        {button('lieDown', 'Lie down', 'Space', true)}
+      </div>
+    );
+  }
   if (snap.agility) {
     const ready = snap.agility.phase === 'ready';
     return (
@@ -747,17 +890,19 @@ function Keys({ snap }: { snap: HudSnapshot }) {
   const text =
     snap.kind === 'home'
       ? 'WASD walk · Shift jog · E use · F pat your dog · R call · drag or Q to look'
-      : snap.kind === 'agility'
-        ? 'WASD run (hold Shift) · Space: Go / Go on · R: Here · F: Easy'
-        : snap.kind === 'lesson'
-          ? 'Space: Yes! · F: cue · drag to look around'
-          : snap.kind === 'puppies'
-            ? snap.puppies?.mode === 'evaluate'
-              ? 'Say what you saw: 1 keen · 2 unsure · 3 worried'
-              : 'Space: Good pup! · X: make it easier'
-            : snap.kind === 'search'
-              ? 'WASD walk · click: search here · Space: show me · X: search on · R: here'
-              : 'WASD walk · click: send / throw / direct · Space whistle · R here · F sit · T throw';
+      : snap.kind === 'herding'
+        ? "A: Come by (left) · D: Away (right) · W: Walk up · Space or S: Lie down · R: That'll do"
+        : snap.kind === 'agility'
+          ? 'WASD run (hold Shift) · Space: Go / Go on · R: Here · F: Easy'
+          : snap.kind === 'lesson'
+            ? 'Space: Yes! · F: cue · drag to look around'
+            : snap.kind === 'puppies'
+              ? snap.puppies?.mode === 'evaluate'
+                ? 'Say what you saw: 1 keen · 2 unsure · 3 worried'
+                : 'Space: Good pup! · X: make it easier'
+              : snap.kind === 'search'
+                ? 'WASD walk · click: search here · Space: show me · X: search on · R: here'
+                : 'WASD walk · click: send / throw / direct · Space whistle · R here · F sit · T throw';
   return <div className="keys card">{text}</div>;
 }
 

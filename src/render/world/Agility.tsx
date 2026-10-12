@@ -18,7 +18,7 @@ const WHITE = '#f6f1e4';
 const YELLOW = '#f0c23a';
 
 const numberTextures = new Map<number, THREE.Texture>();
-function numberTexture(n: number): THREE.Texture {
+export function numberTexture(n: number): THREE.Texture {
   const cached = numberTextures.get(n);
   if (cached) return cached;
   const canvas = document.createElement('canvas');

@@ -11,13 +11,14 @@ import type { RetrieveSetup } from '../sim/exercises';
 import type { Lesson, TrainingSession } from '../sim/training';
 import type { PupActivity, PuppySession } from '../sim/puppies';
 import type { AgilityCourse, AgilitySession } from '../sim/agility';
+import type { HerdingSession, HerdingSetup } from '../sim/herding';
 
 /**
  * Interface state. The saved game lives in `game`; live simulations live in
  * `live` (outside React, stepped every frame). Game rules never live here:
  * flow.ts calls the pure rules in src/game and stores the result.
  */
-export type Place = 'home' | 'orchard' | 'green' | 'shelter' | 'trial';
+export type Place = 'home' | 'orchard' | 'green' | 'shelter' | 'trial' | 'fell';
 
 export type Screen =
   | { kind: 'loading' }
@@ -29,6 +30,7 @@ export type Screen =
   | { kind: 'search'; place: Place; setup: SearchSetup; job?: Job; round?: number }
   | { kind: 'lesson'; lesson: Lesson }
   | { kind: 'agility'; place: Place; course: AgilityCourse; round?: number; run: number }
+  | { kind: 'herding'; place: Place; setup: HerdingSetup; round?: number }
   | { kind: 'puppies'; litterId: string; activity: PupActivity; mode: 'raise' | 'evaluate' };
 
 export type Panel =
@@ -49,6 +51,7 @@ export type Panel =
   | 'kennel'
   | 'breeding'
   | 'whelping'
+  | 'fellTop'
   | 'menu';
 
 export interface ResultView {
@@ -98,7 +101,16 @@ export const live: {
   lesson: TrainingSession | null;
   puppies: PuppySession | null;
   agility: AgilitySession | null;
-} = { home: null, field: null, search: null, lesson: null, puppies: null, agility: null };
+  herding: HerdingSession | null;
+} = {
+  home: null,
+  field: null,
+  search: null,
+  lesson: null,
+  puppies: null,
+  agility: null,
+  herding: null,
+};
 
 export interface AppState {
   game: GameState | null;

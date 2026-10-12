@@ -64,6 +64,7 @@ import {
 } from '../sim/puppies';
 import {
   agilityShow,
+  sheepdogTrial,
   enterEvent,
   funDayEvent,
   QUALIFY,
@@ -85,6 +86,12 @@ import {
   createAgilitySession,
   type AgilityCourse,
 } from '../sim/agility';
+import {
+  buildHerdingReport,
+  createHerdingSession,
+  herdingLearning,
+  type HerdingSetup,
+} from '../sim/herding';
 import { deleteGame, loadGame, saveGame } from '../game/save';
 import { createHomeSession, fillHomeBowl, HOME_SPOTS, type SpotId } from '../sim/home';
 import { createRetrieveSession } from '../sim/retrieve';
@@ -98,6 +105,7 @@ import {
 import { createTrainingSession, lessonSummary, LESSONS, type Lesson } from '../sim/training';
 import { FREE_PLAY, RETRIEVE_SETUPS, type RetrieveSetup } from '../sim/exercises';
 import {
+  createFellTop,
   createOrchard,
   createShelterYard,
   createTrainingField,
@@ -159,6 +167,8 @@ export function fieldFor(place: Place): Field {
       return createShelterYard();
     case 'trial':
       return createTrialGround();
+    case 'fell':
+      return createFellTop();
     default: {
       const g = get().game;
       return createTrainingField({ pond: !!g && hasFlag(g, 'restored:duckPond') });
@@ -173,6 +183,7 @@ function clearLive(): void {
   live.lesson = null;
   live.puppies = null;
   live.agility = null;
+  live.herding = null;
 }
 
 function nextRun(): number {
@@ -342,9 +353,20 @@ const INTROS: Record<string, { title: string; lines: string[] }> = {
   shows: {
     title: 'Saturday shows',
     lines: [
-      'Every Saturday there is an agility show on the village green. Take the van. Two rounds over the same course, the second run the other way about.',
-      'A qualifying run means at least 50 in each round and 110 in total. Two qualifying runs earn an agility title (AN, then AO, then AX) and your dog moves up a level.',
-      "Agility titles count for your kennel's reputation and for a stud dog's fee, just like field titles.",
+      'Every Saturday there is an agility show on the village green and a sheepdog trial up at Fell Top Farm. Take the van. A dog can enter one event a day.',
+      'Each has two rounds: the same course, the second time the other way about. A qualifying run means at least 50 in each round and 110 in total.',
+      'Two qualifying runs earn a title (agility AN, AO, AX; sheepdog HN, HO, HX) and your dog moves up a level.',
+      "Every title counts for your kennel's reputation and for a stud dog's fee, just like field titles.",
+    ],
+  },
+  herding: {
+    title: 'How sheep work goes',
+    lines: [
+      'You stay at the post and work your dog by command. Sheep move away from the dog, so the dog belongs on the far side of the sheep from where you want them to go.',
+      '"Come by" (A) sends your dog round the sheep to the left, "Away" (D) to the right. "Walk up" (W) brings it straight onto them. "Lie down" (S or Space) stops it. "That\'ll do" (R) calls it back.',
+      'First the outrun: send your dog round behind the sheep. Then bring them through each pair of gates in order, and last into the pen.',
+      'Keep it quiet. A dog that rushes in close scatters the flock (4 points each time). "Lie down" early, and let the sheep settle.',
+      'The tip at the bottom of the screen says what a good handler would ask for. Every run builds the Herding skill: a trained dog stops the first time and knows its left from its right.',
     ],
   },
   lesson: {
@@ -823,6 +845,66 @@ function finishAgilityActivity(): void {
   });
 }
 
+export function startHerding(
+  setup: HerdingSetup,
+  opts: { round?: number; place?: Place } = {},
+): void {
+  if (opts.round === undefined && !allowed('herding')) return;
+  const g = game();
+  const dog = activeDog(g)!;
+  const place = opts.place ?? 'fell';
+  clearLive();
+  live.herding = createHerdingSession(
+    dog,
+    setup,
+    fieldFor(place),
+    eventSeed(g, `herding-${setup.id}-${g.results.length}`),
+  );
+  useApp.setState({
+    screen: { kind: 'herding', place, setup, round: opts.round },
+    panel: null,
+    runId: nextRun(),
+  });
+  showIntro('herding');
+}
+
+function finishHerdingActivity(): void {
+  const s = live.herding;
+  const screen = get().screen;
+  if (!s || screen.kind !== 'herding') return;
+  const report = buildHerdingReport(s);
+  if (screen.round !== undefined) return finishRound(screen.round, report.score, report.notes);
+  const before = s.skill;
+  const after = Math.min(1, before + herdingLearning(s));
+  let discoveries: ResultView['discoveries'] = [];
+  commit((g) => {
+    addFlag(g, 'practised:herding');
+    discoveries = finishActivity(g, {
+      kind: 'herding',
+      title: screen.setup.title,
+      score: report.score,
+      grade: report.grade,
+      observe: 'herding',
+      skill: { cue: 'herd', value: after },
+    });
+  });
+  useApp.setState({
+    panel: 'result',
+    result: {
+      title: screen.setup.title,
+      grade: report.grade,
+      score: report.score,
+      seconds: report.seconds,
+      notes: report.notes,
+      discoveries,
+      pay: 0,
+      skill: { name: CUE_LABELS.herd.name, before, after },
+      withScore: true,
+      next: 'home',
+    },
+  });
+}
+
 /** Ends a practice session before all its runs are used. */
 export function stopPractice(): void {
   useApp.setState({ result: null, panel: null });
@@ -873,6 +955,7 @@ export function activityFinished(): void {
   else if (screen.kind === 'lesson') finishLessonActivity();
   else if (screen.kind === 'puppies') finishPuppySession();
   else if (screen.kind === 'agility') finishAgilityActivity();
+  else if (screen.kind === 'herding') finishHerdingActivity();
 }
 
 // ---------------------------------------------------------------------------
@@ -1123,14 +1206,19 @@ export function abandonActivity(): void {
     return;
   }
   if (
-    (screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'agility') &&
+    (screen.kind === 'retrieve' ||
+      screen.kind === 'search' ||
+      screen.kind === 'agility' ||
+      screen.kind === 'herding') &&
     screen.round !== undefined
   ) {
     finishRound(screen.round, 0, [{ text: 'Retired from the round.', tone: 'warn' }]);
     return;
   }
   goHome(
-    screen.kind === 'search' || (screen.kind === 'retrieve' && screen.place === 'orchard')
+    screen.kind === 'search' ||
+      screen.kind === 'herding' ||
+      (screen.kind === 'retrieve' && screen.place === 'orchard')
       ? 'van'
       : 'fieldGate',
   );
@@ -1156,7 +1244,9 @@ export function closeResult(): void {
     return;
   }
   goHome(
-    screen.kind === 'search' || (screen.kind === 'retrieve' && screen.place === 'orchard')
+    screen.kind === 'search' ||
+      screen.kind === 'herding' ||
+      (screen.kind === 'retrieve' && screen.place === 'orchard')
       ? 'van'
       : 'fieldGate',
   );
@@ -1192,7 +1282,9 @@ export function todaysShow(g: GameState, sport: ExtraSport): EventDef | null {
   if (!dog || !g.funDay || !isShowDay(g.day)) return null;
   if (g.trials.some((t) => t.day === g.day && t.dogId === dog.id)) return null;
   if (!canStartActivity(g, 'funday').ok) return null;
-  return sport === 'agility' ? agilityShow(g.seed, g.day, trialLevel(dog, 'agility')) : null;
+  return sport === 'agility'
+    ? agilityShow(g.seed, g.day, trialLevel(dog, 'agility'))
+    : sheepdogTrial(g.seed, g.day, trialLevel(dog, 'herding'));
 }
 
 /** Why the active dog can't compete today, for the van's rows. */
@@ -1227,14 +1319,19 @@ export function beginShow(sport: ExtraSport): void {
       {
         speaker: 'Mara',
         text: first
-          ? `Your first agility show! Two rounds over the same course, the second the other way about. Today you're up against ${names}.`
+          ? sport === 'agility'
+            ? `Your first agility show! Two rounds over the same course, the second the other way about. Today you're up against ${names}.`
+            : `Your first sheepdog trial! Two runs on Sam Pennock's sheep, the second with the course the other way about. Today you're up against ${names}.`
           : `${def.name} today. Running against ${names}.`,
       },
       ...(first
         ? [
             {
               speaker: 'Mara' as const,
-              text: `Walk the numbers in your head before you say "Go". At least ${QUALIFY.minRound} in each round and ${qualifyTotal(def.rounds.length)} in total is a qualifying run; two of those and ${dog.name} has an agility title.`,
+              text:
+                sport === 'agility'
+                  ? `Walk the numbers in your head before you say "Go". At least ${QUALIFY.minRound} in each round and ${qualifyTotal(def.rounds.length)} in total is a qualifying run; two of those and ${dog.name} has an agility title.`
+                  : `Quiet and steady wins on sheep. At least ${QUALIFY.minRound} in each run and ${qualifyTotal(def.rounds.length)} in total is a qualifying run; two of those and ${dog.name} has a sheepdog title.`,
             },
           ]
         : []),
@@ -1324,7 +1421,9 @@ function startRound(index: number): void {
   const ev = get().event;
   if (!ev) return;
   const round = ev.def.rounds[index]!;
-  if (round.kind === 'agility') startAgility(round.course!, { round: index, place: ev.def.place });
+  if (round.kind === 'herding') startHerding(round.pasture!, { round: index, place: ev.def.place });
+  else if (round.kind === 'agility')
+    startAgility(round.course!, { round: index, place: ev.def.place });
   else if (round.kind === 'search')
     startSearch(round.search!, { round: index, place: ev.def.place });
   else startFieldWork(round.retrieve!, { round: index, place: ev.def.place });

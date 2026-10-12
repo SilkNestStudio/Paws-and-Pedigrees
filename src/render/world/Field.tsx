@@ -29,6 +29,7 @@ const GROUND: Record<FieldData['style'], { inside: string; outside: string; yard
   green: { inside: '#86b052', outside: '#78a04a', yard: '#86b052' },
   shelter: { inside: '#8aa85a', outside: '#7d9a4f', yard: '#8aa85a' },
   trial: { inside: '#82ac50', outside: '#719646', yard: '#82ac50' },
+  fell: { inside: '#8ba556', outside: '#7b944d', yard: '#8ba556' },
 };
 
 const groundCache = new Map<string, THREE.BufferGeometry>();

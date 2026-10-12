@@ -25,7 +25,7 @@ export interface Pond {
   rz: number;
 }
 
-export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter' | 'trial';
+export type FieldStyle = 'training' | 'orchard' | 'green' | 'shelter' | 'trial' | 'fell';
 
 export interface Field {
   style: FieldStyle;
@@ -158,6 +158,31 @@ export function createTrialGround(): Field {
       { pos: { x: -30, z: -70 }, radius: 1.5 },
     ],
     ponds: [LARKSPUR_LAKE],
+  };
+}
+
+/**
+ * The hill pasture at Fell Top Farm, where the sheep are worked: open rough
+ * grazing with a few thorn trees and patches of bracken. The post is at z = 10.
+ */
+export function createFellTop(): Field {
+  return {
+    style: 'fell',
+    minX: -46,
+    maxX: 46,
+    minZ: -72,
+    maxZ: 22,
+    line: { x: 0, z: 10 },
+    cover: [
+      { center: { x: -34, z: -30 }, radius: 6, density: 0.5 },
+      { center: { x: 34, z: -50 }, radius: 7, density: 0.5 },
+      { center: { x: -30, z: -62 }, radius: 6, density: 0.5 },
+    ],
+    trees: [
+      { pos: { x: -40, z: -14 }, radius: 1.2 },
+      { pos: { x: 40, z: -34 }, radius: 1.3 },
+      { pos: { x: -38, z: -52 }, radius: 1.2 },
+    ],
   };
 }
 

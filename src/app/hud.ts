@@ -15,12 +15,30 @@ import { windAt } from '../sim/scent';
 import { cameraState } from './input';
 import { PUP_ACTIVITIES, pupHint } from '../sim/puppies';
 import { OBSTACLE_NAMES, standardTime, type AgilitySession } from '../sim/agility';
+import { advise, timeLimit, type HerdCommand, type HerdingSession } from '../sim/herding';
 import { live, useApp } from './store';
 import { MARA_POS } from './flow';
 
 /** A light snapshot of whatever is live, refreshed about ten times a second for the interface. */
 export interface HudSnapshot {
-  kind: 'home' | 'retrieve' | 'search' | 'lesson' | 'shelter' | 'puppies' | 'agility';
+  kind: 'home' | 'retrieve' | 'search' | 'lesson' | 'shelter' | 'puppies' | 'agility' | 'herding';
+  /** A run on sheep. */
+  herding?: {
+    phase: HerdingSession['phase'];
+    task: number;
+    tasks: { label: string; through: number }[];
+    flock: number;
+    penned: number;
+    seconds: number;
+    standard: number;
+    limit: number;
+    harried: number;
+    keeper: Vec2;
+    dog: Vec2;
+    sheep: Vec2[];
+    /** What a good handler would ask for now. */
+    suggest: HerdCommand | null;
+  };
   /** A round of agility. */
   agility?: {
     phase: AgilitySession['phase'];
@@ -347,6 +365,40 @@ export function publish(): void {
         faults: 5 * (st.bars + st.refusals + st.contacts + st.weaves) + 20 * st.offCourse,
         keeper: { ...s.keeper.pos },
         dog: { ...s.dog.pos },
+      },
+    };
+  }
+  if (live.herding) {
+    const s = live.herding;
+    const st = s.stats;
+    const advice = advise(s);
+    snap = {
+      kind: 'herding',
+      dogName: s.dogName,
+      tell: s.dog.tell.text,
+      dogMode: null,
+      hint: advice.text,
+      cameraYaw: cameraState.yaw,
+      wind: null,
+      events: s.events.slice(-2),
+      home: null,
+      field: null,
+      search: null,
+      lesson: null,
+      herding: {
+        phase: s.phase,
+        task: s.task,
+        tasks: s.setup.gates.map((g, i) => ({ label: g.label, through: st.through[i]! })),
+        flock: s.sheep.length,
+        penned: st.penned,
+        seconds: st.startedAt === null ? 0 : (st.finishedAt ?? s.time) - st.startedAt,
+        standard: s.setup.standard,
+        limit: timeLimit(s.setup),
+        harried: st.harried,
+        keeper: { ...s.keeper.pos },
+        dog: { ...s.dog.pos },
+        sheep: s.sheep.map((sh) => ({ ...sh.pos })),
+        suggest: advice.command,
       },
     };
   }

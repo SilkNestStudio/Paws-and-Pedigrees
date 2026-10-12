@@ -33,6 +33,7 @@ import {
   trialLevel,
 } from '../game/events';
 import { PRACTICE_COURSES } from '../sim/courses';
+import { PRACTICE_PASTURES } from '../sim/pastures';
 import { kennelType, REPUTATION_LEVELS, reputationName } from '../game/reputation';
 
 /** Index of the lowest-scoring round. */
@@ -47,6 +48,7 @@ import {
   AGILITY_RUNS,
   entryProblem,
   startAgility,
+  startHerding,
   stopPractice,
   todaysShow,
   brush,
@@ -113,6 +115,7 @@ export function Panels() {
       {panel === 'kennel' && <KennelPanel game={game} />}
       {panel === 'breeding' && <BreedingPanel game={game} />}
       {panel === 'whelping' && <WhelpingRoomPanel game={game} />}
+      {panel === 'fellTop' && <FellTopPanel game={game} />}
       {panel === 'menu' && <Menu />}
     </div>
   );
@@ -454,6 +457,24 @@ function VanPanel({ game }: { game: GameState }) {
         </div>
         {hasDog && (game.funDay || game.day >= FIRST_TRIAL_DAY) && <TrialRow game={game} />}
         {hasDog && game.funDay && <ShowRow game={game} sport="agility" />}
+        {hasDog && game.funDay && (
+          <div className="row">
+            <div className="grow">
+              <div className="title">Fell Top Farm: work Sam's sheep</div>
+              <div className="sub">
+                Sam Pennock lets you practise on his sheep any day. Herding is a sport of its own,
+                worked by command from a post.
+              </div>
+            </div>
+            <button
+              className="button secondary"
+              onClick={() => useApp.setState({ panel: 'fellTop' })}
+            >
+              See the work
+            </button>
+          </div>
+        )}
+        {hasDog && game.funDay && <ShowRow game={game} sport="herding" />}
         {hasDog && !game.funDay && game.day < FIRST_TRIAL_DAY && (
           <div className="row">
             <div className="grow">
@@ -722,6 +743,68 @@ function FieldGate({ game }: { game: GameState }) {
           How does this work?
         </button>
         <Close />
+      </div>
+    </div>
+  );
+}
+
+/** Fell Top Farm: practice on Sam Pennock's sheep. */
+function FellTopPanel({ game }: { game: GameState }) {
+  const dog = activeDog(game);
+  if (!dog) return null;
+  const best = (title: string) =>
+    game.results.filter((r) => r.title === title).reduce((b, r) => Math.max(b, r.score), -1);
+  const night = game.block === 'night';
+  return (
+    <div className="panel card">
+      <div className="kicker">Fell Top Farm · {game.block}</div>
+      <h2>Work Sam's sheep</h2>
+      <p className="lead">
+        Each run uses one part of the day and some of {dog.name}'s energy ({Math.round(dog.energy)}%
+        left). Any dog can learn, but dogs with focus and a wish to please take to it fastest.
+      </p>
+      <div className="list">
+        <div className="row">
+          <div className="grow">
+            <div className="title">{dog.name}'s herding skill</div>
+            <div className="sub">
+              Built by every run on sheep. A trained dog stops the first time, knows left from
+              right, and keeps wide of its sheep.
+            </div>
+            <Bar value={dog.skills.herd} />
+          </div>
+          <span className="badge">{Math.round(dog.skills.herd * 100)}%</span>
+        </div>
+        {PRACTICE_PASTURES.map((p) => {
+          const b = best(p.title);
+          const outgrown = dog.skills.herd >= (p.teachesTo ?? 1);
+          return (
+            <div key={p.id} className="row">
+              <div className="grow">
+                <div className="title">{p.title}</div>
+                <div className="sub">
+                  {p.summary}
+                  {outgrown ? ` ${dog.name} has learned all this can teach: try a harder one.` : ''}
+                </div>
+              </div>
+              {b >= 0 && <span className="badge good">Best {b}</span>}
+              <span className="badge">-{ACTIVITY_ENERGY.herding} energy</span>
+              <button
+                className="button"
+                disabled={night}
+                onClick={() => go('Driving up to Fell Top…', () => startHerding(p))}
+              >
+                Go
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="button-row">
+        <button className="link" onClick={() => showIntro('herding', true)}>
+          How does this work?
+        </button>
+        <Close label="Stay home" />
       </div>
     </div>
   );

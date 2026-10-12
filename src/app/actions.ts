@@ -14,6 +14,7 @@ import { callBack, doubtAlert, searchHere, trustAlert } from '../sim/search';
 import { giveCue, mark, type CueChoice } from '../sim/training';
 import { callDog, greetDog } from '../sim/home';
 import { callHere, easy, goOn } from '../sim/agility';
+import { command, type HerdCommand } from '../sim/herding';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
 import { live, useApp } from './store';
 import { MARA_POS, petDog, talkToMara, activateSpot } from './flow';
@@ -182,6 +183,15 @@ export function tapGround(point: Vec2): void {
 // Development builds let test scripts tap the ground at a world point.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { __tap: typeof tapGround }).__tap = (p) => tapGround(p);
+}
+
+/** A command to the dog working sheep. */
+export function herd(cmd: HerdCommand): void {
+  if (!live.herding) return;
+  if (cmd === 'lieDown') playWhistle();
+  else if (cmd === 'thatllDo') playRecall();
+  else playCue();
+  command(live.herding, cmd);
 }
 
 // Puppy sessions in the paddock.

@@ -370,6 +370,59 @@ export function ShelterWorld({ field }: { field: Field }) {
   );
 }
 
+const FELL_ROCKS: Placement[] = [
+  { x: -30, z: -8, rot: 0.4, scale: 1.4 },
+  { x: 28, z: -16, rot: 2.1, scale: 1.2 },
+  { x: -18, z: -44, rot: 1.1, scale: 1.6 },
+  { x: 34, z: -60, rot: 0.2, scale: 1.3 },
+  { x: 12, z: -64, rot: 2.8, scale: 1.1 },
+  { x: -42, z: 6, rot: 1.7, scale: 1.2 },
+];
+
+/** Fell Top Farm: a fenced hill pasture with the farm cottage behind the handler's post. */
+export function FellWorld({ field }: { field: Field }) {
+  const sign = useSignTexture(['Fell Top Farm', 'sheepdog trials'], { bg: '#2f4a3c' });
+  const fence = useMemo(
+    () => [
+      ...along([field.minX, field.minZ], [field.maxX, field.minZ], 3),
+      ...along([field.minX, field.minZ], [field.minX, field.maxZ], 3),
+      ...along([field.maxX, field.minZ], [field.maxX, field.maxZ], 3),
+      ...along([field.minX, field.maxZ], [-5, field.maxZ], 3),
+      ...along([5, field.maxZ], [field.maxX, field.maxZ], 3),
+    ],
+    [field],
+  );
+  const bracken = useMemo<Placement[]>(
+    () =>
+      field.cover.flatMap((c, k) =>
+        Array.from({ length: 9 }, (_, i) => ({
+          x: c.center.x + (scatter(i, k) - 0.5) * c.radius * 1.5,
+          z: c.center.z + (scatter(i, k + 9) - 0.5) * c.radius * 1.5,
+          rot: scatter(i, 3) * 6.28,
+          scale: 1 + scatter(i, 7) * 0.6,
+        })),
+      ),
+    [field],
+  );
+  return (
+    <>
+      <Props name="FenceSection" items={fence} />
+      <Prop name="Cottage" at={{ x: -22, z: 34, rot: Math.PI }} />
+      <Prop name="Van" at={{ x: 18, z: 30 }} />
+      <Prop name="Bales" at={{ x: -9, z: 26, rot: 0.3 }} />
+      <Prop name="Bales" at={{ x: 30, z: 27, rot: -0.5 }} />
+      <Prop name="Bench" at={{ x: 8, z: 25, rot: Math.PI }} />
+      <Props name="Rock" items={FELL_ROCKS} />
+      <Props name="TallGrassClump" items={bracken} shadows={false} />
+      <FieldTrees field={field} kinds={['TreePine', 'TreeOak2']} />
+      <mesh position={[0, heightAt(0, 26) + 3.2, 26]}>
+        <planeGeometry args={[6, 1.5]} />
+        <meshStandardMaterial map={sign} side={THREE.DoubleSide} />
+      </mesh>
+    </>
+  );
+}
+
 const TRIAL_BENCHES: Placement[] = [
   { x: -22, z: 21, rot: Math.PI },
   { x: -18, z: 21.5, rot: Math.PI },

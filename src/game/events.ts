@@ -14,7 +14,7 @@ import {
 import { createFounderGenome } from '../core/genetics/genome';
 import type { BreedId } from '../core/genetics/breeds';
 import { clamp } from '../core/math';
-import { createTrialGround, createVillageGreen, type Field } from '../sim/field';
+import { createFellTop, createTrialGround, createVillageGreen, type Field } from '../sim/field';
 import { FUN_DAY_BLIND, FUN_DAY_MARK, type RetrieveSetup } from '../sim/exercises';
 import { createRetrieveSession } from '../sim/retrieve';
 import { buildReport } from '../sim/report';
@@ -27,6 +27,13 @@ import {
   type AgilityCourse,
 } from '../sim/agility';
 import { showCourse } from '../sim/courses';
+import {
+  buildHerdingReport,
+  createHerdingSession,
+  playHerding,
+  type HerdingSetup,
+} from '../sim/herding';
+import { trialPasture } from '../sim/pastures';
 import { activeDog, note, type GameState } from './state';
 import { addReputation, REPUTATION, type StudBooking } from './reputation';
 
@@ -38,8 +45,8 @@ export type { TrialLevel } from '../core/dog/dog';
  * same rounds through the same simulation with their own dogs and handling
  * skill, so their scores come from play, not from a dice roll.
  */
-export type RoundKind = 'mark' | 'search' | 'blind' | 'agility';
-export type EventPlace = 'green' | 'trial';
+export type RoundKind = 'mark' | 'search' | 'blind' | 'agility' | 'herding';
+export type EventPlace = 'green' | 'trial' | 'fell';
 export type RivalLook = 'victor' | 'billy' | 'ruth' | 'sam' | 'grace' | 'hamish' | 'dora';
 
 export interface EventRound {
@@ -52,6 +59,7 @@ export interface EventRound {
   retrieve?: RetrieveSetup;
   search?: SearchSetup;
   course?: AgilityCourse;
+  pasture?: HerdingSetup;
 }
 
 export interface Rival {
@@ -173,6 +181,8 @@ export const SPORT_INFO: Record<Sport, { name: string; letter: string; where: st
 
 /** Plain advice for the round that went worst. */
 export function adviceFor(kind: RoundKind, water: boolean, dogName: string): string {
+  if (kind === 'herding')
+    return `Sheep work is won by a quiet dog in the right place. Practise at Fell Top: every run builds ${dogName}'s herding, and a trained dog takes its stop and its sides the first time.`;
   if (kind === 'agility')
     return `Faults and time decide an agility round. Practise in Grandpa's ring: clean obstacles build ${dogName}'s skill, and running ahead of your dog keeps it on the right line.`;
   if (water)
@@ -738,12 +748,126 @@ export function agilityShow(gameSeed: number, day: number, level: TrialLevel): E
   };
 }
 
+/** The people who run dogs on sheep at Fell Top. */
+const HERDING_POOL: RivalSpec[] = [
+  {
+    id: 'billy-herd',
+    kennel: 'Ashby family',
+    handler: 'Billy Ashby',
+    look: 'billy',
+    dogName: 'Pickles',
+    sex: 'male',
+    breed: 'beagle',
+    boost: -0.15,
+    skill: 0.3,
+    levels: ['novice'],
+  },
+  {
+    id: 'dora-herd',
+    kennel: 'Finch Cottage',
+    handler: 'Dora Finch',
+    look: 'dora',
+    dogName: 'Tilly',
+    sex: 'female',
+    breed: 'poodle',
+    boost: 0.05,
+    skill: 0.42,
+    levels: ['novice'],
+  },
+  {
+    id: 'ruth-herd',
+    kennel: 'Hartley Gundogs',
+    handler: 'Ruth Hartley',
+    look: 'ruth',
+    dogName: 'Fen',
+    sex: 'female',
+    breed: 'aussie',
+    boost: 0.1,
+    skill: 0.5,
+    levels: ['novice', 'open'],
+  },
+  {
+    id: 'hamish-herd',
+    kennel: 'Glenreid',
+    handler: 'Hamish Reid',
+    look: 'hamish',
+    dogName: 'Skye',
+    sex: 'female',
+    breed: 'borderCollie',
+    boost: 0.2,
+    skill: 0.62,
+    levels: ['open', 'excellent'],
+  },
+  {
+    id: 'sam-herd',
+    kennel: 'Pennock Farm',
+    handler: 'Sam Pennock',
+    look: 'sam',
+    dogName: 'Rook',
+    sex: 'male',
+    breed: 'borderCollie',
+    boost: 0.3,
+    skill: 0.7,
+    levels: ['open', 'excellent'],
+  },
+  {
+    id: 'victor-herd',
+    kennel: 'Sterling Kennels',
+    handler: 'Victor Sterling',
+    look: 'victor',
+    dogName: 'Ace',
+    sex: 'male',
+    breed: 'borderCollie',
+    boost: 0.45,
+    skill: 0.8,
+    levels: ['excellent'],
+  },
+];
+
+/** The sheepdog trial at Fell Top on a given Saturday: two runs, the second mirrored. */
+export function sheepdogTrial(gameSeed: number, day: number, level: TrialLevel): EventDef {
+  const seed = (gameSeed ^ Math.imul(day, 4969) ^ 0x5eeb) >>> 0;
+  const rng = createRng(seed);
+  const pool = HERDING_POOL.filter((r) => r.levels.includes(level));
+  const rivals = shuffle(rng, pool)
+    .slice(0, 3)
+    .map((spec) => rivalFromSpec(spec, level));
+  const flip = int(rng, 0, 1);
+  const rules = SHOW_RULES[level];
+  return {
+    id: `herding-${day}`,
+    kind: 'trial',
+    sport: 'herding',
+    name: `Fell Top ${TRIAL_RULES[level].name} Sheepdog Trial`,
+    place: 'fell',
+    level,
+    rounds: [0, 1].map((r) => {
+      const pasture = trialPasture(level, r, flip);
+      return {
+        kind: 'herding' as const,
+        title: pasture.title,
+        short: `Run ${r + 1}`,
+        skill: r === 0 ? 'the first run' : 'the second run',
+        pasture,
+      };
+    }),
+    rivals,
+    entryFee: rules.entryFee,
+    prizes: rules.prizes,
+    seed: seed % 99991,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Playing rivals, standings and recording the result
 // ---------------------------------------------------------------------------
 
 export const fieldForEvent = (place: EventPlace): Field =>
-  place === 'green' ? createVillageGreen() : createTrialGround();
+  place === 'green'
+    ? createVillageGreen()
+    : place === 'fell'
+      ? createFellTop()
+      : createTrialGround();
 
 /** A rival's score in one round, played out in full by a computer handler. */
 export function rivalScore(def: EventDef, rival: Rival, roundIndex: number): number {
@@ -751,6 +875,10 @@ export function rivalScore(def: EventDef, rival: Rival, roundIndex: number): num
   const seed = def.seed + roundIndex * 101 + (hashString(rival.id) % 1000);
   const rng = createRng(seed ^ int(createRng(seed), 1, 1e6));
   const field = fieldForEvent(def.place);
+  if (round.kind === 'herding') {
+    const s = createHerdingSession(rival.dog, round.pasture!, field, seed + 37);
+    return buildHerdingReport(playHerding(s, rival.skill, rng)).score;
+  }
   if (round.kind === 'agility') {
     const s = createAgilitySession(rival.dog, round.course!, field, seed + 31);
     return buildAgilityReport(playAgility(s, rival.skill, rng)).score;

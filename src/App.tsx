@@ -49,6 +49,14 @@ function useKeyboard() {
           if (e.code === 'KeyT') act.throwsPlease();
           if (e.code === 'KeyV') cameraState.watchDog = !cameraState.watchDog;
           break;
+        case 'herding':
+          if (e.code === 'KeyA' || e.code === 'ArrowLeft') act.herd('comeBy');
+          if (e.code === 'KeyD' || e.code === 'ArrowRight') act.herd('away');
+          if (e.code === 'KeyW' || e.code === 'ArrowUp') act.herd('walkUp');
+          if (e.code === 'KeyS' || e.code === 'ArrowDown' || e.code === 'Space')
+            act.herd('lieDown');
+          if (e.code === 'KeyR') act.herd('thatllDo');
+          break;
         case 'agility':
           if (e.code === 'Space') act.whistle();
           if (e.code === 'KeyR') act.recall();
@@ -96,7 +104,7 @@ export default function App() {
     // Build every place's ground and grass in quiet moments, so the first
     // trip anywhere doesn't stall.
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300));
-    (['home', 'orchard', 'green', 'shelter', 'trial'] as const).forEach((place, i) =>
+    (['home', 'orchard', 'green', 'shelter', 'trial', 'fell'] as const).forEach((place, i) =>
       window.setTimeout(
         () =>
           idle(() => {

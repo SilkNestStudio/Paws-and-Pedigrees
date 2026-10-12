@@ -12,6 +12,8 @@ import { stepPuppies, type PupActivity } from '../sim/puppies';
 import { OBSTACLE_LENGTH, stepAgility } from '../sim/agility';
 import { HOME_RING, PRACTICE_COURSES, SHOW_RING } from '../sim/courses';
 import { AgilityCourseView, AgilityRing } from './world/Agility';
+import { centroid, stepHerding } from '../sim/herding';
+import { HerdingView } from './world/Herding';
 import {
   HOME_SOLIDS,
   HOME_SPOTS,
@@ -38,7 +40,14 @@ import { Ground, Grass, Hedges, Ponds, Trees, WindClock, WindFlag } from './worl
 import { Kennel } from './world/Kennel';
 import { Yard } from './world/Yard';
 import { Orchard, Shelter, VillageGreen, VillageGreenExtras } from './world/Places';
-import { GreenWorld, HomeWorld, OrchardWorld, ShelterWorld, TrialWorld } from './world/PropWorld';
+import {
+  FellWorld,
+  GreenWorld,
+  HomeWorld,
+  OrchardWorld,
+  ShelterWorld,
+  TrialWorld,
+} from './world/PropWorld';
 import { Lighting, Sky } from './world/Atmosphere';
 import { heightAt, waterLevel } from './world/terrain';
 import { inWater } from '../sim/field';
@@ -47,7 +56,12 @@ import { inWater } from '../sim/field';
 const aim: { point: Vec2 | null } = { point: null };
 
 function placeOf(screen: ReturnType<typeof useApp.getState>['screen']): Place {
-  if (screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'agility')
+  if (
+    screen.kind === 'retrieve' ||
+    screen.kind === 'search' ||
+    screen.kind === 'agility' ||
+    screen.kind === 'herding'
+  )
     return screen.place;
   if (screen.kind === 'shelter') return 'shelter';
   return 'home';
@@ -98,6 +112,7 @@ function Runner() {
         if (live.lesson) stepTraining(live.lesson, FIXED_DT);
         if (live.puppies) stepPuppies(live.puppies, FIXED_DT);
         if (live.agility) stepAgility(live.agility, FIXED_DT);
+        if (live.herding) stepHerding(live.herding, FIXED_DT);
         acc.current -= FIXED_DT;
       }
     } else acc.current = 0;
@@ -112,6 +127,7 @@ function Runner() {
       (live.lesson && live.lesson.phase === 'done' && live.lesson) ||
       (live.puppies && live.puppies.phase === 'done' && live.puppies) ||
       (live.agility && live.agility.phase === 'complete' && live.agility) ||
+      (live.herding && live.herding.phase === 'complete' && live.herding) ||
       null;
     if (done && finished.current !== done) {
       finished.current = done;
@@ -294,6 +310,29 @@ function CameraRig() {
         pitch += 0.16;
         dist = Math.max(dist, 11);
       }
+    } else if (live.herding) {
+      // From behind the post, high enough to read where the dog is against the sheep.
+      const s = live.herding;
+      const k = s.keeper.pos;
+      const c = centroid(s);
+      const d = s.dog.pos;
+      // Keep you, your dog, the sheep and where they are going all in view.
+      const gate = s.setup.gates[s.task];
+      const goal = gate
+        ? { x: (gate.a.x + gate.b.x) / 2, z: (gate.a.z + gate.b.z) / 2 }
+        : s.setup.pen.center;
+      const points = [k, c, d, goal];
+      const xs = points.map((p) => p.x);
+      const zs = points.map((p) => p.z);
+      const wide = Math.max(...xs) - Math.min(...xs);
+      const deep = Math.max(...zs) - Math.min(...zs);
+      target = {
+        x: (Math.max(...xs) + Math.min(...xs)) / 2,
+        z: (Math.max(...zs) + Math.min(...zs)) / 2 + deep * 0.08,
+      };
+      dist = Math.min(62, Math.max(16, Math.max(deep * 0.85, wide * (portrait ? 1.1 : 0.62)) + 9));
+      pitch = 0.68;
+      autoYaw = Math.PI;
     } else if (live.puppies) {
       target = { x: 31, z: 55.2 };
       dist = portrait ? 8 : 7.5;
@@ -853,6 +892,19 @@ function dogView(): DogView | null {
       carrying: null,
     };
   }
+  if (live.herding) {
+    const s = live.herding;
+    const d = s.dog;
+    return {
+      pos: d.pos,
+      heading: d.heading,
+      speed: d.speed,
+      pose: d.pose,
+      tell: d.tell,
+      lookAt: centroid(s),
+      carrying: null,
+    };
+  }
   if (live.agility) {
     const s = live.agility;
     const d = s.dog;
@@ -903,7 +955,8 @@ function keeperView(): KeeperView {
     live.field?.keeper ??
     live.search?.keeper ??
     live.lesson?.keeper ??
-    live.agility?.keeper;
+    live.agility?.keeper ??
+    live.herding?.keeper;
   if (!k)
     return {
       pos: { x: 0, z: 78 },
@@ -1137,9 +1190,17 @@ function Bystanders({ place }: { place: Place }) {
   const maraHere =
     (place === 'home' && game.story === 'meetMara') ||
     (place === 'orchard' && screen.kind === 'search' && screen.job?.id === 'mara-keys') ||
-    ((place === 'trial' || place === 'green') && !!event && event.def.kind === 'trial');
+    ((place === 'trial' || place === 'green' || place === 'fell') &&
+      !!event &&
+      event.def.kind === 'trial');
   const maraPos =
-    place === 'home' ? MARA_POS : place === 'trial' ? { x: -16, z: 17 } : { x: -20, z: 16 };
+    place === 'home'
+      ? MARA_POS
+      : place === 'trial'
+        ? { x: -16, z: 17 }
+        : place === 'fell'
+          ? { x: -12, z: 19 }
+          : { x: -20, z: 16 };
   const rivals = event && event.def.place === place ? event.def.rivals : [];
   // Rival handlers wait behind the line with their dogs.
   const spots = [
@@ -1259,6 +1320,7 @@ export function Scene() {
           live.field?.keeper.pos ??
           live.search?.keeper.pos ??
           live.agility?.keeper.pos ??
+          live.herding?.keeper.pos ??
           live.lesson?.keeper.pos ?? { x: 0, z: 70 }
         }
       />
@@ -1323,6 +1385,11 @@ export function Scene() {
             <ShelterWorld field={field} />
           </Suspense>
         )}
+        {place === 'fell' && (
+          <Suspense fallback={null}>
+            <FellWorld field={field} />
+          </Suspense>
+        )}
         {place === 'trial' && (
           <>
             <Suspense fallback={null}>
@@ -1354,6 +1421,7 @@ export function Scene() {
         {live.search && <SearchMarkers session={live.search} />}
         {live.lesson && <LessonProps lesson={live.lesson} />}
         {screen.kind === 'agility' && <AgilityCourseView course={screen.course} />}
+        {screen.kind === 'herding' && <HerdingView setup={screen.setup} />}
       </group>
     </>
   );
