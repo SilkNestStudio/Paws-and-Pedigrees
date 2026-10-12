@@ -9,6 +9,7 @@ import type { RetrieveSession } from '../sim/retrieve';
 import type { SearchSession, SearchSetup } from '../sim/search';
 import type { RetrieveSetup } from '../sim/exercises';
 import type { Lesson, TrainingSession } from '../sim/training';
+import type { PupActivity, PuppySession } from '../sim/puppies';
 
 /**
  * Interface state. The saved game lives in `game`; live simulations live in
@@ -25,7 +26,8 @@ export type Screen =
   | { kind: 'shelter' }
   | { kind: 'retrieve'; place: Place; setup: RetrieveSetup; job?: Job; round?: number }
   | { kind: 'search'; place: Place; setup: SearchSetup; job?: Job; round?: number }
-  | { kind: 'lesson'; lesson: Lesson };
+  | { kind: 'lesson'; lesson: Lesson }
+  | { kind: 'puppies'; litterId: string; activity: PupActivity; mode: 'raise' | 'evaluate' };
 
 export type Panel =
   | null
@@ -58,6 +60,8 @@ export interface ResultView {
   /** Lesson results show skill before and after. */
   skill?: { name: string; before: number; after: number };
   suggestion?: string;
+  /** No score to show (puppy sessions). */
+  plain?: boolean;
   next: 'home' | 'eventNext' | 'eventDone' | 'shelter';
 }
 
@@ -86,7 +90,8 @@ export const live: {
   field: RetrieveSession | null;
   search: SearchSession | null;
   lesson: TrainingSession | null;
-} = { home: null, field: null, search: null, lesson: null };
+  puppies: PuppySession | null;
+} = { home: null, field: null, search: null, lesson: null, puppies: null };
 
 export interface AppState {
   game: GameState | null;

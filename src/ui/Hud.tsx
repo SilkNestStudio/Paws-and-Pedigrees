@@ -35,14 +35,27 @@ export function Hud() {
       {snap.lesson?.feedback && snap.lesson.time - snap.lesson.feedback.time < 3 && (
         <div className={`coach card ${snap.lesson.feedback.tone}`}>{snap.lesson.feedback.text}</div>
       )}
+      {snap.puppies?.feedback && snap.puppies.time - snap.puppies.feedback.time < 3.5 && (
+        <div className={`coach card ${snap.puppies.feedback.tone}`}>
+          {snap.puppies.feedback.text}
+        </div>
+      )}
       <Events snap={snap} />
       {!busy && snap.hint && !(isTouch && snap.kind === 'home') && (
-        <div className={`hint card ${snap.lesson?.coach ? `coach-${snap.lesson.coach}` : ''}`}>
+        <div
+          className={`hint card ${snap.lesson?.coach ? `coach-${snap.lesson.coach}` : ''} ${
+            snap.puppies?.hintKind === 'now'
+              ? 'coach-now'
+              : snap.puppies?.hintKind === 'help'
+                ? 'coach-no'
+                : ''
+          }`}
+        >
           {snap.hint}
         </div>
       )}
       {!busy && <Actions snap={snap} />}
-      {!busy && snap.kind !== 'lesson' && isTouch && <Stick />}
+      {!busy && snap.kind !== 'lesson' && snap.kind !== 'puppies' && isTouch && <Stick />}
       {!busy && !isTouch && <Keys snap={snap} />}
     </div>
   );
@@ -61,7 +74,16 @@ function TopBar({ snap }: { snap: HudSnapshot }) {
   const screen = useApp((s) => s.screen);
   const shelterPick = useApp((s) => s.shelterPick);
   if (!game) return null;
-  const dog = screen.kind === 'shelter' ? game.shelter[shelterPick] : activeDog(game);
+  const pupTurn =
+    screen.kind === 'puppies'
+      ? game.litters.flatMap((l) => l.puppies).find((p) => p.id === snap.puppies?.pupId)
+      : undefined;
+  const dog =
+    screen.kind === 'shelter'
+      ? game.shelter[shelterPick]
+      : screen.kind === 'puppies'
+        ? pupTurn
+        : activeDog(game);
   const coat = dog ? coatOf(dog) : null;
   const swatch = !coat
     ? '#ccc'
@@ -80,10 +102,12 @@ function TopBar({ snap }: { snap: HudSnapshot }) {
             <div className="swatch" style={{ background: swatch }} />
             <div className="dog-text">
               <div className="name">
-                {screen.kind === 'shelter' ? dog.name : dogWithTitles(dog)}
+                {screen.kind === 'shelter' || screen.kind === 'puppies'
+                  ? dog.name
+                  : dogWithTitles(dog)}
               </div>
               <div className="tell">{snap.tell || coat?.name}</div>
-              {screen.kind !== 'shelter' && (
+              {screen.kind !== 'shelter' && screen.kind !== 'puppies' && (
                 <div className="needs">
                   <span title="Energy">Energy</span>
                   <Meter value={dog.energy} colour={dog.energy < 25 ? '#c0632a' : '#3f8a4f'} />
@@ -172,6 +196,9 @@ function ActivityCard({ snap }: { snap: HudSnapshot }) {
   } else if (screen.kind === 'shelter') {
     title = 'Larchwood Rescue';
     sub = 'Play with each dog, then choose.';
+  } else if (screen.kind === 'puppies' && snap.puppies) {
+    title = snap.puppies.title;
+    sub = `${snap.puppies.summary} (${Math.min(snap.puppies.done + 1, snap.puppies.total)} of ${snap.puppies.total})`;
   }
   const l = snap.lesson;
   return (
@@ -258,7 +285,10 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
   const [showMap, setShowMap] = useState(true);
   const screen = useApp((s) => s.screen);
   const inActivity =
-    screen.kind === 'retrieve' || screen.kind === 'search' || screen.kind === 'lesson';
+    screen.kind === 'retrieve' ||
+    screen.kind === 'search' ||
+    screen.kind === 'lesson' ||
+    screen.kind === 'puppies';
   return (
     <div className="top-right">
       <button className="icon-button" onClick={() => useApp.setState({ panel: 'menu' })}>
@@ -266,7 +296,7 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
       </button>
       {inActivity && (
         <button className="icon-button" onClick={() => go('Heading back…', abandonActivity)}>
-          {screen.kind === 'lesson' ? 'Finish' : 'Leave'}
+          {screen.kind === 'lesson' || screen.kind === 'puppies' ? 'Finish' : 'Leave'}
         </button>
       )}
       {(snap.field || snap.search) && (
@@ -440,6 +470,31 @@ function MiniMap({ snap }: { snap: HudSnapshot }) {
 }
 
 function Actions({ snap }: { snap: HudSnapshot }) {
+  if (snap.kind === 'puppies' && snap.puppies) {
+    const idle = snap.puppies.phase !== 'round';
+    return snap.puppies.mode === 'evaluate' ? (
+      <div className="actions">
+        <button className="action" disabled={idle} onClick={() => act.pupRead('keen')}>
+          Keen<small>1</small>
+        </button>
+        <button className="action" disabled={idle} onClick={() => act.pupRead('unsure')}>
+          Unsure<small>2</small>
+        </button>
+        <button className="action" disabled={idle} onClick={() => act.pupRead('worried')}>
+          Worried<small>3</small>
+        </button>
+      </div>
+    ) : (
+      <div className="actions">
+        <button className="action" disabled={idle} onClick={act.pupHelp}>
+          Make it easier<small>X</small>
+        </button>
+        <button className="action primary" disabled={idle} onClick={act.pupPraise}>
+          Good pup!<small>Space</small>
+        </button>
+      </div>
+    );
+  }
   if (snap.kind === 'home') {
     const near = snap.home?.near;
     return (
@@ -570,9 +625,13 @@ function Keys({ snap }: { snap: HudSnapshot }) {
       ? 'WASD walk · Shift jog · E use · F pat your dog · R call · drag or Q to look'
       : snap.kind === 'lesson'
         ? 'Space: Yes! · F: cue · drag to look around'
-        : snap.kind === 'search'
-          ? 'WASD walk · click: search here · Space: show me · X: search on · R: here'
-          : 'WASD walk · click: send / throw / direct · Space whistle · R here · F sit · T throw';
+        : snap.kind === 'puppies'
+          ? snap.puppies?.mode === 'evaluate'
+            ? 'Say what you saw: 1 keen · 2 unsure · 3 worried'
+            : 'Space: Good pup! · X: make it easier'
+          : snap.kind === 'search'
+            ? 'WASD walk · click: search here · Space: show me · X: search on · R: here'
+            : 'WASD walk · click: send / throw / direct · Space whistle · R here · F sit · T throw';
   return <div className="keys card">{text}</div>;
 }
 

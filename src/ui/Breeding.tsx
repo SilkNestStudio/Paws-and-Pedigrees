@@ -4,15 +4,19 @@ import { describe as describeEstimate } from '../core/dog/knowledge';
 import { deriveCoat } from '../core/genetics/coat';
 import { describeMix } from '../core/genetics/breeds';
 import { formatGenotype } from '../core/genetics/loci';
-import { APTITUDE_LABELS } from '../core/genetics/traits';
+import { APTITUDE_LABELS, type Aptitude } from '../core/genetics/traits';
+import { PUP_ACTIVITIES } from '../sim/puppies';
 import { ageText } from '../game/calendar';
 import {
   BREEDING,
+  canEvaluate,
+  canRaiseToday,
   damProblem,
   findStud,
   forecast,
   placementFee,
   puppyReady,
+  raisingActivities,
   sireProblem,
   studBook,
   type Litter,
@@ -22,12 +26,14 @@ import { hasFlag, type GameState } from '../game/state';
 import { useApp } from '../app/store';
 import {
   dogWithTitles,
+  go,
   keepPup,
   placePup,
   planLitter,
   openBreeding,
   restoreThing,
   runDnaTest,
+  startPuppySession,
   titleLetters,
 } from '../app/flow';
 import { coatSwatch } from './swatch';
@@ -335,6 +341,7 @@ function LitterCard({ game, litter }: { game: GameState; litter: Litter }) {
           · born day {litter.bornDay} · inbreeding {(litter.inbreeding * 100).toFixed(1)}%
         </span>
       </h3>
+      {litter.puppies.length > 0 && <RaisingRow game={game} litter={litter} />}
       {litter.puppies.length > 0 && (
         <div className="puppies">
           {litter.puppies.map((p) => (
@@ -348,6 +355,67 @@ function LitterCard({ game, litter }: { game: GameState; litter: Litter }) {
             `Kept: ${litter.kept.map((id) => game.pedigree[id]?.name ?? '?').join(', ')}. `}
           {litter.placed.map((p) => `${p.name} went to ${p.home} ($${p.fee})`).join('; ')}
         </p>
+      )}
+    </div>
+  );
+}
+
+/** The talents that show in puppies, in plain words. */
+const SEEN_IN_PUPPIES: { aptitude: Aptitude; word: string }[] = [
+  { aptitude: 'confidence', word: 'Bold' },
+  { aptitude: 'drive', word: 'Keen' },
+  { aptitude: 'focus', word: 'Attentive' },
+  { aptitude: 'biddability', word: 'Willing' },
+  { aptitude: 'water', word: 'Water' },
+];
+
+/** Today's raising session, and evaluation day once the puppies are old enough. */
+function RaisingRow({ game, litter }: { game: GameState; litter: Litter }) {
+  const today = canRaiseToday(game, litter);
+  const evaluate = canEvaluate(game, litter);
+  return (
+    <div className="raising">
+      <div className="small">
+        <b>Raising the litter.</b>{' '}
+        {today
+          ? 'Choose one session for today. Each builds a different talent, and how you handle each puppy decides how much.'
+          : game.block === 'night'
+            ? "It's late: the puppies are asleep."
+            : "Today's session is done. Puppies need their rest: one a day."}
+      </div>
+      {today && (
+        <div className="button-row">
+          {raisingActivities(game).map((a) => (
+            <button
+              key={a}
+              className="button secondary small"
+              title={PUP_ACTIVITIES[a].summary}
+              onClick={() =>
+                go('Into the paddock…', () => startPuppySession(litter.id, a, 'raise'))
+              }
+            >
+              {PUP_ACTIVITIES[a].title} <small>({PUP_ACTIVITIES[a].builds})</small>
+            </button>
+          ))}
+        </div>
+      )}
+      {evaluate && (
+        <div className="button-row">
+          <button
+            className="button small"
+            onClick={() =>
+              go('Setting up the tests…', () => startPuppySession(litter.id, 'novelty', 'evaluate'))
+            }
+          >
+            Hold evaluation day
+          </button>
+          <span className="small">
+            Test every puppy before you choose who stays. Reading them right tells you much more.
+          </span>
+        </div>
+      )}
+      {litter.evaluated && (
+        <div className="small">Evaluation day is done: see each puppy below.</div>
       )}
     </div>
   );
@@ -380,9 +448,21 @@ function PuppyCard({
         </div>
       </div>
       <div className="sub">
-        Bold: {describeEstimate(k.confidence).toLowerCase()} · Keen:{' '}
-        {describeEstimate(k.drive).toLowerCase()}
+        {SEEN_IN_PUPPIES.filter((t) => k[t.aptitude])
+          .map((t) => `${t.word}: ${describeEstimate(k[t.aptitude]).toLowerCase()}`)
+          .join(' · ')}
       </div>
+      {pup.rearing && Object.values(pup.rearing).some((v) => v) && (
+        <div className="sub raised">
+          Raising:{' '}
+          {SEEN_IN_PUPPIES.filter((t) => pup.rearing?.[t.aptitude])
+            .map((t) => {
+              const pts = Math.round((pup.rearing![t.aptitude] ?? 0) * 15);
+              return `${t.word.toLowerCase()} ${pts > 0 ? '+' : ''}${pts}`;
+            })
+            .join(', ')}
+        </div>
+      )}
       <div className="sub">{ageText(pup.ageMonths)} old</div>
       {ready ? (
         <>

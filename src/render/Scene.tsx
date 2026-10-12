@@ -8,6 +8,7 @@ import { objective, type Landmark } from '../game/story';
 import { FIXED_DT, aimTarget, stepSession, type RetrieveSession } from '../sim/retrieve';
 import { stepSearch, type SearchSession } from '../sim/search';
 import { coaching, stepTraining, type TrainingSession } from '../sim/training';
+import { stepPuppies, type PupActivity } from '../sim/puppies';
 import {
   HOME_SOLIDS,
   HOME_SPOTS,
@@ -90,6 +91,7 @@ function Runner() {
         if (live.field) stepSession(live.field, FIXED_DT);
         if (live.search) stepSearch(live.search, FIXED_DT);
         if (live.lesson) stepTraining(live.lesson, FIXED_DT);
+        if (live.puppies) stepPuppies(live.puppies, FIXED_DT);
         acc.current -= FIXED_DT;
       }
     } else acc.current = 0;
@@ -102,6 +104,7 @@ function Runner() {
       (live.field && live.field.phase === 'complete' && live.field) ||
       (live.search && live.search.phase === 'complete' && live.search) ||
       (live.lesson && live.lesson.phase === 'done' && live.lesson) ||
+      (live.puppies && live.puppies.phase === 'done' && live.puppies) ||
       null;
     if (done && finished.current !== done) {
       finished.current = done;
@@ -274,6 +277,11 @@ function CameraRig() {
       } else dist = 8.5;
       if (cameraState.watchDog && (live.field || live.search))
         target = (live.field ?? live.search)!.dog.pos;
+    } else if (live.puppies) {
+      target = { x: 31, z: 55.2 };
+      dist = portrait ? 8 : 7.5;
+      pitch = 0.62;
+      autoYaw = 0;
     } else if (live.lesson) {
       const t = live.lesson;
       const k = t.keeper.pos;
@@ -832,6 +840,18 @@ function dogView(): DogView | null {
 }
 
 function keeperView(): KeeperView {
+  if (live.puppies) {
+    const p = live.puppies.keeper;
+    return {
+      pos: p.pos,
+      heading: p.heading,
+      speed: 0,
+      action: p.action,
+      actionTime: p.actionTime,
+      signalHeading: 0,
+      watch: null,
+    };
+  }
   const k = live.home?.keeper ?? live.field?.keeper ?? live.search?.keeper ?? live.lesson?.keeper;
   if (!k)
     return {
@@ -882,6 +902,112 @@ const randomInPaddock = (): Vec2 => ({
   x: PADDOCK.minX + 0.7 + Math.random() * (PADDOCK.maxX - PADDOCK.minX - 1.4),
   z: PADDOCK.minZ + 0.7 + Math.random() * (PADDOCK.maxZ - PADDOCK.minZ - 1.4),
 });
+
+const PUP_PROPS: Record<PupActivity, { x: number; z: number }> = {
+  novelty: { x: 32.7, z: 55.9 },
+  handling: { x: 31, z: 53.9 },
+  fetch: { x: 29.6, z: 56.1 },
+  follow: { x: 31, z: 53.9 },
+  paddle: { x: 32.5, z: 55.6 },
+};
+
+/** A puppy session: each puppy driven by the session, a ring under the one whose turn it is, and today's prop. */
+function SessionPuppies({ litterId }: { litterId: string; activity: PupActivity }) {
+  const game = useApp((s) => s.game);
+  const litter = game?.litters.find((l) => l.id === litterId);
+  const ring = useRef<THREE.Mesh>(null);
+  const umbrella = useRef<THREE.Group>(null);
+  const toy = useRef<THREE.Mesh>(null);
+  const pool = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    const s = live.puppies;
+    if (!s) return;
+    const r = s.round;
+    if (ring.current) {
+      ring.current.visible = !!r && s.phase === 'round';
+      if (r) {
+        const p = s.pups[r.pup]!.pos;
+        ring.current.position.set(p.x, heightAt(p.x, p.z) + 0.06, p.z);
+      }
+    }
+    // Show only the prop for the test in hand (evaluation changes it between puppies).
+    const act = s.activity;
+    if (umbrella.current) {
+      umbrella.current.visible = act === 'novelty';
+      umbrella.current.rotation.z = Math.sin(state.clock.elapsedTime * 3) * 0.12;
+    }
+    if (toy.current) toy.current.visible = act === 'fetch';
+    if (pool.current) pool.current.visible = act === 'paddle';
+  });
+  if (!litter) return null;
+  const at = (a: PupActivity, lift = 0): [number, number, number] => [
+    PUP_PROPS[a].x,
+    heightAt(PUP_PROPS[a].x, PUP_PROPS[a].z) + lift,
+    PUP_PROPS[a].z,
+  ];
+  return (
+    <>
+      <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[0.42, 0.52, 32]} />
+        <meshBasicMaterial color="#fff4dc" transparent opacity={0.9} depthWrite={false} />
+      </mesh>
+      <group ref={umbrella} position={at('novelty')}>
+        <mesh position={[0, 0.55, 0]} castShadow>
+          <coneGeometry args={[0.75, 0.42, 10, 1, true]} />
+          <meshStandardMaterial color="#d9622b" side={THREE.DoubleSide} />
+        </mesh>
+        <mesh position={[0, 0.32, 0]}>
+          <cylinderGeometry args={[0.02, 0.02, 0.64, 6]} />
+          <meshStandardMaterial color="#5a3e2b" />
+        </mesh>
+        <mesh position={[0.5, 0.09, 0.3]} castShadow>
+          <cylinderGeometry args={[0.09, 0.09, 0.18, 12]} />
+          <meshStandardMaterial color="#b9c0c6" metalness={0.6} roughness={0.35} />
+        </mesh>
+      </group>
+      <mesh ref={toy} position={at('fetch', 0.1)} castShadow>
+        <sphereGeometry args={[0.1, 12, 10]} />
+        <meshStandardMaterial color="#e8a0b4" roughness={0.9} />
+      </mesh>
+      <group ref={pool} position={at('paddle')}>
+        <mesh position={[0, 0.07, 0]} castShadow>
+          <cylinderGeometry args={[0.7, 0.75, 0.14, 24]} />
+          <meshStandardMaterial color="#5b86a6" roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 0.145, 0]}>
+          <cylinderGeometry args={[0.62, 0.62, 0.01, 24]} />
+          <meshStandardMaterial color="#9fd0ea" roughness={0.1} />
+        </mesh>
+      </group>
+      {litter.puppies.map((p) => (
+        <AnyDog
+          key={p.id}
+          dog={p}
+          view={() => {
+            const a = live.puppies?.pups.find((x) => x.id === p.id);
+            const growth = 0.55 + 0.45 * Math.min(1, p.ageMonths / 12);
+            if (!a) return { ...still({ x: 31, z: 56.5 }, Math.PI), growth };
+            return {
+              pos: a.pos,
+              heading: a.heading,
+              speed: a.speed,
+              pose: a.pose,
+              tell: {
+                ears: a.tail === 'low' ? 'back' : a.tail === 'high' ? 'forward' : 'neutral',
+                tail: a.tail,
+                noseDown: false,
+                text: '',
+              },
+              lookAt: null,
+              carrying: null,
+              growth,
+            };
+          }}
+        />
+      ))}
+    </>
+  );
+}
 
 /** The litter tumbling about the paddock, with their mother lying in the straw. */
 function PaddockPuppies() {
@@ -1015,7 +1141,10 @@ function Bystanders({ place }: { place: Place }) {
           </group>
         );
       })}
-      {place === 'home' && <PaddockPuppies />}
+      {place === 'home' && screen.kind !== 'puppies' && <PaddockPuppies />}
+      {screen.kind === 'puppies' && (
+        <SessionPuppies litterId={screen.litterId} activity={screen.activity} />
+      )}
       {place === 'home' &&
         game.dogs.map((d, i) =>
           d.id === game.activeDogId || nursing(game, d.id) ? null : (

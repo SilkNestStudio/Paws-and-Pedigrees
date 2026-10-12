@@ -59,6 +59,12 @@ export interface Dog {
   dnaTested: boolean;
   /** The kennel that bred this dog, if it was bred rather than found. */
   breeder?: string;
+  /**
+   * What its puppyhood added to (or took from) each talent, in standard
+   * deviations. Already included in the dog's traits; kept so it can be shown
+   * and capped. Never inherited.
+   */
+  rearing?: Partial<Record<Aptitude, number>>;
 }
 
 /** A dog's aptitude on the 1-99 scale (50 = average dog). */

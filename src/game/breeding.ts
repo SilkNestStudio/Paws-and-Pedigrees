@@ -15,7 +15,15 @@ import { describeMix, type BreedId } from '../core/genetics/breeds';
 import { deriveCoat } from '../core/genetics/coat';
 import { APTITUDES, HERITABILITY, toScore, type Aptitude } from '../core/genetics/traits';
 import { activeDog, addFlag, eventRng, hasFlag, note, type GameState } from './state';
-import { KENNEL_RUNS } from './rules';
+import { KENNEL_RUNS, passTime } from './rules';
+import {
+  OUTCOME_BONUS,
+  PUP_ACTIVITIES,
+  type PupActivity,
+  type PupInput,
+  type PupOutcome,
+  type PupResult,
+} from '../sim/puppies';
 
 /**
  * Breeding: choosing a pairing, the litter that follows, and what becomes of
@@ -266,6 +274,10 @@ export interface Litter {
   kept: string[];
   placed: PlacedPuppy[];
   inbreeding: number;
+  /** The day of the litter's last raising session (one a day). */
+  lastSessionDay?: number;
+  /** Evaluation day has been held. */
+  evaluated?: boolean;
 }
 
 export const breedingUnlocked = (state: GameState): boolean =>
@@ -585,4 +597,106 @@ export const tooYoungForWork = (dog: Dog): boolean => dog.ageMonths < 9;
 export function restingForLitter(state: GameState): boolean {
   const dog = activeDog(state);
   return !!dog && isPregnant(state, dog.id);
+}
+
+// ---------------------------------------------------------------------------
+// Raising the litter: daily sessions and evaluation day
+// ---------------------------------------------------------------------------
+
+/** How far raising can move one talent in total, in standard deviations (0.6 is about 9 points). */
+export const RAISING = { cap: 0.6, floor: -0.3 };
+
+/** The sessions on offer today. The paddling pool needs water on the property. */
+export function raisingActivities(state: GameState): PupActivity[] {
+  const all: PupActivity[] = ['novelty', 'handling', 'fetch', 'follow'];
+  if (hasFlag(state, 'restored:duckPond')) all.push('paddle');
+  return all;
+}
+
+export const canRaiseToday = (state: GameState, litter: Litter): boolean =>
+  litter.puppies.length > 0 && litter.lastSessionDay !== state.day && state.block !== 'night';
+
+export const canEvaluate = (state: GameState, litter: Litter): boolean =>
+  litter.puppies.length > 0 &&
+  !litter.evaluated &&
+  litter.puppies.every(puppyReady) &&
+  state.block !== 'night';
+
+/** What the session needs to know about each puppy. */
+export function pupInputs(litter: Litter): PupInput[] {
+  return litter.puppies.map((p) => ({
+    id: p.id,
+    name: p.name,
+    values: Object.fromEntries(
+      APTITUDES.map((a) => [a, p.genome.traits[a].g + p.genome.traits[a].e]),
+    ),
+  }));
+}
+
+export interface RaisingLine {
+  name: string;
+  outcome: PupOutcome | null;
+  /** Change to the talent this session, in points on the 1-99 scale. */
+  points: number;
+  total: number;
+}
+
+/** Applies a finished raising session: each puppy's temperament moves a little, and you learn about it. */
+export function applyRaising(
+  state: GameState,
+  litterId: string,
+  activity: PupActivity,
+  results: PupResult[],
+): RaisingLine[] {
+  const litter = state.litters.find((l) => l.id === litterId);
+  if (!litter) return [];
+  const trait = PUP_ACTIVITIES[activity].trait;
+  const rng = eventRng(state, `raise-${litterId}-${activity}`);
+  const lines: RaisingLine[] = [];
+  for (const r of results) {
+    const pup = litter.puppies.find((p) => p.id === r.pupId);
+    if (!pup) continue;
+    pup.rearing ??= {};
+    const before = pup.rearing[trait] ?? 0;
+    const wanted = r.outcome ? OUTCOME_BONUS[r.outcome] : 0;
+    const after = clamp(before + wanted, RAISING.floor, RAISING.cap);
+    pup.rearing[trait] = after;
+    pup.genome.traits[trait].e += after - before;
+    state.knowledge[pup.id] ??= {};
+    observe(rng, pup, state.knowledge[pup.id]!, [{ aptitude: trait, precision: 16 }]);
+    lines.push({
+      name: pup.name,
+      outcome: r.outcome,
+      points: Math.round((after - before) * 15),
+      total: Math.round(after * 15),
+    });
+  }
+  litter.lastSessionDay = state.day;
+  passTime(state);
+  note(state, `${PUP_ACTIVITIES[activity].title} with ${litter.damName}'s puppies.`);
+  return lines;
+}
+
+/** Applies evaluation day: a correct read of a puppy gives a much clearer picture of it. */
+export function applyEvaluation(state: GameState, litterId: string, results: PupResult[]): number {
+  const litter = state.litters.find((l) => l.id === litterId);
+  if (!litter) return 0;
+  const rng = eventRng(state, `evaluate-${litterId}`);
+  let right = 0;
+  for (const r of results) {
+    const pup = litter.puppies.find((p) => p.id === r.pupId);
+    if (!pup) continue;
+    if (r.readRight) right++;
+    state.knowledge[pup.id] ??= {};
+    observe(rng, pup, state.knowledge[pup.id]!, [
+      { aptitude: PUP_ACTIVITIES[r.activity].trait, precision: r.readRight ? 7 : 20 },
+    ]);
+  }
+  litter.evaluated = true;
+  passTime(state);
+  note(
+    state,
+    `Evaluation day for ${litter.damName}'s puppies: ${right} of ${results.length} read correctly.`,
+  );
+  return right;
 }

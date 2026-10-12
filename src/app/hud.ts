@@ -13,12 +13,26 @@ import type { SearchSession } from '../sim/search';
 import { HOME_SPOTS, type HomeSession, type SpotId } from '../sim/home';
 import { windAt } from '../sim/scent';
 import { cameraState } from './input';
+import { PUP_ACTIVITIES, pupHint } from '../sim/puppies';
 import { live, useApp } from './store';
 import { MARA_POS } from './flow';
 
 /** A light snapshot of whatever is live, refreshed about ten times a second for the interface. */
 export interface HudSnapshot {
-  kind: 'home' | 'retrieve' | 'search' | 'lesson' | 'shelter';
+  kind: 'home' | 'retrieve' | 'search' | 'lesson' | 'shelter' | 'puppies';
+  /** A puppy session in the paddock. */
+  puppies?: {
+    mode: 'raise' | 'evaluate';
+    title: string;
+    summary: string;
+    pupId: string | null;
+    done: number;
+    total: number;
+    hintKind: 'now' | 'help' | 'wait' | null;
+    feedback: { text: string; tone: 'good' | 'info' | 'warn'; time: number } | null;
+    time: number;
+    phase: 'between' | 'round' | 'done';
+  };
   dogName: string | null;
   tell: string;
   dogMode: DogMode | null;
@@ -272,6 +286,43 @@ export function publish(): void {
         feedback: t.feedback,
         time: t.time,
         coach: coaching(t)?.kind ?? null,
+      },
+    };
+  }
+  if (live.puppies) {
+    const s = live.puppies;
+    const g = useApp.getState().game;
+    // Coaching spells out what each puppy's body is saying until you've run a few sessions.
+    const coached = !g || !g.flags.includes('raised:3');
+    const hint = pupHint(s);
+    const pup = s.round ? s.pups[s.round.pup]! : null;
+    snap = {
+      kind: 'puppies',
+      dogName: pup?.name ?? null,
+      tell: s.tell,
+      dogMode: null,
+      hint: coached || s.mode === 'evaluate' || hint.kind === null ? hint.text : s.tell,
+      cameraYaw: cameraState.yaw,
+      wind: null,
+      events: [],
+      home: null,
+      field: null,
+      search: null,
+      lesson: null,
+      puppies: {
+        mode: s.mode,
+        title: s.mode === 'evaluate' ? 'Evaluation day' : PUP_ACTIVITIES[s.activity].title,
+        summary:
+          s.mode === 'evaluate'
+            ? `Test: ${PUP_ACTIVITIES[s.activity].title.toLowerCase()}. Watch, then say what you saw.`
+            : PUP_ACTIVITIES[s.activity].summary,
+        pupId: pup?.id ?? null,
+        done: s.results.length,
+        total: s.results.length + s.queue.length + (s.phase === 'round' ? 1 : 0),
+        hintKind: coached ? hint.kind : null,
+        feedback: s.feedback,
+        time: s.time,
+        phase: s.phase,
       },
     };
   }

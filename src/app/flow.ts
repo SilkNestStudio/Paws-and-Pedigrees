@@ -35,13 +35,25 @@ import {
 } from '../game/rules';
 import { LINES, progressStory, type Line } from '../game/story';
 import {
+  applyEvaluation,
+  applyRaising,
   breed as breedRule,
+  canEvaluate,
+  canRaiseToday,
   dnaTest,
+  pupInputs,
   keepPuppy,
   placePuppy,
   register as registerDog,
 } from '../game/breeding';
 import { formatGenotype } from '../core/genetics/loci';
+import type { RaisingLine } from '../game/breeding';
+import {
+  createPuppySession,
+  PUP_ACTIVITIES,
+  type PupActivity,
+  type PupOutcome,
+} from '../sim/puppies';
 import {
   enterEvent,
   funDayEvent,
@@ -141,6 +153,7 @@ function clearLive(): void {
   live.field = null;
   live.search = null;
   live.lesson = null;
+  live.puppies = null;
 }
 
 function nextRun(): number {
@@ -235,6 +248,23 @@ const INTROS: Record<string, { title: string; lines: string[] }> = {
       '2. Keep your dog steady. If it starts to quiver, press "Sit".',
       '3. Click or tap on the fall to send your dog. It runs to where it saw it land and hunts with its nose.',
       '4. If it hunts in the wrong place, blow the whistle (Space), then click where you want it to go.',
+    ],
+  },
+  puppies: {
+    title: 'Raising puppies',
+    lines: [
+      "One puppy at a time meets today's challenge. Watch its body: tail up and trotting in is keen; stopping halfway is unsure; backing away with its tail tucked is worried.",
+      'Press Space ("Good pup!") the moment a puppy does the brave thing. Praise when it gets there, not before.',
+      'Press X to make it easier for a puppy that needs help. An unsure puppy with a wagging tail may do it alone if you wait, which is worth more. Never praise a frightened puppy.',
+      'Handled well, each session nudges that talent for life (up to about +9 points in total). One session a day, and each uses part of the day.',
+    ],
+  },
+  evaluation: {
+    title: 'Evaluation day',
+    lines: [
+      'Each puppy takes three little tests. This time you only watch.',
+      'After each reaction, say what you saw: keen (1), unsure (2) or worried (3).',
+      "A correct read gives you a clear picture of that puppy's talent; a wrong one only a rough note. Use what you learn to choose who to keep.",
     ],
   },
   trials: {
@@ -727,6 +757,118 @@ export function activityFinished(): void {
   if (screen.kind === 'retrieve') finishRetrieve();
   else if (screen.kind === 'search') finishSearchActivity();
   else if (screen.kind === 'lesson') finishLessonActivity();
+  else if (screen.kind === 'puppies') finishPuppySession();
+}
+
+// ---------------------------------------------------------------------------
+// Puppy sessions: raising the litter and evaluation day
+// ---------------------------------------------------------------------------
+
+export function startPuppySession(
+  litterId: string,
+  activity: PupActivity,
+  mode: 'raise' | 'evaluate',
+): void {
+  const g = game();
+  const litter = g.litters.find((l) => l.id === litterId);
+  if (!litter) return;
+  if (mode === 'raise' ? !canRaiseToday(g, litter) : !canEvaluate(g, litter)) {
+    toast(
+      mode === 'raise'
+        ? 'One session a day is plenty for puppies. Come back tomorrow.'
+        : 'Evaluation day comes once the puppies are old enough to leave.',
+      'info',
+    );
+    return;
+  }
+  clearLive();
+  live.puppies = createPuppySession(
+    pupInputs(litter),
+    mode,
+    activity,
+    eventSeed(g, `pups-${litterId}-${g.day}-${activity}`),
+  );
+  useApp.setState({
+    screen: { kind: 'puppies', litterId, activity, mode },
+    panel: null,
+    runId: nextRun(),
+  });
+  showIntro(mode === 'raise' ? 'puppies' : 'evaluation');
+}
+
+const OUTCOME_WORDS: Record<PupOutcome, string> = {
+  perfect: 'did it alone and was praised at once',
+  good: 'did it and was praised',
+  helped: 'managed it with a little help',
+  unrewarded: 'did it, but went unpraised',
+  stuck: 'was praised too soon and stayed stuck',
+  rewardedFear: 'was praised while frightened',
+  leftWorried: 'was frightened and got no help',
+};
+
+function finishPuppySession(): void {
+  const s = live.puppies;
+  const screen = get().screen;
+  if (!s || screen.kind !== 'puppies') return;
+  const notes: ResultView['notes'] = [];
+  let title = '';
+  let grade = '';
+  if (screen.mode === 'raise') {
+    const def = PUP_ACTIVITIES[screen.activity];
+    let lines: RaisingLine[] = [];
+    commit((g) => {
+      lines = applyRaising(g, screen.litterId, screen.activity, s.results);
+      const n = ['raised:1', 'raised:2', 'raised:3'].find((f) => !hasFlag(g, f));
+      if (n) addFlag(g, n);
+    });
+    for (const l of lines)
+      notes.push({
+        text: `${l.name} ${l.outcome ? OUTCOME_WORDS[l.outcome] : "wasn't ready today (no harm done)"}: ${def.builds} ${l.points > 0 ? '+' : ''}${l.points}${l.total !== l.points ? ` (${l.total > 0 ? '+' : ''}${l.total} so far)` : ''}.`,
+        tone: l.points > 0 ? 'good' : l.points < 0 ? 'warn' : 'info',
+      });
+    const gained = lines.reduce((a, l) => a + l.points, 0);
+    title = def.title;
+    grade =
+      gained >= lines.length * 2.5
+        ? 'A lovely session'
+        : gained > 0
+          ? 'A useful session'
+          : 'A rough session';
+    if (!lines.length)
+      notes.push({ text: 'You stopped before any puppy had a turn.', tone: 'info' });
+  } else {
+    let right = 0;
+    commit((g) => {
+      right = applyEvaluation(g, screen.litterId, s.results);
+    });
+    title = 'Evaluation day';
+    grade = `${right} of ${s.results.length} read correctly`;
+    notes.push({
+      text: 'Each correct read gives a clear picture of that talent; a wrong one only a rough note. See each puppy in the paddock.',
+      tone: 'info',
+    });
+    for (const r of s.results.filter((x) => x.readRight === false))
+      notes.push({
+        text: `${r.name} was ${r.response} in ${PUP_ACTIVITIES[r.activity].title.toLowerCase()}.`,
+        tone: 'warn',
+      });
+  }
+  useApp.setState({
+    panel: 'result',
+    result: {
+      title,
+      grade,
+      score: 0,
+      seconds: 0,
+      notes,
+      discoveries: [],
+      pay: 0,
+      // Hides the points badge, like a lesson result.
+      skill: undefined,
+      next: 'home',
+      plain: true,
+    },
+  });
 }
 
 function finishRetrieve(): void {
@@ -861,6 +1003,10 @@ export function abandonActivity(): void {
     finishLessonActivity();
     return;
   }
+  if (screen.kind === 'puppies') {
+    finishPuppySession();
+    return;
+  }
   if ((screen.kind === 'retrieve' || screen.kind === 'search') && screen.round !== undefined) {
     finishRound(screen.round, 0, [{ text: 'Retired from the round.', tone: 'warn' }]);
     return;
@@ -883,6 +1029,10 @@ export function closeResult(): void {
   if (screen.kind === 'search' && screen.job?.id === 'mara-keys') {
     goHome('van');
     say(LINES.maraAfterKeys!(g));
+    return;
+  }
+  if (screen.kind === 'puppies') {
+    goHome('paddock');
     return;
   }
   goHome(

@@ -47,7 +47,8 @@ function tone(
   }
   gain.gain.setValueAtTime(0, now);
   gain.gain.linearRampToValueAtTime(volume, now + 0.02);
-  gain.gain.setValueAtTime(volume, now + duration - 0.05);
+  // Very short sounds (the marker click) would otherwise ask for a time before "now".
+  gain.gain.setValueAtTime(volume, Math.max(now + 0.02, now + duration - 0.05));
   gain.gain.linearRampToValueAtTime(0, now + duration);
   osc.connect(gain).connect(ac.destination);
   osc.start(now);

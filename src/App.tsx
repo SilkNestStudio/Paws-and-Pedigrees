@@ -54,6 +54,13 @@ function useKeyboard() {
           if (e.code === 'KeyX') act.searchOn();
           if (e.code === 'KeyR') act.recall();
           break;
+        case 'puppies':
+          if (e.code === 'Space') act.pupPraise();
+          if (e.code === 'KeyX') act.pupHelp();
+          if (e.code === 'Digit1') act.pupRead('keen');
+          if (e.code === 'Digit2') act.pupRead('unsure');
+          if (e.code === 'Digit3') act.pupRead('worried');
+          break;
         case 'lesson':
           if (e.code === 'Space') act.yes();
           if (e.code === 'KeyF') act.lessonCue('full');

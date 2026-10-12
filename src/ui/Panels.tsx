@@ -698,7 +698,7 @@ function Result() {
       <h2>{r.title}</h2>
       <div className="grade">
         <span className="big">{r.grade}</span>
-        {!r.skill && <span className="badge">{r.score} points</span>}
+        {!r.skill && !r.plain && <span className="badge">{r.score} points</span>}
         {r.seconds > 0 && !r.skill && <span className="badge">{Math.round(r.seconds)} s</span>}
         {r.pay > 0 && <span className="badge good">+${r.pay}</span>}
       </div>

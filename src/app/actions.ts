@@ -1,3 +1,4 @@
+import { help, praise, readPup, type PupResponse } from '../sim/puppies';
 import { distance, type Vec2 } from '../core/math';
 import { activeDog } from '../game/state';
 import {
@@ -171,4 +172,19 @@ export function tapGround(point: Vec2): void {
 // Development builds let test scripts tap the ground at a world point.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { __tap: typeof tapGround }).__tap = (p) => tapGround(p);
+}
+
+// Puppy sessions in the paddock.
+export function pupPraise(): void {
+  if (!live.puppies) return;
+  playMark();
+  praise(live.puppies);
+}
+
+export function pupHelp(): void {
+  if (live.puppies) help(live.puppies);
+}
+
+export function pupRead(read: PupResponse): void {
+  if (live.puppies) readPup(live.puppies, read);
 }
