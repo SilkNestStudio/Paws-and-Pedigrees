@@ -22,6 +22,7 @@ import {
   type Litter,
 } from '../game/breeding';
 import { RESTORATIONS } from '../game/rules';
+import { studFee, studProblem } from '../game/reputation';
 import { hasFlag, type GameState } from '../game/state';
 import { useApp } from '../app/store';
 import {
@@ -35,6 +36,7 @@ import {
   runDnaTest,
   startPuppySession,
   titleLetters,
+  toggleStud,
 } from '../app/flow';
 import { coatSwatch } from './swatch';
 
@@ -105,7 +107,7 @@ export function BreedingPanel({ game }: { game: GameState }) {
       </div>
       {tab === 'plan' && <PlanTab game={game} />}
       {tab === 'litters' && <LittersTab game={game} />}
-      {tab === 'studs' && <StudsTab />}
+      {tab === 'studs' && <StudsTab game={game} />}
       <div className="button-row">
         <button className="button secondary" onClick={close}>
           Close
@@ -492,10 +494,50 @@ function PuppyCard({
 // The stud book
 // ---------------------------------------------------------------------------
 
-function StudsTab() {
+/** Your own males: offer them to other kennels once they have a title. */
+function OwnStuds({ game }: { game: GameState }) {
+  const males = game.dogs.filter((d) => d.sex === 'male');
+  if (!males.length) return null;
+  return (
+    <>
+      <h3>Your dogs at stud</h3>
+      <p className="small">
+        Other kennels pay to use a proven dog. Bookings arrive with each new season: more titles and
+        a bigger name bring more of them, and his puppies turn up at Larkspur a few seasons on.
+      </p>
+      {males.map((d) => {
+        const problem = studProblem(d);
+        const bookings = game.studBookings.filter((b) => b.studId === d.id);
+        return (
+          <div key={d.id} className={`row ${d.atStud ? 'active' : ''}`}>
+            <Swatch dog={d} size={36} />
+            <div className="grow">
+              <div className="title">{dogWithTitles(d)}</div>
+              <div className="sub">
+                {problem ??
+                  `Fee $${studFee(game, d)}. ${bookings.length ? `${bookings.length} booking${bookings.length > 1 ? 's' : ''} so far ($${bookings.reduce((a, b) => a + b.fee, 0)}).` : 'No bookings yet.'}`}
+              </div>
+            </div>
+            <button
+              className="button secondary small"
+              disabled={!!problem}
+              onClick={() => toggleStud(d.id)}
+            >
+              {d.atStud ? 'Withdraw' : 'Offer at stud'}
+            </button>
+          </div>
+        );
+      })}
+      <h3>Studs from other kennels</h3>
+    </>
+  );
+}
+
+function StudsTab({ game }: { game: GameState }) {
   const studs = useMemo(() => studBook(), []);
   return (
     <div className="list">
+      <OwnStuds game={game} />
       <p className="small">
         Proven dogs from other kennels. Their owners publish DNA results and what the dogs have
         shown in trials.

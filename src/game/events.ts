@@ -1,5 +1,12 @@
 import { chance, createRng, hashString, int, pick, range, shuffle, type Rng } from '../core/rng';
-import { generateRescue, TRIAL_LEVELS, type Cue, type Dog, type TrialLevel } from '../core/dog/dog';
+import {
+  createPuppy,
+  generateRescue,
+  TRIAL_LEVELS,
+  type Cue,
+  type Dog,
+  type TrialLevel,
+} from '../core/dog/dog';
 import { createFounderGenome } from '../core/genetics/genome';
 import type { BreedId } from '../core/genetics/breeds';
 import { clamp } from '../core/math';
@@ -10,6 +17,7 @@ import { buildReport } from '../sim/report';
 import { buildSearchReport, createSearchSession, type SearchSetup } from '../sim/search';
 import { playRetrieve, playSearch } from '../sim/bots';
 import { activeDog, note, type GameState } from './state';
+import { addReputation, REPUTATION, type StudBooking } from './reputation';
 
 export type { TrialLevel } from '../core/dog/dog';
 
@@ -42,6 +50,8 @@ export interface Rival {
   dog: Dog;
   /** Handling skill of the computer handler, 0-1. */
   skill: number;
+  /** This dog was sired by one of the player's stud dogs. */
+  by?: string;
 }
 
 export interface EventDef {
@@ -586,14 +596,42 @@ function trialRounds(rng: Rng, level: TrialLevel): EventRound[] {
   ];
 }
 
-/** The trial on a given Sunday at a given level, the same every time it's built. */
-export function trialEvent(gameSeed: number, day: number, level: TrialLevel): EventDef {
+/**
+ * A young dog sired by one of the player's stud dogs, running for the kennel
+ * that booked him. Its genes really are half his.
+ */
+export function studPupRival(booking: StudBooking, sire: Dog, level: TrialLevel): Rival | null {
+  const spec = RIVAL_POOL.find((r) => r.kennel === booking.kennel);
+  if (!spec) return null;
+  const base = rivalFromSpec(spec, level);
+  const rng = createRng(booking.seed);
+  const pup = createPuppy(rng, sire, base.dog, 0, booking.kennel, [sire.name, base.dog.name]);
+  pup.ageMonths = 12;
+  pup.skills = { ...LEVEL_SKILLS[level] };
+  pup.bond = 60;
+  return { ...base, id: `studpup-${booking.id}`, dog: pup, by: sire.name };
+}
+
+/**
+ * The trial on a given Sunday at a given level, the same every time it's
+ * built. A `guest` (a stud pup) takes the place of its kennel's usual dog.
+ */
+export function trialEvent(
+  gameSeed: number,
+  day: number,
+  level: TrialLevel,
+  guest?: Rival,
+): EventDef {
   const seed = (gameSeed ^ Math.imul(day, 7919)) >>> 0;
   const rng = createRng(seed);
   const pool = RIVAL_POOL.filter((r) => r.levels.includes(level));
   const rivals = shuffle(rng, pool)
     .slice(0, 3)
     .map((spec) => rivalFromSpec(spec, level));
+  if (guest) {
+    const same = rivals.findIndex((r) => r.kennel === guest.kennel);
+    rivals[same >= 0 ? same : rivals.length - 1] = guest;
+  }
   const rules = TRIAL_RULES[level];
   return {
     id: `trial-${day}`,
@@ -722,12 +760,16 @@ export function recordEvent(
     state.funDay = { entries: table.entries, bestRound: def.rounds[table.bestRound]!.kind };
   } else {
     state.trials.push(record);
+    if (def.rivals.some((r) => r.by)) addReputation(state, REPUTATION.studPupSeen);
+    if (placing === 1) addReputation(state, REPUTATION.trialWin);
+    if (qualified) addReputation(state, REPUTATION.qualifyingRun);
     if (qualified && def.level) {
       const count = (dog.qualifiers[def.level] ?? 0) + 1;
       dog.qualifiers[def.level] = count;
       if (count >= QUALIFY.toTitle && !dog.titles.includes(def.level)) {
         dog.titles.push(def.level);
         title = def.level;
+        addReputation(state, REPUTATION.title);
       }
     }
   }

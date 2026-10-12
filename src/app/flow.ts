@@ -47,6 +47,7 @@ import {
   register as registerDog,
 } from '../game/breeding';
 import { formatGenotype } from '../core/genetics/loci';
+import { setAtStud, studFee, studProblem, studPupDue } from '../game/reputation';
 import type { RaisingLine } from '../game/breeding';
 import {
   createPuppySession,
@@ -60,6 +61,7 @@ import {
   QUALIFY,
   recordEvent,
   rivalScore,
+  studPupRival,
   trialEvent,
   trialLevel,
   TRIAL_RULES,
@@ -1057,7 +1059,12 @@ export function todaysTrial(g: GameState): EventDef | null {
   const dog = activeDog(g);
   if (!dog || !isTrialDay(g.day)) return null;
   if (g.trials.some((t) => t.day === g.day && t.dogId === dog.id)) return null;
-  return trialEvent(g.seed, g.day, trialLevel(dog));
+  const level = trialLevel(dog);
+  // A youngster by one of your stud dogs may be running for the kennel that booked him.
+  const booking = level === 'excellent' ? null : studPupDue(g, g.day);
+  const sire = booking ? g.dogs.find((d) => d.id === booking.studId) : undefined;
+  const guest = booking && sire ? (studPupRival(booking, sire, level) ?? undefined) : undefined;
+  return trialEvent(g.seed, g.day, level, guest);
 }
 
 function beginFunDay(): void {
@@ -1109,6 +1116,12 @@ function trialIntro(def: EventDef): Line[] {
         : `${def.name} today. Running against ${names}.`,
     },
   ];
+  const youngster = def.rivals.find((r) => r.by);
+  if (youngster)
+    lines.push({
+      speaker: 'Mara',
+      text: `See the youngster with ${youngster.handler}? That's ${youngster.dog.name}, by your ${youngster.by}. People are watching how ${youngster.dog.sex === 'female' ? 'she' : 'he'} goes.`,
+    });
   if (first) {
     lines.push(
       {
@@ -1371,6 +1384,25 @@ export function placePup(litterId: string, puppyId: string): void {
     const p = placed as { name: string; home: string; fee: number };
     toast(`${p.name} is going to ${p.home}. +$${p.fee}`, 'good');
   }
+}
+
+/** Offers one of your males to other kennels, or withdraws him. */
+export function toggleStud(dogId: string): void {
+  const dog = game().dogs.find((d) => d.id === dogId);
+  if (!dog) return;
+  const on = !dog.atStud;
+  let ok = false;
+  commit((g) => {
+    ok = setAtStud(g, dogId, on);
+  });
+  if (!ok) toast(studProblem(dog) ?? 'Not possible right now.', 'warn');
+  else
+    toast(
+      on
+        ? `${dog.name} is at stud for $${studFee(game(), dog)}. Bookings come in with each new season.`
+        : `${dog.name} is no longer at stud.`,
+      'good',
+    );
 }
 
 /** Tester tool: jump to the morning the next litter is due. */

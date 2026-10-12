@@ -4,6 +4,7 @@ import type { DogKnowledge } from '../core/dog/knowledge';
 import type { Job } from './jobs';
 import type { EventRecord } from './events';
 import type { Litter, PedigreeEntry, Pregnancy } from './breeding';
+import type { Letter, StudBooking } from './reputation';
 
 /**
  * The saved game. Everything the player has done lives here; it is plain
@@ -68,6 +69,8 @@ export interface SeasonMark {
 
 /** What happened last season, shown once when the new season starts. */
 export interface SeasonRecap {
+  /** Letters from families and stud bookings that arrived with the new season. */
+  news?: string[];
   season: string;
   next: string;
   activities: number;
@@ -82,7 +85,7 @@ export interface SeasonRecap {
 }
 
 export interface GameState {
-  version: 3;
+  version: 4;
   seed: number;
   kennelName: string;
   money: number;
@@ -121,6 +124,12 @@ export interface GameState {
   litters: Litter[];
   /** Every dog the kennel has known, for pedigrees and relatedness. */
   pedigree: Record<string, PedigreeEntry>;
+  /** The kennel's name in the wider world, 0-100. */
+  reputation: number;
+  /** Letters from families who took puppies. */
+  letters: Letter[];
+  /** Other kennels' bookings of this kennel's stud dogs. */
+  studBookings: StudBooking[];
 }
 
 export const STARTING_MONEY = 40;
@@ -130,7 +139,7 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
   const rng = createRng(seed);
   const shelter = generateShelterTrio(rng);
   return {
-    version: 3,
+    version: 4,
     seed,
     kennelName: '',
     money: STARTING_MONEY,
@@ -158,6 +167,9 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
     pregnancies: [],
     litters: [],
     pedigree: {},
+    reputation: 0,
+    letters: [],
+    studBookings: [],
   };
 }
 
@@ -176,7 +188,7 @@ export function migrate(raw: unknown): GameState | null {
   const s = raw as Omit<Partial<GameState>, 'version'> & { version?: number };
   if (!s || !Array.isArray(s.dogs) || typeof s.day !== 'number' || typeof s.story !== 'string')
     return null;
-  if (s.version !== 1 && s.version !== 2 && s.version !== 3) return null;
+  if (![1, 2, 3, 4].includes(s.version ?? 0)) return null;
   const state = s as unknown as GameState;
   for (const dog of [...state.dogs, ...(state.shelter ?? [])]) {
     dog.titles ??= [];
@@ -209,7 +221,15 @@ export function migrate(raw: unknown): GameState | null {
         inbreeding: dog.genome.inbreeding,
       };
   }
-  state.version = 3;
+  // Reputation for what the kennel had already achieved before it was tracked.
+  state.reputation ??= Math.min(
+    100,
+    state.trials.filter((t) => t.qualified).length * 4 +
+      state.dogs.reduce((n, d) => n + d.titles.length, 0) * 10,
+  );
+  state.letters ??= [];
+  state.studBookings ??= [];
+  state.version = 4;
   return state;
 }
 

@@ -16,6 +16,7 @@ import { deriveCoat } from '../core/genetics/coat';
 import { APTITUDES, HERITABILITY, toScore, type Aptitude } from '../core/genetics/traits';
 import { activeDog, addFlag, eventRng, hasFlag, note, type GameState } from './state';
 import { KENNEL_RUNS, passTime } from './rules';
+import { bestTalent, puppyQuality } from './reputation';
 import {
   OUTCOME_BONUS,
   PUP_ACTIVITIES,
@@ -69,6 +70,8 @@ export interface PedigreeEntry {
   breed: string;
   titles: TrialLevel[];
   inbreeding: number;
+  /** For dogs bred here: the talent that stood out, for the kennel's "type". */
+  best?: Aptitude;
 }
 
 export function register(state: GameState, dog: Dog, kennel: string): void {
@@ -260,6 +263,12 @@ export interface PlacedPuppy {
   name: string;
   home: string;
   fee: number;
+  /** For the letters that come back: when it left, what it was like, how it was raised. */
+  day?: number;
+  sex?: Dog['sex'];
+  quality?: number;
+  raised?: number;
+  letters?: number;
 }
 
 export interface Litter {
@@ -470,6 +479,7 @@ export function whelp(state: GameState, pregnancy: Pregnancy): Litter | null {
     taken.push(pup.name);
     puppies.push(pup);
     register(state, pup, breeder);
+    state.pedigree[pup.id]!.best = bestTalent(pup);
     // First impressions: a puppy's boldness and keenness show early, roughly.
     state.knowledge[pup.id] = {};
     observe(rng, pup, state.knowledge[pup.id]!, [
@@ -529,15 +539,26 @@ export function placementFee(state: GameState, litter: Litter, pup: Dog): number
   const ped = state.pedigree;
   const titles = (ped[litter.sireId]?.titles.length ?? 0) + (ped[litter.damId]?.titles.length ?? 0);
   const quality = APTITUDES.reduce((s, a) => s + aptitude(pup, a), 0) / APTITUDES.length;
-  const reputation = Math.min(60, state.trials.filter((t) => t.qualified).length * 10);
-  return Math.round(clamp(45 + titles * 25 + (quality - 50) * 1.5 + reputation, 30, 400));
+  return Math.round(
+    clamp(45 + titles * 25 + (quality - 50) * 1.5 + state.reputation * 1.2, 30, 400),
+  );
 }
 
 export const puppyReady = (pup: Dog): boolean => pup.ageMonths >= BREEDING.goHomeMonths;
 
 function placeOne(state: GameState, litter: Litter, pup: Dog, fee: number, home: string): void {
   litter.puppies = litter.puppies.filter((p) => p.id !== pup.id);
-  litter.placed.push({ puppyId: pup.id, name: pup.name, home, fee });
+  litter.placed.push({
+    puppyId: pup.id,
+    name: pup.name,
+    home,
+    fee,
+    day: state.day,
+    sex: pup.sex,
+    quality: puppyQuality(pup),
+    raised: Math.round(Object.values(pup.rearing ?? {}).reduce((a, v) => a + (v ?? 0), 0) * 15),
+    letters: 0,
+  });
   state.money += fee;
   note(state, `${pup.name} went to a new home with ${home}.`);
 }

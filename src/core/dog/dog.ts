@@ -65,6 +65,8 @@ export interface Dog {
    * and capped. Never inherited.
    */
   rearing?: Partial<Record<Aptitude, number>>;
+  /** Offered to other kennels as a stud dog. */
+  atStud?: boolean;
 }
 
 /** A dog's aptitude on the 1-99 scale (50 = average dog). */

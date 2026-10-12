@@ -13,6 +13,7 @@ import {
 } from '../game/rules';
 import { ageText, FIRST_TRIAL_DAY, nextTrialDay } from '../game/calendar';
 import { adviceFor, QUALIFY, TRIAL_RULES, trialLevel } from '../game/events';
+import { kennelType, REPUTATION_LEVELS, reputationName } from '../game/reputation';
 
 /** Index of the lowest-scoring round. */
 const worstRound = (rounds: number[]) => rounds.indexOf(Math.min(...rounds));
@@ -122,6 +123,12 @@ function Office({ game }: { game: GameState }) {
           </button>
         ))}
         <button
+          className={`tab ${tab === 'kennel' ? 'active' : ''}`}
+          onClick={() => setTab('kennel')}
+        >
+          Kennel
+        </button>
+        <button
           className={`tab ${tab === 'diary' ? 'active' : ''}`}
           onClick={() => setTab('diary')}
         >
@@ -135,6 +142,7 @@ function Office({ game }: { game: GameState }) {
         </button>
       </div>
       {dog && <DogCard dog={dog} game={game} />}
+      {tab === 'kennel' && <KennelStanding game={game} />}
       {tab === 'diary' && (
         <ul className="notes">
           {game.diary.length === 0 && <li>Nothing written yet. The pages are waiting.</li>}
@@ -165,6 +173,63 @@ function Office({ game }: { game: GameState }) {
       <div className="button-row">
         <Close />
       </div>
+    </div>
+  );
+}
+
+/** The kennel's name in the world: reputation, type, letters and stud bookings. */
+function KennelStanding({ game }: { game: GameState }) {
+  const type = kennelType(game);
+  const bred = game.litters.reduce(
+    (n, l) => n + l.puppies.length + l.kept.length + l.placed.length,
+    0,
+  );
+  const next = REPUTATION_LEVELS.find((l) => l.from > game.reputation);
+  return (
+    <div>
+      <h3>{game.kennelName ? `${game.kennelName} Kennels` : 'Your kennel'}</h3>
+      <p className="lead">
+        Reputation: <b>{reputationName(game.reputation)}</b> ({Math.round(game.reputation)} of 100)
+      </p>
+      <Bar value={game.reputation / 100} />
+      <p className="small">
+        Qualifying runs, titles and trial wins build it, and so does good news from the homes your
+        puppies went to. It raises what families pay for a puppy and how often your stud dogs are
+        booked.{next ? ` Next: "${next.name}" at ${next.from}.` : ''}
+      </p>
+      <p>
+        {bred} {bred === 1 ? 'puppy' : 'puppies'} bred here.{' '}
+        {type ?? 'Breed a few litters and people will start to say what your dogs are like.'}
+      </p>
+      {game.studBookings.length > 0 && (
+        <>
+          <h3>Stud bookings</h3>
+          <ul className="notes">
+            {[...game.studBookings]
+              .reverse()
+              .slice(0, 6)
+              .map((b) => (
+                <li key={b.id}>
+                  {b.kennel} used {b.studName} (${b.fee}): a litter of {b.puppies}.
+                </li>
+              ))}
+          </ul>
+        </>
+      )}
+      <h3>Letters</h3>
+      <ul className="notes">
+        {game.letters.length === 0 && (
+          <li>No letters yet. Families write a season or so after a puppy goes home.</li>
+        )}
+        {[...game.letters]
+          .reverse()
+          .slice(0, 8)
+          .map((l, i) => (
+            <li key={i} className={l.reputation >= 5 ? 'good' : ''}>
+              <b>{l.from}:</b> "{l.text}"
+            </li>
+          ))}
+      </ul>
     </div>
   );
 }
@@ -873,10 +938,14 @@ function SeasonRecapPanel({ game }: { game: GameState }) {
             {Math.round(g.after * 100)}%
           </li>
         ))}
+        {(r.news ?? []).map((n) => (
+          <li key={n} className="good">
+            {n}
+          </li>
+        ))}
         {(r.litters ?? []).map((l) => (
           <li key={l.dam + l.sire} className="discovery">
-            {l.dam} had {l.count} puppies by {l.sire}. They can leave their mother now: keep or
-            place them at the puppy paddock.
+            {l.dam} had {l.count} puppies by {l.sire} this season. See them at the puppy paddock.
           </li>
         ))}
         {r.ages.map((a) => (

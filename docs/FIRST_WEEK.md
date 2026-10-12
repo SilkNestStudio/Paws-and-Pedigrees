@@ -63,6 +63,27 @@ day-to-day game; since October 3 play carries on past it, with seasons, weekly t
   appear in the office ledger.
 - **Tester tools:** "Skip to the litter" and "Skip until the puppies can leave" appear in the menu when relevant.
 
+## Raising puppies, your stud dogs and the kennel's name (added October 12)
+
+- **Raising sessions:** once a day per litter (it uses part of the day), from the litter screen at the puppy paddock.
+  Choose new sights and sounds (confidence), gentle handling (cooperation), first fetch (drive), follow me (focus),
+  or, with the duck pond restored, a paddling pool (water). One puppy at a time shows whether it is keen, unsure or
+  worried. Space praises; X makes it easier. Praise the moment a puppy does the brave thing; help a worried one first;
+  wait for an unsure puppy whose tail is wagging (doing it alone is worth most); never praise fear. Each session can
+  add up to 3 points to that talent per puppy, capped at about +9 over its puppyhood (and −4 if handled badly).
+  Coaching names what each puppy's body is saying for the first three sessions.
+- **Evaluation day:** once the puppies are three months old, one session where each takes three tests and you say
+  what you saw (1 keen, 2 unsure, 3 worried). A correct read gives a clear estimate of that talent; a wrong one only a
+  rough note. Use it to choose who to keep.
+- **Reputation (0 to 100):** qualifying runs (+4), titles (+10), trial wins (+3) and proud letters (+5) build it. It
+  raises puppy placement fees and stud bookings. See it under Kennel in the office ledger.
+- **Letters:** each placed puppy's family writes up to twice, from a season after it leaves. What they say depends on
+  the puppy's talents and how it was raised.
+- **Your dog at stud:** a male with at least one title can be offered in the Stud book tab. Each new season other
+  kennels may book him (fee from his titles and your reputation). Three or more seasons later one of his puppies may
+  run for that kennel at Larkspur, with genes that really are half his.
+- **Kennel type:** once five puppies have been bred, the ledger says what the kennel's dogs are becoming known for.
+
 ## Systems in the slice
 
 - **Time:** each day has morning, afternoon and evening. Lessons, field work, jobs and competitions each use one part
@@ -139,10 +160,14 @@ dog's hidden aptitudes.
 
 ## Checking it
 
-- `npm test`: rules, simulations, story, rivals, seasons, trials, adoption, water and breeding (71 tests).
+- `npm test`: rules, simulations, story, rivals, seasons, trials, adoption, water, breeding, puppy raising and
+  reputation (81 tests).
 - `node scripts/week-playthrough.mjs [label] [phone]`: plays the first week, the season change, a Larkspur trial and a
   second adoption in Edge, with screenshots in `.browser.local/` (dev server on port 5180).
 - `node scripts/water-check.mjs [label]`: restores the pond, runs the three water set-ups and an Open water round.
 - `node scripts/breeding-check.mjs [label] [phone]`: restores the whelping room, pairs a dam with a stud, whelps,
   shows the puppies in the paddock, keeps one and places one, and opens the pedigree.
 - `node scripts/dog-probe.mjs`: measures how the dog moves and turns at home and in the field (catches spinning).
+- `node scripts/puppy-check.mjs [label]`: a raising session and evaluation day with screenshots.
+- `node scripts/reputation-check.mjs`: stud service, letters and the Kennel page.
+- `node scripts/lesson-probe.mjs`, `head-probe.mjs`, `guide-check.mjs`: lesson responses, head motion, trial guidance.

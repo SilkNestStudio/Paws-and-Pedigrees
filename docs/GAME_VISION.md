@@ -1,6 +1,6 @@
 # Paws & Pedigrees: product vision and direction
 
-Last updated: October 4, 2026.
+Last updated: October 12, 2026.
 
 ## October 1, 2026: approved full redesign (supersedes the implementation direction below)
 
@@ -70,6 +70,14 @@ Do not build start to finish. Each phase must pass a playtest gate with the owne
   shown in 3D, keep-or-place decisions at three months with placement fees, and pedigrees in the ledger. Numbers are
   proposals. Not yet built: puppy development and evaluation activities, retirement, health testing beyond coat
   DNA, and selling your own male's stud services. Awaiting the owner's and investor's reaction.
+- **Owner approved the next ideas list (October 12)** and asked for all of it to be built, in this order: (1) puppy
+  raising and evaluation day, (2) the kennel's own stud dogs, reputation and letters from families, (3) kennel type,
+  the Hollowmere Cup, retirement and mentoring, Grandpa's ledger mystery, (4) agility and herding, new van
+  destinations, seasons that look different, a livelier kennel, photos and trophies. **Built so far:** items 1 and 2
+  and the kennel type (see [The first week](FIRST_WEEK.md), "Raising puppies, your stud dogs and the kennel's name").
+  Earlier the same week: the spinning head was traced to bone overlays accumulating in still poses and fixed; every
+  usable place at home is marked; lessons were retuned so beginner dogs offer something to reward, with coaching
+  until 40% skill; the goal card spells out qualifying runs and which lessons to train. Numbers are proposals.
 - **Visual inheritance intro is kept.** Recommended form: a short illustrated letter from Grandpa (existing illustrations reusable at first), then the arrival played in 3D — through the gate at dusk, into the trophy room with his photos and ledger, past the empty runs — with kennel naming at the gate sign. Built in Phase 2, after the core mechanics are proven.
 
 ## Read this first

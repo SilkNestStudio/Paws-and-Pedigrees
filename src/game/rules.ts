@@ -3,6 +3,7 @@ import { ACTIVITY_OBSERVATIONS, observe, type Discovery } from '../core/dog/know
 import { CUES, generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
 import { boardForDay } from './jobs';
 import { dueToday, growPuppies, register } from './breeding';
+import { seasonalBookings, seasonalLetters } from './reputation';
 import {
   activeDog,
   addFlag,
@@ -269,7 +270,15 @@ export function endSeason(state: GameState, lastDay: number): SeasonRecap {
       qualified: t.qualified,
     }));
   for (const d of state.dogs) d.ageMonths += MONTHS_PER_SEASON;
+  const news = [
+    ...seasonalBookings(state).map(
+      (b) =>
+        `${b.kennel} booked ${b.studName} at stud: +$${b.fee}. A litter of ${b.puppies} is expected there.`,
+    ),
+    ...seasonalLetters(state).map((l) => `A letter from ${l.from}: "${l.text}"`),
+  ];
   const recap: SeasonRecap = {
+    news,
     season: seasonOf(lastDay),
     next: seasonOf(state.day),
     activities: inSeason.length,

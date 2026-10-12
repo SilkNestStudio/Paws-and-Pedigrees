@@ -100,7 +100,7 @@ describe('older saves', () => {
     delete dog.titles;
     delete dog.qualifiers;
     const s = migrate(structuredClone(old))!;
-    expect(s.version).toBe(3);
+    expect(s.version).toBe(4);
     expect(s.litters).toEqual([]);
     expect(Object.keys(s.pedigree).length).toBe(1);
     expect(s.trials).toEqual([]);
