@@ -69,3 +69,8 @@ export const playRecall = () => {
   setTimeout(() => tone(2600, 0.12, 'sine', 0.1), 170);
 };
 export const playCue = () => tone(520, 0.12, 'triangle', 0.06, 80);
+/** A friendly woof from the runs: two quick falling notes. */
+export const playBark = () => {
+  tone(420, 0.09, 'sawtooth', 0.05, -190);
+  setTimeout(() => tone(380, 0.11, 'sawtooth', 0.05, -180), 190);
+};

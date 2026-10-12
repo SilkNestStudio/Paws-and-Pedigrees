@@ -5,7 +5,7 @@ import { activeDog, dayName } from '../game/state';
 import { seasonOf } from '../game/calendar';
 import { dogWithTitles } from '../app/flow';
 import { objective } from '../game/story';
-import { fieldFor, abandonActivity, go } from '../app/flow';
+import { fieldFor, abandonActivity, go, takePhoto } from '../app/flow';
 import { LESSONS } from '../sim/training';
 import { OBSTACLE_LENGTH } from '../sim/agility';
 import { wallsOf, type HerdCommand } from '../sim/herding';
@@ -357,6 +357,11 @@ function TopRight({ snap }: { snap: HudSnapshot }) {
       <button className="icon-button" onClick={() => useApp.setState({ panel: 'menu' })}>
         Menu
       </button>
+      {screen.kind !== 'shelter' && (
+        <button className="icon-button" onClick={takePhoto} title="Take a photograph for the album">
+          Photo
+        </button>
+      )}
       {inActivity && (
         <button className="icon-button" onClick={() => go('Heading back…', abandonActivity)}>
           {screen.kind === 'lesson' || screen.kind === 'puppies' ? 'Finish' : 'Leave'}

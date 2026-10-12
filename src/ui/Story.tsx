@@ -116,9 +116,7 @@ function DialogBox() {
   return (
     <div className="dialog-wrap" onClick={advanceDialog}>
       <div className={`dialog card speaker-${line.speaker.toLowerCase()}`}>
-        <div className="portrait">
-          {line.speaker === 'Mara' ? 'M' : line.speaker === 'Grandpa' ? 'G' : 'You'}
-        </div>
+        <div className="portrait">{line.speaker === 'You' ? 'You' : line.speaker[0]}</div>
         <div className="dialog-body">
           <div className="speaker">
             {line.speaker === 'Grandpa' ? "Grandpa's ledger" : line.speaker}

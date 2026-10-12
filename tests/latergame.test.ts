@@ -31,6 +31,8 @@ import {
 import { CUP, cupEvent, cupProblem, recordEvent, rivalScore } from '../src/game/events';
 import { isCupDay, nextCupDay } from '../src/game/calendar';
 import { dogParams } from '../src/sim/dogParams';
+import { greetVisitor, visitorToday } from '../src/game/visitors';
+import { trophies } from '../src/game/trophies';
 
 function kennel(seed = 5, dogs = 2): GameState {
   return update(newGame(seed), (s) => {
@@ -331,5 +333,71 @@ describe('saves', () => {
     expect(s.version).toBe(5);
     expect(s.ledger).toEqual([]);
     expect(s.photos).toEqual([]);
+  });
+});
+
+describe('visitors at the gate', () => {
+  it('Mara drops by every few days with a tip, and food when the pantry is thin', () => {
+    let s = kennel();
+    s = update(s, (d) => {
+      d.day = 9;
+      d.food = 2;
+      d.flags.push('visit:dora', 'visit:sam');
+    });
+    const v = visitorToday(s)!;
+    expect(v.name).toBe('Mara');
+    expect(v.meals).toBe(2);
+    s = update(s, (d) => void greetVisitor(d));
+    expect(s.food).toBe(4);
+    // She says her piece once.
+    expect(visitorToday(s)).toBeNull();
+    expect(visitorToday(update(s, (d) => void (d.day = 10)))).toBeNull();
+  });
+
+  it('Victor turns up the day you have a titled dog, once', () => {
+    let s = kennel();
+    s = update(s, (d) => {
+      d.day = 16;
+      d.dogs[0]!.titles = ['novice'];
+    });
+    expect(visitorToday(s)!.id).toBe('victor');
+    s = update(s, (d) => void greetVisitor(d));
+    expect(visitorToday(s)?.id).not.toBe('victor');
+  });
+
+  it('nobody calls during the first week', () => {
+    const s = update(kennel(), (d) => {
+      d.story = 'freeWeek';
+      d.day = 3;
+    });
+    expect(visitorToday(s)).toBeNull();
+  });
+});
+
+describe('the trophy shelf', () => {
+  it('fills with what the kennel has won and put right', () => {
+    let s = kennel();
+    expect(trophies(s)).toEqual([]);
+    s = update(s, (d) => {
+      d.dogs[0]!.titles = ['novice'];
+      d.dogs[1]!.sportTitles = { agility: ['novice'] };
+      addFlag(d, 'restored:duckPond');
+      addFlag(d, 'firstLitter');
+      d.reputation = 30;
+      d.day = 28;
+      const def = cupEvent(d.seed, 28);
+      recordEvent(
+        d,
+        def,
+        [95, 95, 95, 95],
+        def.rivals.map(() => [50, 50, 50, 50]),
+        [d.dogs[0]!.id, d.dogs[1]!.id],
+      );
+    });
+    const shelf = trophies(s);
+    expect(shelf[0]!.kind).toBe('cup');
+    expect(shelf.filter((t) => t.kind === 'title').length).toBe(2);
+    expect(shelf.some((t) => t.text.includes('duck pond'))).toBe(true);
+    expect(shelf.some((t) => t.text.includes('first litter'))).toBe(true);
   });
 });

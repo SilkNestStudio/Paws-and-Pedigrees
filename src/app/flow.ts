@@ -107,6 +107,8 @@ import {
   scanLitter,
 } from '../game/services';
 import { CUES } from '../core/dog/dog';
+import { greetVisitor, visitorToday } from '../game/visitors';
+import { requestPhoto } from './photo';
 import {
   agilityLearning,
   buildAgilityReport,
@@ -1770,6 +1772,8 @@ export function goToBed(): void {
   useApp.setState({ panel: null });
   goHome('house');
   messages.forEach((m, i) => setTimeout(() => toast(m, i === 0 ? 'info' : 'warn'), i * 400));
+  const visitor = visitorToday(game());
+  if (visitor) setTimeout(() => toast(`${visitor.name} is at the gate.`, 'info'), 1800);
   afterWaking();
 }
 
@@ -1950,6 +1954,52 @@ export function showSamThePages(): void {
       text: "Wren. Tam and Nell's great-granddaughter, home at last. There is a run with her name on it.",
     },
   ]);
+}
+
+/** Most photographs the album keeps; the oldest makes way for a new one. */
+export const ALBUM_SIZE = 12;
+
+/** Takes a photograph of what the camera sees and puts it in the album. */
+export function takePhoto(): void {
+  const g = game();
+  const screen = get().screen;
+  const dog = activeDog(g)?.name;
+  const where =
+    screen.kind === 'home'
+      ? 'at home'
+      : screen.kind === 'herding'
+        ? 'on the sheep at Fell Top'
+        : screen.kind === 'agility'
+          ? 'in the agility ring'
+          : screen.kind === 'puppies'
+            ? 'with the puppies'
+            : screen.kind === 'retrieve' && screen.place === 'beach'
+              ? 'at Sandy Cove'
+              : screen.kind === 'shelter'
+                ? 'at Larchwood Rescue'
+                : 'at work';
+  const caption = `${dog ?? 'The kennel'} ${where}. ${seasonOf(g.day)}, day ${g.day}.`;
+  requestPhoto((image) => {
+    commit((d) => {
+      d.photos.push({ day: d.day, caption, image });
+      while (d.photos.length > ALBUM_SIZE) d.photos.shift();
+    });
+    toast('Photograph taken. It is in the album at the farmhouse.', 'good');
+  });
+}
+
+export function deletePhoto(index: number): void {
+  commit((g) => void g.photos.splice(index, 1));
+}
+
+/** Whoever is at the gate says their piece. */
+export function talkToVisitor(): void {
+  const visitor = visitorToday(game());
+  if (!visitor) return;
+  say(visitor.lines, () => {
+    commit((g) => void greetVisitor(g));
+    if (visitor.meals) toast(`Mara left ${visitor.meals} meals on the gatepost.`, 'good');
+  });
 }
 
 /** Tester tool: jump to the morning of the next Saturday (show day). */

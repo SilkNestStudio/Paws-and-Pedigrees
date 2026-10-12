@@ -6,11 +6,14 @@ import { CUP, CUP_ROUND_CUES, cupProblem, cupTeam } from '../game/events';
 import { BREEDING } from '../game/breeding';
 import { KENNEL_RUNS, mentorBonus, retiredDogs, runsFree, runsUsed } from '../game/kennel';
 import { LEDGER_PAGES, LEGACY_PAGE, legacyReady } from '../game/ledger';
+import { trophies } from '../game/trophies';
 import { isMarketDay, MARKET, marketStock, VET } from '../game/services';
 import { useApp } from '../app/store';
 import {
+  ALBUM_SIZE,
   buySack,
   buyYoungster,
+  deletePhoto,
   dogWithTitles,
   go,
   INTROS,
@@ -328,6 +331,57 @@ export function FiresideNote({ game }: { game: GameState }) {
       By the stove: {old.map((d) => dogWithTitles(d)).join(', ')}. With the old hands about, your
       working dogs learn {bonus}% faster. {runsUsed(game)} of {KENNEL_RUNS} runs in use.
     </p>
+  );
+}
+
+const TROPHY_MARKS = { cup: '🏆', title: '🎖', rosette: '🏵', keepsake: '✦' } as const;
+
+/** The farmhouse wall: what the kennel has won, and the photographs you have taken. */
+export function AlbumPanel({ game }: { game: GameState }) {
+  const shelf = trophies(game);
+  return (
+    <div className="panel card">
+      <div className="kicker">The farmhouse</div>
+      <h2>Trophy shelf and album</h2>
+      <h3>On the shelf</h3>
+      <ul className="notes">
+        {shelf.length === 0 && (
+          <li>Bare, for now. Rosettes, titles and the Cup itself will stand here.</li>
+        )}
+        {shelf.map((t, i) => (
+          <li key={i} className={t.kind === 'cup' ? 'discovery' : t.kind === 'title' ? 'good' : ''}>
+            {TROPHY_MARKS[t.kind]} {t.text}
+          </li>
+        ))}
+      </ul>
+      <h3>
+        The album ({game.photos.length} of {ALBUM_SIZE})
+      </h3>
+      {game.photos.length === 0 && (
+        <p className="small">
+          No photographs yet. Press "Photo" at the top right of the screen any time you want to keep
+          a moment.
+        </p>
+      )}
+      <div className="album">
+        {game.photos.map((p, i) => (
+          <figure key={`${p.day}-${i}`}>
+            <img src={p.image} alt={p.caption} />
+            <figcaption>
+              {p.caption}{' '}
+              <button className="link" onClick={() => deletePhoto(i)}>
+                Remove
+              </button>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      <div className="button-row">
+        <button className="button secondary" onClick={() => useApp.setState({ panel: 'bed' })}>
+          Back
+        </button>
+      </div>
+    </div>
   );
 }
 

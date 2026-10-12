@@ -34,6 +34,7 @@ import {
   CupPickPanel,
   CupRow,
   FiresideNote,
+  AlbumPanel,
   HelpPanel,
   MarketPanel,
   TornPages,
@@ -135,6 +136,7 @@ export function Panels() {
       {panel === 'vet' && <VetPanel game={game} />}
       {panel === 'market' && <MarketPanel game={game} />}
       {panel === 'help' && <HelpPanel />}
+      {panel === 'album' && <AlbumPanel game={game} />}
       {panel === 'menu' && <Menu />}
     </div>
   );
@@ -444,12 +446,12 @@ function Noticeboard({ game }: { game: GameState }) {
 function VanPanel({ game }: { game: GameState }) {
   const hasDog = game.dogs.length > 0;
   const funDay = canGoToFunDay(game);
+  const later = hasDog && !!game.funDay;
   return (
     <div className="panel card">
       <div className="kicker">The van</div>
       <h2>Where to?</h2>
       <div className="list">
-        {hasDog && game.funDay && (isCupDay(game.day) || game.day > 14) && <CupRow game={game} />}
         {!hasDog && (
           <div className="row">
             <div className="grow">
@@ -464,39 +466,93 @@ function VanPanel({ game }: { game: GameState }) {
             </button>
           </div>
         )}
-        {hasDog && (
+        {hasDog && !game.funDay && game.day < FIRST_TRIAL_DAY && (
           <div className="row">
             <div className="grow">
-              <div className="title">Mara's orchard</div>
+              <div className="title">Village green: the Fun Day</div>
               <div className="sub">
-                Jobs in the orchard start from the noticeboard by your gate.
+                {game.day >= FUN_DAY
+                  ? 'Today! Three rounds: a mark, a search and a blind.'
+                  : `Sunday. ${FUN_DAY - game.day} day${FUN_DAY - game.day > 1 ? 's' : ''} to go.`}
               </div>
             </div>
             <button
-              className="button secondary"
-              onClick={() => useApp.setState({ panel: 'noticeboard' })}
+              className="button"
+              disabled={!funDay}
+              onClick={() => go('Driving to the village green…', () => travel('green'))}
             >
-              See jobs
+              Enter
             </button>
           </div>
         )}
-        {canAdoptMore(game) && (
-          <div className="row">
-            <div className="grow">
-              <div className="title">Larchwood Rescue</div>
-              <div className="sub">
-                New arrivals every season. Room in the runs for {runsFree(game)} more. Adoption fee
-                ${ADOPTION_FEE}.
+      </div>
+      {hasDog && (game.funDay || game.day >= FIRST_TRIAL_DAY) && (
+        <>
+          <h3>Competitions</h3>
+          <div className="list">
+            {later && (isCupDay(game.day) || game.day > 14) && <CupRow game={game} />}
+            {!isCupDay(game.day) && <TrialRow game={game} />}
+            {later && <ShowRow game={game} sport="agility" />}
+            {later && <ShowRow game={game} sport="herding" />}
+          </div>
+        </>
+      )}
+      {hasDog && (
+        <>
+          <h3>Work away from home</h3>
+          <div className="list">
+            <div className="row">
+              <div className="grow">
+                <div className="title">Mara's orchard</div>
+                <div className="sub">
+                  Jobs in the orchard start from the noticeboard by your gate.
+                </div>
               </div>
+              <button
+                className="button secondary"
+                onClick={() => useApp.setState({ panel: 'noticeboard' })}
+              >
+                See jobs
+              </button>
             </div>
-            <button
-              className="button secondary"
-              onClick={() => go('Driving to Larchwood Rescue…', () => travel('shelter'))}
-            >
-              Visit
-            </button>
+            {later && (
+              <div className="row">
+                <div className="grow">
+                  <div className="title">Fell Top Farm: work Sam's sheep</div>
+                  <div className="sub">
+                    Sam Pennock lets you practise on his sheep any day. Herding is a sport of its
+                    own, worked by command from a post.
+                  </div>
+                </div>
+                <button
+                  className="button secondary"
+                  onClick={() => useApp.setState({ panel: 'fellTop' })}
+                >
+                  See the work
+                </button>
+              </div>
+            )}
+            {later && (
+              <div className="row">
+                <div className="grow">
+                  <div className="title">Sandy Cove</div>
+                  <div className="sub">
+                    The beach: water marks in the sea, or just a run on the sand together.
+                  </div>
+                </div>
+                <button
+                  className="button secondary"
+                  onClick={() => useApp.setState({ panel: 'beach' })}
+                >
+                  See the beach
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </>
+      )}
+      <h3>The village</h3>
+      <div className="list">
         <div className="row">
           <div className="grow">
             <div className="title">Village shop</div>
@@ -506,7 +562,7 @@ function VanPanel({ game }: { game: GameState }) {
             Go shopping
           </button>
         </div>
-        {hasDog && game.funDay && (
+        {later && (
           <>
             <div className="row">
               <div className="grow">
@@ -519,7 +575,7 @@ function VanPanel({ game }: { game: GameState }) {
                 className="button secondary"
                 onClick={() => useApp.setState({ panel: 'vet' })}
               >
-                Visit
+                See the vet
               </button>
             </div>
             <div className={`row ${isMarketDay(game.day) ? 'active' : ''}`}>
@@ -540,62 +596,20 @@ function VanPanel({ game }: { game: GameState }) {
             </div>
           </>
         )}
-        {hasDog && (game.funDay || game.day >= FIRST_TRIAL_DAY) && !isCupDay(game.day) && (
-          <TrialRow game={game} />
-        )}
-        {hasDog && game.funDay && <ShowRow game={game} sport="agility" />}
-        {hasDog && game.funDay && (
+        {canAdoptMore(game) && (
           <div className="row">
             <div className="grow">
-              <div className="title">Fell Top Farm: work Sam's sheep</div>
+              <div className="title">Larchwood Rescue</div>
               <div className="sub">
-                Sam Pennock lets you practise on his sheep any day. Herding is a sport of its own,
-                worked by command from a post.
+                New arrivals every season. Room in the runs for {runsFree(game)} more. Adoption fee
+                ${ADOPTION_FEE}.
               </div>
             </div>
             <button
               className="button secondary"
-              onClick={() => useApp.setState({ panel: 'fellTop' })}
+              onClick={() => go('Driving to Larchwood Rescue…', () => travel('shelter'))}
             >
-              See the work
-            </button>
-          </div>
-        )}
-        {hasDog && game.funDay && <ShowRow game={game} sport="herding" />}
-        {hasDog && game.funDay && (
-          <div className="row">
-            <div className="grow">
-              <div className="title">Sandy Cove</div>
-              <div className="sub">
-                The beach: water marks in the sea, or just a run on the sand together.
-              </div>
-            </div>
-            <button
-              className="button secondary"
-              onClick={() => useApp.setState({ panel: 'beach' })}
-            >
-              See the beach
-            </button>
-          </div>
-        )}
-        {hasDog && !game.funDay && game.day < FIRST_TRIAL_DAY && (
-          <div className="row">
-            <div className="grow">
-              <div className="title">Village green: the Fun Day</div>
-              <div className="sub">
-                {game.funDay
-                  ? 'Done for this year.'
-                  : game.day >= FUN_DAY
-                    ? 'Today! Three rounds: a mark, a search and a blind.'
-                    : `Sunday. ${FUN_DAY - game.day} day${FUN_DAY - game.day > 1 ? 's' : ''} to go.`}
-              </div>
-            </div>
-            <button
-              className="button"
-              disabled={!funDay}
-              onClick={() => go('Driving to the village green…', () => travel('green'))}
-            >
-              Enter
+              Visit
             </button>
           </div>
         )}
@@ -1068,6 +1082,9 @@ function Bed({ game }: { game: GameState }) {
       <div className="button-row">
         <button className="button secondary" onClick={() => useApp.setState({ panel: 'office' })}>
           Grandpa's office (the ledger)
+        </button>
+        <button className="button secondary" onClick={() => useApp.setState({ panel: 'album' })}>
+          Trophy shelf and album
         </button>
       </div>
       {dog && (

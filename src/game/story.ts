@@ -31,7 +31,7 @@ export interface Objective {
 }
 
 export interface Line {
-  speaker: 'Mara' | 'Grandpa' | 'You';
+  speaker: 'Mara' | 'Grandpa' | 'You' | 'Victor' | 'Sam' | 'Dora';
   text: string;
 }
 

@@ -6,6 +6,8 @@ import { distance } from '../core/math';
 import { HOME_SPOTS, type SpotId } from '../sim/home';
 import { hasFlag } from '../game/state';
 import { live, useApp } from '../app/store';
+import { MARA_POS } from '../app/flow';
+import { visitorToday } from '../game/visitors';
 import { heightAt } from './world/terrain';
 
 /**
@@ -14,7 +16,7 @@ import { heightAt } from './world/terrain';
  * label above it in the interface.
  */
 export interface SpotLabel {
-  id: SpotId;
+  id: SpotId | 'visitor';
   text: string;
   /** Screen position in percent. */
   x: number;
@@ -112,6 +114,20 @@ export function SpotTracker() {
         y: (1 - (v.y * 0.5 + 0.5)) * 100,
         ready: home.nearSpot === spot.id,
       });
+    }
+    // Someone waiting at the gate is worth pointing out from further off.
+    const game = useApp.getState().game;
+    const visitor = game ? visitorToday(game) : null;
+    if (visitor && distance(MARA_POS, home.keeper.pos) < 34) {
+      v.set(MARA_POS.x, heightAt(MARA_POS.x, MARA_POS.z) + 2.3, MARA_POS.z).project(camera);
+      if (v.z <= 1 && Math.abs(v.x) <= 0.95 && Math.abs(v.y) <= 0.9)
+        list.push({
+          id: 'visitor',
+          text: visitor.name,
+          x: (v.x * 0.5 + 0.5) * 100,
+          y: (1 - (v.y * 0.5 + 0.5)) * 100,
+          ready: distance(MARA_POS, home.keeper.pos) < 2.8,
+        });
     }
     useSpotLabels.setState({ list });
   });

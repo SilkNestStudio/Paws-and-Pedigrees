@@ -53,6 +53,9 @@ import { Lighting, Sky } from './world/Atmosphere';
 import { heightAt, setTerrain, waterLevel } from './world/terrain';
 import { seasonOf } from '../game/calendar';
 import { SeasonLeaves } from './world/Props';
+import { visitorToday } from '../game/visitors';
+import { photo, PHOTO_SIZE } from '../app/photo';
+import { playBark } from '../app/audio';
 import { inWater } from '../sim/field';
 
 /** Where the pointer is on the ground (desktop), for the aim line. */
@@ -982,6 +985,70 @@ function keeperView(): KeeperView {
   };
 }
 
+/** Takes a photograph when one has been asked for: the 3D view alone, scaled down. */
+function Shutter() {
+  const { gl, scene, camera } = useThree();
+  useFrame(() => {
+    const done = photo.pending;
+    if (!done) return;
+    photo.pending = null;
+    gl.render(scene, camera);
+    const source = gl.domElement;
+    const scale = PHOTO_SIZE / Math.max(source.width, source.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(source.width * scale);
+    canvas.height = Math.round(source.height * scale);
+    canvas.getContext('2d')!.drawImage(source, 0, 0, canvas.width, canvas.height);
+    done(canvas.toDataURL('image/jpeg', 0.72));
+  });
+  return null;
+}
+
+const runDogs = new Map<string, { heading: number; at: number; greeted: number }>();
+
+/**
+ * A dog waiting in its run: dozing or sitting while you are away, up on its
+ * feet with its tail going as you come near, bouncing at the door when you
+ * reach it.
+ */
+function runDogView(id: string, pos: Vec2, index: number, tired: boolean): DogView {
+  const now = performance.now() / 1000;
+  const state = runDogs.get(id) ?? { heading: Math.PI, at: now, greeted: -99 };
+  runDogs.set(id, state);
+  const dt = Math.min(0.1, now - state.at);
+  state.at = now;
+  const keeper = live.home?.keeper.pos;
+  const near = keeper ? distance(keeper, pos) : 99;
+  if (keeper && near < 9) {
+    state.heading = turnToward(
+      state.heading,
+      Math.atan2(keeper.x - pos.x, keeper.z - pos.z),
+      5 * dt,
+    );
+    // A woof of welcome, now and then, from the first dog to notice you.
+    if (near < 6 && now - state.greeted > 40 && index === 0) {
+      state.greeted = now;
+      playBark();
+    }
+    const bounce = near < 4.5 && !tired ? Math.abs(Math.sin(now * 5.5 + index * 1.7)) * 0.14 : 0;
+    return {
+      pos,
+      heading: state.heading,
+      speed: 0,
+      pose: 'stand',
+      tell: { ears: 'forward', tail: 'wag', noseDown: false, text: '' },
+      lookAt: keeper,
+      carrying: null,
+      groundY: heightAt(pos.x, pos.z) + bounce,
+    };
+  }
+  state.heading = turnToward(state.heading, Math.PI, 2 * dt);
+  // Left alone, each dog settles and stirs in its own time.
+  const cycle = Math.floor((now + index * 13) / 11) % 4;
+  const pose = tired || cycle === 1 ? 'down' : cycle === 3 ? 'stand' : 'sit';
+  return { ...still(pos, state.heading, pose), groundY: heightAt(pos.x, pos.z) };
+}
+
 const still = (pos: Vec2, heading: number, pose: DogView['pose'] = 'sit'): DogView => ({
   pos,
   heading,
@@ -1190,6 +1257,7 @@ function Bystanders({ place }: { place: Place }) {
   const screen = useApp((s) => s.screen);
   const event = useApp((s) => s.event);
   if (!game) return null;
+  const visitor = place === 'home' ? visitorToday(game) : null;
   const maraHere =
     (place === 'home' && game.story === 'meetMara') ||
     (place === 'orchard' && screen.kind === 'search' && screen.job?.id === 'mara-keys') ||
@@ -1219,6 +1287,20 @@ function Bystanders({ place }: { place: Place }) {
           view={() => ({
             pos: maraPos,
             heading: Math.PI * (place === 'home' ? 0.9 : 0.8),
+            speed: 0,
+            action: 'none',
+            actionTime: 9,
+            signalHeading: 0,
+            watch: live.home?.keeper.pos ?? null,
+          })}
+        />
+      )}
+      {visitor && (
+        <PersonModel
+          look={LOOKS[visitor.id]}
+          view={() => ({
+            pos: MARA_POS,
+            heading: Math.PI * 0.9,
             speed: 0,
             action: 'none',
             actionTime: 9,
@@ -1268,7 +1350,7 @@ function Bystanders({ place }: { place: Place }) {
               <AnyDog
                 key={d.id}
                 dog={d}
-                view={() => still(runPosition(i), Math.PI, d.energy < 50 ? 'down' : 'sit')}
+                view={() => runDogView(d.id, runPosition(i), i, d.energy < 50)}
               />
             ),
           )}
@@ -1332,6 +1414,7 @@ export function Scene() {
     <>
       <Runner />
       <CameraRig />
+      <Shutter />
       <Sky season={season} />
       <Suspense fallback={null}>
         <SeasonLeaves season={season} />

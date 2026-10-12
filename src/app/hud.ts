@@ -18,6 +18,7 @@ import { OBSTACLE_NAMES, standardTime, type AgilitySession } from '../sim/agilit
 import { advise, timeLimit, type HerdCommand, type HerdingSession } from '../sim/herding';
 import { live, useApp } from './store';
 import { MARA_POS } from './flow';
+import { visitorToday } from '../game/visitors';
 
 /** A light snapshot of whatever is live, refreshed about ten times a second for the interface. */
 export interface HudSnapshot {
@@ -126,8 +127,11 @@ const SPOT_ACTIONS: Record<SpotId, string> = {
 function homeSnapshot(h: HomeSession): HudSnapshot {
   const g = useApp.getState().game;
   let near: NonNullable<HudSnapshot['home']>['near'] = null;
+  const visitor = g ? visitorToday(g) : null;
   if (g?.story === 'meetMara' && distance(h.keeper.pos, MARA_POS) < 2.8)
     near = { id: 'mara', label: 'Talk to Mara' };
+  else if (visitor && distance(h.keeper.pos, MARA_POS) < 2.8)
+    near = { id: 'mara', label: `Talk to ${visitor.name}` };
   else if (h.nearSpot) near = { id: h.nearSpot, label: SPOT_ACTIONS[h.nearSpot] };
   else if (h.nearDog) near = { id: 'dog', label: 'Give a pat' };
   const name = g?.dogs.find((d) => d.id === g.activeDogId)?.name ?? null;

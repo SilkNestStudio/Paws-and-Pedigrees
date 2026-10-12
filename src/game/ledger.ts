@@ -33,7 +33,7 @@ export const LEDGER_PAGES: LedgerPage[] = [
   {
     id: 'offer',
     title: "Sterling's offer",
-    where: 'folded inside the rosette box in the office',
+    where: 'inside the rosette box in the office',
     hint: 'Earn a title in any sport, and look where the rosettes are kept.',
     text: 'Victor Sterling came up the lane again with his chequebook. He wants the whole litter and names a sum that would mend every fence on the place. I told him a dog is not stock. He laughed and said everything is stock to somebody.',
     found: (s) => s.dogs.some((d) => titleCount(d) > 0),
@@ -52,7 +52,7 @@ export const LEDGER_PAGES: LedgerPage[] = [
   {
     id: 'homes',
     title: 'Where they went',
-    where: 'pinned behind a notice on the board, where a neighbour left it for you',
+    where: 'behind a notice on the board, where a neighbour left it for you',
     hint: 'Become respected locally, and people start returning what they kept for him.',
     text: 'I placed them one by one, with people who would work them and never with Sterling. It cost me the Cup and most of my pride. The bitch with the white toe went up to Ned Pennock at Fell Top. I made him promise: her line is never to be sold, only given, and only to someone who would do right by it.',
     found: (s) => s.reputation >= 25,
@@ -60,7 +60,7 @@ export const LEDGER_PAGES: LedgerPage[] = [
   {
     id: 'sorry',
     title: 'What I should have said',
-    where: "in the puppy paddock, where the first litter's bedding was",
+    where: 'in the straw of the puppy paddock, where the first litter slept',
     hint: 'Breed a litter of your own.',
     text: 'I let them think I had lost heart. It was easier than saying I could not do right by the dogs any more. If the kennel ever goes to the child, I hope they start with a dog nobody wanted, and learn what I learned too late: you do not own a good dog. You are trusted with one.',
     found: (s) => hasFlag(s, 'firstLitter'),

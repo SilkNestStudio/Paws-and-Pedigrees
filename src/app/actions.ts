@@ -17,7 +17,8 @@ import { callHere, easy, goOn } from '../sim/agility';
 import { command, type HerdCommand } from '../sim/herding';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
 import { live, useApp } from './store';
-import { MARA_POS, petDog, talkToMara, activateSpot } from './flow';
+import { MARA_POS, petDog, talkToMara, talkToVisitor, activateSpot } from './flow';
+import { visitorToday } from '../game/visitors';
 
 /**
  * Everything the player can do with keys, buttons or taps, routed to
@@ -125,6 +126,10 @@ export function interact(): void {
   if (!h || !g) return;
   if (g.story === 'meetMara' && distance(h.keeper.pos, MARA_POS) < 2.8) {
     talkToMara();
+    return;
+  }
+  if (distance(h.keeper.pos, MARA_POS) < 2.8 && visitorToday(g)) {
+    talkToVisitor();
     return;
   }
   if (h.nearSpot) {
