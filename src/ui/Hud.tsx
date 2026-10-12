@@ -62,7 +62,7 @@ export function Hud() {
         snap.kind !== 'puppies' &&
         snap.kind !== 'herding' &&
         isTouch && <Stick />}
-      {!busy && !isTouch && <Keys snap={snap} />}
+      {!busy && !isTouch && snap.kind !== 'herding' && <Keys snap={snap} />}
     </div>
   );
 }

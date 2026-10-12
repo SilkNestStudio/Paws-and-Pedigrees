@@ -126,6 +126,7 @@ export const BOOKING_KENNELS: { id: string; kennel: string }[] = [
 /** Why this dog can't stand at stud, or null if he can. */
 export function studProblem(dog: Dog): string | null {
   if (dog.sex !== 'male') return 'Only males stand at stud.';
+  if (dog.retired) return 'He is retired.';
   if (dog.ageMonths < 12) return 'Too young.';
   if (!titleCount(dog)) return 'Other kennels want proof: he needs a title first.';
   return null;

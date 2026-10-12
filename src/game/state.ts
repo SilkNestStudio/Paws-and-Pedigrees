@@ -84,8 +84,16 @@ export interface SeasonRecap {
   litters?: { dam: string; sire: string; count: number }[];
 }
 
+/** A photograph for the album, small enough to keep in the save. */
+export interface Photo {
+  day: number;
+  caption: string;
+  /** A JPEG data URL. */
+  image: string;
+}
+
 export interface GameState {
-  version: 4;
+  version: 5;
   seed: number;
   kennelName: string;
   money: number;
@@ -130,6 +138,10 @@ export interface GameState {
   letters: Letter[];
   /** Other kennels' bookings of this kennel's stud dogs. */
   studBookings: StudBooking[];
+  /** Torn pages of Grandpa's ledger found so far (page ids). */
+  ledger: string[];
+  /** The album on the farmhouse wall. */
+  photos: Photo[];
 }
 
 export const STARTING_MONEY = 40;
@@ -139,7 +151,7 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
   const rng = createRng(seed);
   const shelter = generateShelterTrio(rng);
   return {
-    version: 4,
+    version: 5,
     seed,
     kennelName: '',
     money: STARTING_MONEY,
@@ -170,6 +182,8 @@ export function newGame(seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>
     reputation: 0,
     letters: [],
     studBookings: [],
+    ledger: [],
+    photos: [],
   };
 }
 
@@ -188,7 +202,7 @@ export function migrate(raw: unknown): GameState | null {
   const s = raw as Omit<Partial<GameState>, 'version'> & { version?: number };
   if (!s || !Array.isArray(s.dogs) || typeof s.day !== 'number' || typeof s.story !== 'string')
     return null;
-  if (![1, 2, 3, 4].includes(s.version ?? 0)) return null;
+  if (![1, 2, 3, 4, 5].includes(s.version ?? 0)) return null;
   const state = s as unknown as GameState;
   for (const dog of [...state.dogs, ...(state.shelter ?? [])]) {
     dog.titles ??= [];
@@ -229,7 +243,9 @@ export function migrate(raw: unknown): GameState | null {
   );
   state.letters ??= [];
   state.studBookings ??= [];
-  state.version = 4;
+  state.ledger ??= [];
+  state.photos ??= [];
+  state.version = 5;
   return state;
 }
 

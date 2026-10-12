@@ -61,7 +61,7 @@ describe('reputation', () => {
     delete old.studBookings;
     old.version = 3;
     const s = migrate(structuredClone(old))!;
-    expect(s.version).toBe(4);
+    expect(s.version).toBe(5);
     expect(s.reputation).toBe(10);
     expect(s.letters).toEqual([]);
   });

@@ -87,6 +87,8 @@ export interface Dog {
   rearing?: Partial<Record<Aptitude, number>>;
   /** Offered to other kennels as a stud dog. */
   atStud?: boolean;
+  /** Retired to the farmhouse: no more work, and no longer needs a run. */
+  retired?: boolean;
   /** Titles and qualifying runs in agility and herding. */
   sportTitles?: Partial<Record<ExtraSport, TrialLevel[]>>;
   sportQualifiers?: Partial<Record<ExtraSport, Partial<Record<TrialLevel, number>>>>;

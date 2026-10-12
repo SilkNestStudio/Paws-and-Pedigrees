@@ -64,6 +64,9 @@ import {
 } from '../sim/puppies';
 import {
   agilityShow,
+  CUP,
+  cupEvent,
+  cupProblem,
   sheepdogTrial,
   enterEvent,
   funDayEvent,
@@ -79,7 +82,24 @@ import {
   type EventDef,
   type EventOutcome,
 } from '../game/events';
-import { isShowDay, isTrialDay } from '../game/calendar';
+import { isCupDay, isShowDay, isTrialDay, nextCupDay } from '../game/calendar';
+import { ageRetirements, mentorBonus, retireDog, retireProblem, runsFree } from '../game/kennel';
+import {
+  bringLegacyHome,
+  checkLedger,
+  LEGACY_PAGE,
+  legacyReady,
+  type LedgerPage,
+} from '../game/ledger';
+import {
+  buyBulkFood,
+  buyMarketDog,
+  healthCheck,
+  marketStock,
+  MARKET,
+  scanLitter,
+} from '../game/services';
+import { CUES } from '../core/dog/dog';
 import {
   agilityLearning,
   buildAgilityReport,
@@ -146,14 +166,45 @@ export function go(label: string, change: () => void): void {
   );
 }
 
+/** Torn pages found but not yet read: shown at the next quiet moment at home. */
+const pendingPages: LedgerPage[] = [];
+let pageTimer: ReturnType<typeof setInterval> | null = null;
+
+function showPages(): void {
+  if (pageTimer || !pendingPages.length || typeof window === 'undefined') return;
+  pageTimer = setInterval(() => {
+    const app = get();
+    if (app.screen.kind !== 'home' || app.panel || app.dialog || app.cover) return;
+    const page = pendingPages.shift();
+    if (!pendingPages.length && pageTimer) {
+      clearInterval(pageTimer);
+      pageTimer = null;
+    }
+    if (!page) return;
+    say([
+      {
+        speaker: 'You',
+        text: `What's this? Tucked ${page.where}: a torn page in Grandpa's handwriting.`,
+      },
+      { speaker: 'Grandpa', text: `"${page.text}"` },
+      {
+        speaker: 'You',
+        text: 'I should keep it with the ledger. (The office: "Torn pages".)',
+      },
+    ]);
+  }, 900);
+}
+
 /** Changes the saved game, moves the story on, and saves. */
 export function commit(change: (draft: GameState) => void): GameState {
   const next = update(game(), (draft) => {
     change(draft);
     progressStory(draft);
+    pendingPages.push(...checkLedger(draft));
   });
   useApp.setState({ game: next });
   saveGame(next);
+  showPages();
   return next;
 }
 
@@ -262,7 +313,7 @@ export function advanceDialog(): void {
   }
 }
 
-const INTROS: Record<string, { title: string; lines: string[] }> = {
+export const INTROS: Record<string, { title: string; lines: string[] }> = {
   home: {
     title: 'Getting around',
     lines: [
@@ -579,7 +630,7 @@ export function nameKennel(name: string): void {
 // ---------------------------------------------------------------------------
 
 export function travel(
-  dest: 'shelter' | 'village' | 'green' | 'trial' | 'home' | ExtraSport,
+  dest: 'shelter' | 'village' | 'green' | 'trial' | 'home' | 'cup' | ExtraSport,
 ): void {
   useApp.setState({ panel: null });
   if (dest === 'shelter') {
@@ -593,6 +644,8 @@ export function travel(
     useApp.setState({ panel: 'shop' });
   } else if (dest === 'green') {
     beginFunDay();
+  } else if (dest === 'cup') {
+    beginCup();
   } else if (dest === 'trial') {
     beginTrial();
   } else if (dest === 'agility' || dest === 'herding') {
@@ -774,6 +827,7 @@ export function startLesson(lesson: Lesson): void {
     eventSeed(g, `lesson-${lesson}-${g.results.length}`),
   );
   if (hasFlag(g, 'own:longline')) live.lesson.treats += 5;
+  live.lesson.learnRate *= 1 + mentorBonus(g);
   useApp.setState({ screen: { kind: 'lesson', lesson }, panel: null, runId: nextRun() });
   showIntro('lesson');
 }
@@ -812,7 +866,7 @@ function finishAgilityActivity(): void {
   const report = buildAgilityReport(s);
   if (screen.round !== undefined) return finishRound(screen.round, report.score, report.notes);
   const before = s.skill;
-  const after = Math.min(1, before + agilityLearning(s));
+  const after = Math.min(1, before + agilityLearning(s) * (1 + mentorBonus(game())));
   let discoveries: ResultView['discoveries'] = [];
   commit((g) => {
     addFlag(g, 'practised:agility');
@@ -875,7 +929,7 @@ function finishHerdingActivity(): void {
   const report = buildHerdingReport(s);
   if (screen.round !== undefined) return finishRound(screen.round, report.score, report.notes);
   const before = s.skill;
-  const after = Math.min(1, before + herdingLearning(s));
+  const after = Math.min(1, before + herdingLearning(s) * (1 + mentorBonus(game())));
   let discoveries: ResultView['discoveries'] = [];
   commit((g) => {
     addFlag(g, 'practised:herding');
@@ -1265,7 +1319,7 @@ export function canGoToFunDay(g: GameState): boolean {
 /** Today's trial, if there is one and the active dog can still enter it. */
 export function todaysTrial(g: GameState): EventDef | null {
   const dog = activeDog(g);
-  if (!dog || !isTrialDay(g.day)) return null;
+  if (!dog || !isTrialDay(g.day) || isCupDay(g.day)) return null;
   if (g.trials.some((t) => t.day === g.day && t.dogId === dog.id)) return null;
   if (!canStartActivity(g, 'funday').ok) return null;
   const level = trialLevel(dog);
@@ -1340,6 +1394,53 @@ export function beginShow(sport: ExtraSport): void {
   );
 }
 
+/** The Hollowmere Cup: the entry, then Mara's send-off, then choosing who runs first. */
+function beginCup(): void {
+  const g = game();
+  const problem = cupProblem(g);
+  if (problem || g.block === 'night') {
+    toast(problem ?? 'The Cup is over for today.', 'info');
+    goHome('van');
+    return;
+  }
+  const def = cupEvent(g.seed, g.day);
+  commit((d) => void enterEvent(d, def));
+  const first = !hasFlag(g, 'cup:entered');
+  useApp.setState({
+    event: { def, round: 0, player: [], rivals: def.rivals.map(() => []), team: [] },
+    panel: null,
+  });
+  say(
+    [
+      {
+        speaker: 'Mara',
+        text: first
+          ? `The Hollowmere Cup. Your grandpa's name is on it nine times. Four rounds, one of each kind of work: a double mark, a water blind, an agility round, and sheep.`
+          : `Cup day again. Four rounds: the double, the water blind, agility, and sheep.`,
+      },
+      {
+        speaker: 'Mara',
+        text: `You choose which of your dogs takes each round, and no dog may run more than ${CUP.roundsPerDog}. It is the kennel that wins, not the dog. Sterling, Okafor, Glenreid and Hartley are all here.`,
+      },
+    ],
+    () => startRound(0),
+  );
+}
+
+/** The Cup: send this dog out for the round about to start. */
+export function pickCupDog(dogId: string): void {
+  const ev = get().event;
+  if (!ev || ev.def.kind !== 'cup') return;
+  if (ev.team.filter((id) => id === dogId).length >= CUP.roundsPerDog) {
+    toast(`No dog may run more than ${CUP.roundsPerDog} rounds.`, 'warn');
+    return;
+  }
+  const index = ev.team.length;
+  commit((g) => void setActiveDog(g, dogId));
+  useApp.setState({ event: { ...ev, team: [...ev.team, dogId] }, panel: null });
+  startRound(index);
+}
+
 function beginFunDay(): void {
   const g = game();
   if (!canGoToFunDay(g)) {
@@ -1412,7 +1513,7 @@ function trialIntro(def: EventDef): Line[] {
 
 function beginEvent(def: EventDef): void {
   useApp.setState({
-    event: { def, round: 0, player: [], rivals: def.rivals.map(() => []) },
+    event: { def, round: 0, player: [], rivals: def.rivals.map(() => []), team: [] },
   });
   startRound(0);
 }
@@ -1421,6 +1522,11 @@ function startRound(index: number): void {
   const ev = get().event;
   if (!ev) return;
   const round = ev.def.rounds[index]!;
+  // The Cup: choose who runs this round first.
+  if (ev.def.kind === 'cup' && ev.team.length <= index) {
+    useApp.setState({ panel: 'cupPick' });
+    return;
+  }
   if (round.kind === 'herding') startHerding(round.pasture!, { round: index, place: ev.def.place });
   else if (round.kind === 'agility')
     startAgility(round.course!, { round: index, place: ev.def.place });
@@ -1506,7 +1612,8 @@ function finishEvent(): void {
   const dog = activeDog(game())!;
   let outcome: EventOutcome | null = null;
   commit((d) => {
-    outcome = recordEvent(d, ev.def, ev.player, ev.rivals);
+    outcome = recordEvent(d, ev.def, ev.player, ev.rivals, ev.team);
+    if (ev.def.kind === 'cup') return;
     d.knowledge[dog.id] ??= {};
     const sport = ev.def.sport ?? 'field';
     for (const o of sport === 'field' ? (['mark', 'search', 'blind'] as const) : [sport]) {
@@ -1553,6 +1660,33 @@ export function leaveEvent(): void {
         { speaker: 'You', text: 'The cup Grandpa used to win. One day.' },
       ],
       () => showIntro('trials'),
+    );
+    return;
+  }
+  if (done.def.kind === 'cup') {
+    const kennelName = g.kennelName || 'your kennel';
+    say(
+      record.placing === 1
+        ? [
+            {
+              speaker: 'Mara',
+              text: `You did it. The Hollowmere Cup, back where it belongs. They will engrave "${kennelName}" under your grandpa's name tonight.`,
+            },
+            {
+              speaker: 'Mara',
+              text: 'He started with one dog nobody wanted, too. Did he ever tell you that? No. He would not have.',
+            },
+            { speaker: 'You', text: 'We did it, Grandpa. All of us.' },
+          ]
+        : [
+            {
+              speaker: 'Mara',
+              text:
+                record.placing <= 3
+                  ? `${ordinal(record.placing)} in the Hollowmere Cup, and prize money too. Sterling looked worried, and he does not worry easily. Next winter.`
+                  : `${ordinal(record.placing)} this year. The Cup takes a whole kennel: field work, agility and sheep. Find the round that cost you most, and build a dog for it. Next winter.`,
+            },
+          ],
     );
     return;
   }
@@ -1689,6 +1823,170 @@ export function toggleStud(dogId: string): void {
         : `${dog.name} is no longer at stud.`,
       'good',
     );
+}
+
+/** Moves an old dog into the farmhouse for good. */
+export function retire(dogId: string): void {
+  const dog = game().dogs.find((d) => d.id === dogId);
+  if (!dog) return;
+  const problem = retireProblem(game(), dog);
+  if (problem) {
+    toast(problem, 'warn');
+    return;
+  }
+  commit((g) => void retireDog(g, dogId));
+  useApp.setState({ panel: null });
+  goHome('house');
+  say([
+    {
+      speaker: 'You',
+      text: `${dog.name} has a bed by the stove now, and the run of the house. The youngsters will learn a thing or two just watching ${dog.sex === 'female' ? 'her' : 'him'}.`,
+    },
+  ]);
+}
+
+/** The vet: a full check-up. */
+export function vetCheck(dogId: string): void {
+  let out = { ok: false, message: '', found: [] as { text: string }[] };
+  commit((g) => {
+    out = healthCheck(g, dogId);
+  });
+  toast(
+    out.ok ? `${out.message} ${out.found.map((f) => f.text).join(' ')}` : out.message,
+    out.ok ? 'good' : 'warn',
+  );
+}
+
+/** The vet: a scan for a dam in whelp. */
+export function vetScan(damId: string): void {
+  let out = { ok: false, message: '' };
+  commit((g) => {
+    out = scanLitter(g, damId);
+  });
+  toast(out.message, out.ok ? 'good' : 'warn');
+}
+
+/** The breeders' market: buy one of this season's youngsters. */
+export function buyYoungster(index: number): void {
+  const lot = marketStock(game())[index];
+  if (!lot) return;
+  if (runsFree(game()) <= 0) {
+    toast('Every run is full. Retire an old dog or place a puppy first.', 'warn');
+    return;
+  }
+  let dog: Dog | null = null;
+  commit((g) => {
+    dog = buyMarketDog(g, index, lot.dog.name);
+  });
+  if (!dog) {
+    toast(`${lot.dog.name} costs $${lot.price}.`, 'warn');
+    return;
+  }
+  useApp.setState({ panel: null });
+  goHome('van');
+  say([
+    {
+      speaker: 'You',
+      text: `Welcome home, ${lot.dog.name}. ${lot.dog.ageMonths} months old and everything still to learn: lessons only until nine months.`,
+    },
+  ]);
+}
+
+export function buySack(): void {
+  let ok = false;
+  commit((g) => {
+    ok = buyBulkFood(g);
+  });
+  toast(
+    ok
+      ? `A sack of ${MARKET.bulkMeals} meals. ${game().food} in the pantry.`
+      : `A sack costs $${MARKET.bulkCost}.`,
+    ok ? 'good' : 'warn',
+  );
+}
+
+/** At Fell Top with every torn page: Sam has something to show you. */
+export function showSamThePages(): void {
+  const g = game();
+  if (!legacyReady(g)) return;
+  if (runsFree(g) <= 0) {
+    toast('Sam has something for you, but you will need a free run first.', 'warn');
+    return;
+  }
+  commit((d) => void bringLegacyHome(d));
+  useApp.setState({ panel: null });
+  goHome('van');
+  say([
+    {
+      speaker: 'You',
+      text: "I laid Grandpa's pages out on Sam Pennock's kitchen table.",
+    },
+    { speaker: 'Grandpa', text: LEGACY_PAGE.text },
+    {
+      speaker: 'You',
+      text: "Wren. Tam and Nell's great-granddaughter, home at last. There is a run with her name on it.",
+    },
+  ]);
+}
+
+/** Tester tool: jump to the morning of the next Saturday (show day). */
+export function devSkipToSaturday(): void {
+  const g = game();
+  const days = (5 - ((g.day - 1) % 7) + 7) % 7;
+  devSkipDays(days === 0 ? 7 : days);
+}
+
+/** Tester tool: jump to the morning of the next Hollowmere Cup. */
+export function devSkipToCup(): void {
+  const g = game();
+  const days = nextCupDay(g.day + 1) - g.day;
+  devSkipDays(days);
+}
+
+/** Tester tool: every working dog becomes well trained in everything. */
+export function devTrainUp(): void {
+  commit((g) => {
+    for (const d of g.dogs) for (const cue of CUES) d.skills[cue] = Math.max(d.skills[cue], 0.75);
+    g.reputation = Math.max(g.reputation, 30);
+  });
+  toast('Every dog is now well trained (75%) and the kennel is respected locally.', 'good');
+}
+
+/** Tester tool: the first week is done, with a dog, so later content can be reached at once. */
+export function devPastFirstWeek(): void {
+  commit((g) => {
+    if (!g.dogs.length && g.shelter[0]) {
+      const dog = g.shelter[0];
+      g.dogs.push(dog);
+      g.activeDogId = dog.id;
+      g.season.skills[dog.id] = { ...dog.skills };
+      registerDog(g, dog, 'Larchwood Rescue');
+      g.shelter = [];
+    }
+    if (g.kennelName === '') g.kennelName = 'Test';
+    g.funDay ??= { entries: [], bestRound: 'mark' };
+    g.story = 'afterFunDay';
+    g.day = Math.max(g.day, 8);
+    g.block = 'morning';
+    for (const f of ['saw:office', 'saw:runs', 'saw:pantry', 'metMara', 'intro:trials'])
+      addFlag(g, f);
+    g.money = Math.max(g.money, 150);
+    g.food = Math.max(g.food, 12);
+  });
+  goHome('house');
+  toast('Skipped the first week: everything after the Fun Day is open.', 'good');
+}
+
+/** Tester tool: every dog is a year older. */
+export function devAgeYear(): void {
+  let messages: string[] = [];
+  commit((g) => {
+    for (const d of g.dogs) d.ageMonths += 12;
+    messages = ageRetirements(g);
+  });
+  goHome('house');
+  toast('Every dog is a year older.', 'info');
+  messages.forEach((m) => toast(m, 'info'));
 }
 
 /** Tester tool: jump to the morning the next litter is due. */

@@ -34,7 +34,9 @@ import {
   type HerdingSetup,
 } from '../sim/herding';
 import { trialPasture } from '../sim/pastures';
-import { activeDog, note, type GameState } from './state';
+import { activeDog, addFlag, note, type GameState } from './state';
+import { isCupDay } from './calendar';
+import { workingDogs } from './kennel';
 import { addReputation, REPUTATION, type StudBooking } from './reputation';
 
 export type { TrialLevel } from '../core/dog/dog';
@@ -76,7 +78,7 @@ export interface Rival {
 
 export interface EventDef {
   id: string;
-  kind: 'funday' | 'trial';
+  kind: 'funday' | 'trial' | 'cup';
   /** Which sport's titles this counts toward. Field trials if not given. */
   sport?: Sport;
   name: string;
@@ -100,7 +102,7 @@ export interface EventEntry {
 
 export interface EventRecord {
   id: string;
-  kind: 'funday' | 'trial';
+  kind: 'funday' | 'trial' | 'cup';
   sport?: Sport;
   name: string;
   day: number;
@@ -859,6 +861,127 @@ export function sheepdogTrial(gameSeed: number, day: number, level: TrialLevel):
 }
 
 // ---------------------------------------------------------------------------
+// The Hollowmere Cup: the kennel championship that closes each year
+// ---------------------------------------------------------------------------
+
+/**
+ * Four rounds, one from each kind of work: a double mark, a water blind, an
+ * agility round and a run on sheep. You choose which of your dogs takes each
+ * round, and no dog may run more than two. All numbers are proposals.
+ */
+export const CUP = {
+  entryFee: 40,
+  prizes: [400, 220, 120],
+  /** Entry is by invitation: this much reputation, or an Open title in any sport. */
+  minReputation: 25,
+  roundsPerDog: 2,
+  reputationWin: 15,
+  reputationPlaced: 6,
+};
+
+/** The kennels that contest the Cup, and what each is strong at. */
+const CUP_KENNELS: { id: string; field: number; agility: number; herd: number }[] = [
+  { id: 'victor', field: 0.9, agility: 0.75, herd: 0.7 },
+  { id: 'grace', field: 0.85, agility: 0.55, herd: 0.45 },
+  { id: 'hamish', field: 0.72, agility: 0.6, herd: 0.8 },
+  { id: 'ruth', field: 0.7, agility: 0.7, herd: 0.55 },
+];
+
+/** Dogs fit to run in the Cup today. */
+export const cupTeam = (state: GameState): Dog[] =>
+  workingDogs(state).filter(
+    (d) => d.ageMonths >= 9 && !state.pregnancies.some((p) => p.damId === d.id),
+  );
+
+/** Why the kennel can't enter the Cup today, or null if it can. */
+export function cupProblem(state: GameState): string | null {
+  if (!isCupDay(state.day)) return 'The Cup is run on the last Sunday of winter.';
+  if (state.trials.some((t) => t.day === state.day && t.kind === 'cup'))
+    return 'You have run in the Cup today.';
+  const invited =
+    state.reputation >= CUP.minReputation ||
+    state.dogs.some((d) => SPORT_LIST.some((s) => titlesIn(d, s).includes('open')));
+  if (!invited)
+    return `Entry is by invitation: become respected locally (reputation ${CUP.minReputation}) or earn an Open title in any sport.`;
+  if (cupTeam(state).length < 2)
+    return 'The Cup is a kennel event: you need at least two dogs fit to run.';
+  if (state.money < CUP.entryFee) return `The entry fee is $${CUP.entryFee}.`;
+  return null;
+}
+
+const SPORT_LIST: Sport[] = ['field', 'agility', 'herding'];
+
+export function cupEvent(gameSeed: number, day: number): EventDef {
+  const seed = (gameSeed ^ Math.imul(day, 9973) ^ 0xc0b) >>> 0;
+  const rng = createRng(seed);
+  const [mark, , blind] = trialRounds(rng, 'open');
+  const flip = int(rng, 0, 1);
+  const course = showCourse('open', 0, flip);
+  const pasture = trialPasture('open', 0, flip);
+  const rivals = CUP_KENNELS.map((k) => {
+    const rival = rivalFromSpec(
+      RIVAL_POOL.find((r) => r.id === k.id)!,
+      'excellent',
+    );
+    const s = rival.dog.skills;
+    for (const cue of ['sit', 'stay', 'recall', 'stop', 'cast', 'deliver'] as const)
+      s[cue] = Math.min(0.95, k.field + 0.03);
+    s.indicate = k.field * 0.8;
+    s.agility = k.agility;
+    s.herd = k.herd;
+    return rival;
+  });
+  return {
+    id: `cup-${day}`,
+    kind: 'cup',
+    name: 'The Hollowmere Cup',
+    place: 'trial',
+    level: null,
+    rounds: [
+      {
+        ...mark!,
+        title: 'Round 1: The double',
+        short: 'Double',
+        retrieve: { ...mark!.retrieve!, title: 'Round 1: The double' },
+      },
+      {
+        ...blind!,
+        title: 'Round 2: The water blind',
+        short: 'Water',
+        retrieve: { ...blind!.retrieve!, title: 'Round 2: The water blind' },
+      },
+      {
+        kind: 'agility',
+        title: 'Round 3: Agility',
+        short: 'Agility',
+        skill: 'agility',
+        course: { ...course, title: 'Round 3: Agility' },
+      },
+      {
+        kind: 'herding',
+        title: 'Round 4: The sheep',
+        short: 'Sheep',
+        skill: 'sheep work',
+        pasture: { ...pasture, title: 'Round 4: The sheep' },
+      },
+    ],
+    rivals,
+    entryFee: CUP.entryFee,
+    prizes: CUP.prizes,
+    seed: seed % 99991,
+  };
+}
+
+/** What a round of the Cup asks of the dog, for choosing who runs it. */
+export const CUP_ROUND_CUES: Record<RoundKind, Cue[]> = {
+  mark: ['stay', 'deliver'],
+  search: ['indicate'],
+  blind: ['stop', 'cast'],
+  agility: ['agility'],
+  herding: ['herd'],
+};
+
+// ---------------------------------------------------------------------------
 // Playing rivals, standings and recording the result
 // ---------------------------------------------------------------------------
 
@@ -943,19 +1066,26 @@ export interface EventOutcome {
   title: TrialLevel | null;
 }
 
-/** Writes a finished event into the save: standings, prize, qualifiers and titles. */
+/**
+ * Writes a finished event into the save: standings, prize, qualifiers and
+ * titles. For the Cup, `team` lists which dog ran each round.
+ */
 export function recordEvent(
   state: GameState,
   def: EventDef,
   playerRounds: number[],
   rivalRounds: number[][],
+  team: string[] = [],
 ): EventOutcome | null {
   const dog = activeDog(state);
   if (!dog) return null;
+  const ran = [...new Set(team)]
+    .map((id) => state.dogs.find((d) => d.id === id))
+    .filter((d): d is Dog => !!d);
   const table = standings(
     def,
     state.kennelName || 'Your kennel',
-    dog.name,
+    ran.length ? ran.map((d) => d.name).join(' & ') : dog.name,
     playerRounds,
     rivalRounds,
   );
@@ -979,8 +1109,23 @@ export function recordEvent(
   };
   state.money += prize;
   state.block = 'evening';
-  dog.energy = clamp(dog.energy - 30, 0, 100);
+  for (const d of ran.length ? ran : [dog]) d.energy = clamp(d.energy - 30, 0, 100);
   let title: TrialLevel | null = null;
+  if (def.kind === 'cup') {
+    state.trials.push(record);
+    addFlag(state, 'cup:entered');
+    if (placing === 1) {
+      addFlag(state, 'cup:won');
+      addReputation(state, CUP.reputationWin);
+    } else if (placing <= 3) addReputation(state, CUP.reputationPlaced);
+    note(
+      state,
+      placing === 1
+        ? `Won the Hollowmere Cup! ${state.kennelName || 'The kennel'}'s name goes on it beside Grandpa's.`
+        : `The Hollowmere Cup: ${ordinal(placing)} of ${table.entries.length}${prize ? ` ($${prize})` : ''}.`,
+    );
+    return { record, title };
+  }
   if (def.kind === 'funday') {
     state.funDay = { entries: table.entries, bestRound: def.rounds[table.bestRound]!.kind };
   } else {

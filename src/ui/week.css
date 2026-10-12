@@ -943,3 +943,27 @@
     padding: 4px 2px;
   }
 }
+
+/* Village services, the handbook, and stacked buttons in a row */
+.button-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+}
+.notes li.muted {
+  opacity: 0.6;
+  font-style: italic;
+}
+details.help {
+  border-top: 1px solid var(--cream-2);
+  padding: 8px 0;
+}
+details.help summary {
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 16px;
+}
+details.help .steps {
+  margin-top: 8px;
+}

@@ -1,7 +1,7 @@
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState, type StoryStep } from './state';
-import { daysUntilSunday, isTrialDay, nextShowDay, nextTrialDay } from './calendar';
+import { daysUntilSunday, isCupDay, isTrialDay, nextShowDay, nextTrialDay } from './calendar';
 import { titlesIn } from '../core/dog/dog';
-import { QUALIFY, READINESS, TRIAL_RULES, trialLevel } from './events';
+import { cupProblem, QUALIFY, READINESS, TRIAL_RULES, trialLevel } from './events';
 import { LESSONS } from '../sim/training';
 
 /**
@@ -164,6 +164,24 @@ function trialObjective(state: GameState): Objective {
   const entered = state.trials.some((t) => t.day === state.day && (t.sport ?? 'field') === 'field');
   const days = nextTrialDay(state.day) - state.day;
   const when = today ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+  if (isCupDay(state.day) && state.funDay) {
+    const problem = cupProblem(state);
+    const ran = state.trials.some((t) => t.day === state.day && t.kind === 'cup');
+    return {
+      title: 'The Hollowmere Cup',
+      steps: [
+        {
+          text:
+            problem && !ran
+              ? `The Cup is being run at Larkspur today, so there is no ordinary trial. ${problem}`
+              : 'Take the van to Larkspur and enter the Hollowmere Cup: four rounds, and you choose which dog runs each',
+          done: ran,
+        },
+        { text: 'Agility show and sheepdog trial: Saturdays. Field trials: Sundays', done: false },
+      ],
+      target: !problem && !ran && state.block !== 'night' ? 'van' : null,
+    };
+  }
   const steps = [
     {
       text: `Earn ${QUALIFY.toTitle} qualifying runs (${qs} so far). A qualifying run: ${QUALIFY.minRound}+ in every round and ${QUALIFY.minTotal}+ in total at a Sunday trial`,

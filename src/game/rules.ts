@@ -4,6 +4,7 @@ import { CUES, generateShelterTrio, type Cue, type Dog } from '../core/dog/dog';
 import { boardForDay } from './jobs';
 import { dueToday, growPuppies, register } from './breeding';
 import { seasonalBookings, seasonalLetters } from './reputation';
+import { ageRetirements, KENNEL_RUNS, runsUsed } from './kennel';
 import {
   activeDog,
   addFlag,
@@ -19,6 +20,7 @@ import {
 } from './state';
 import {
   ageText,
+  isCupDay,
   isSeasonStart,
   isShowDay,
   isTrialDay,
@@ -231,7 +233,11 @@ export function sleep(state: GameState): string[] {
   }
   if (dog && dog.fullness < 30)
     messages.push(`${dog.name} woke up hungry. Keep the bowl filled and the pantry stocked.`);
-  const hungryInRuns = state.dogs.filter((d) => d !== dog && d.fullness < 30).map((d) => d.name);
+  // Retired dogs are fed in the farmhouse kitchen.
+  for (const d of state.dogs) if (d.retired) d.fullness = 80;
+  const hungryInRuns = state.dogs
+    .filter((d) => d !== dog && !d.retired && d.fullness < 30)
+    .map((d) => d.name);
   if (hungryInRuns.length)
     messages.push(`${hungryInRuns.join(' and ')} went hungry in the runs. Feed them at the runs.`);
   const lastDay = state.day;
@@ -244,13 +250,16 @@ export function sleep(state: GameState): string[] {
   if (isSeasonStart(state.day)) {
     messages.push(...growPuppies(state, MONTHS_PER_SEASON));
     state.recap = endSeason(state, lastDay);
+    messages.push(...ageRetirements(state));
     messages.push(
       `${seasonOf(state.day)} has come. Every dog is ${MONTHS_PER_SEASON} months older.`,
     );
   }
   state.jobs = boardForDay(state.seed, state.day, [...state.recentJobs, 'mara-keys']);
   if (state.day === FUN_DAY) messages.push("It's Sunday: the Village Fun Day is this afternoon!");
-  if (isTrialDay(state.day))
+  if (isCupDay(state.day))
+    messages.push("It's Cup day: the Hollowmere Cup is run at Larkspur today.");
+  else if (isTrialDay(state.day))
     messages.push("It's Sunday: trial day at Larkspur. Enter from the van.");
   if (isShowDay(state.day) && state.funDay)
     messages.push("It's Saturday: show day. Enter from the van.");
@@ -375,13 +384,12 @@ export function restore(state: GameState, id: string): { ok: boolean; message: s
 // More dogs: the rescue, the runs, and who comes out with you
 // ---------------------------------------------------------------------------
 
-/** Grandpa's kennel block has six runs. */
-export const KENNEL_RUNS = 6;
+export { KENNEL_RUNS } from './kennel';
 /** The first dog was Grandpa's wish; later rescues pay the shelter's fee. */
 export const ADOPTION_FEE = 40;
 
 export const canAdoptMore = (state: GameState): boolean =>
-  state.dogs.length > 0 && state.dogs.length < KENNEL_RUNS && !!state.funDay;
+  state.dogs.length > 0 && runsUsed(state) < KENNEL_RUNS && !!state.funDay;
 
 /** New arrivals at Larchwood: a fresh three each season. */
 export function refreshShelter(state: GameState): void {
@@ -396,7 +404,7 @@ export function adoptDog(state: GameState, index: number, name: string): Dog | n
   const chosen = state.shelter[index];
   if (!chosen) return null;
   const fee = state.dogs.length > 0 ? ADOPTION_FEE : 0;
-  if (state.money < fee || state.dogs.length >= KENNEL_RUNS) return null;
+  if (state.money < fee || runsUsed(state) >= KENNEL_RUNS) return null;
   state.money -= fee;
   const dog: Dog = { ...chosen, name };
   state.dogs.push(dog);
@@ -409,7 +417,7 @@ export function adoptDog(state: GameState, index: number, name: string): Dog | n
 
 /** Which dog walks out with you. */
 export function setActiveDog(state: GameState, id: string): boolean {
-  if (!state.dogs.some((d) => d.id === id)) return false;
+  if (!state.dogs.some((d) => d.id === id && !d.retired)) return false;
   state.activeDogId = id;
   return true;
 }
@@ -419,7 +427,7 @@ export function feedRuns(state: GameState): { fed: string[]; hungry: string[] } 
   const fed: string[] = [];
   const hungry: string[] = [];
   for (const d of state.dogs) {
-    if (d.id === state.activeDogId || d.fullness >= 70) continue;
+    if (d.id === state.activeDogId || d.retired || d.fullness >= 70) continue;
     if (state.food <= 0) {
       hungry.push(d.name);
       continue;

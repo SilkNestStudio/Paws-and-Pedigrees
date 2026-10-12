@@ -22,6 +22,7 @@ import {
   type Litter,
 } from '../game/breeding';
 import { RESTORATIONS } from '../game/rules';
+import { KENNEL_RUNS, runsUsed } from '../game/kennel';
 import { studFee, studProblem } from '../game/reputation';
 import { hasFlag, type GameState } from '../game/state';
 import { useApp } from '../app/store';
@@ -41,7 +42,7 @@ import { coatSwatch } from './swatch';
 
 const close = () => useApp.setState({ panel: null });
 
-function Swatch({ dog, size = 28 }: { dog: Dog; size?: number }) {
+export function Swatch({ dog, size = 28 }: { dog: Dog; size?: number }) {
   return (
     <span
       className="swatch inline"
@@ -329,7 +330,7 @@ function LittersTab({ game }: { game: GameState }) {
 }
 
 function LitterCard({ game, litter }: { game: GameState; litter: Litter }) {
-  const full = game.dogs.length >= 6;
+  const full = runsUsed(game) >= KENNEL_RUNS;
   return (
     <div className="litter">
       <h3>

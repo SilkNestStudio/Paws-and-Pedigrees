@@ -1258,15 +1258,28 @@ function Bystanders({ place }: { place: Place }) {
         <SessionPuppies litterId={screen.litterId} activity={screen.activity} />
       )}
       {place === 'home' &&
-        game.dogs.map((d, i) =>
-          d.id === game.activeDogId || nursing(game, d.id) ? null : (
+        game.dogs
+          .filter((d) => !d.retired)
+          .map((d, i) =>
+            d.id === game.activeDogId || nursing(game, d.id) ? null : (
+              <AnyDog
+                key={d.id}
+                dog={d}
+                view={() => still(runPosition(i), Math.PI, d.energy < 50 ? 'down' : 'sit')}
+              />
+            ),
+          )}
+      {/* Retired dogs doze in the sun by the farmhouse door. */}
+      {place === 'home' &&
+        game.dogs
+          .filter((d) => d.retired)
+          .map((d, i) => (
             <AnyDog
               key={d.id}
               dog={d}
-              view={() => still(runPosition(i), Math.PI, d.energy < 50 ? 'down' : 'sit')}
+              view={() => still({ x: -13.2 + i * 1.3, z: 57.3 - (i % 2) * 0.5 }, Math.PI, 'down')}
             />
-          ),
-        )}
+          ))}
       {place === 'shelter' &&
         game.shelter.map((d, i) =>
           i === useApp.getState().shelterPick ? null : (
@@ -1350,7 +1363,7 @@ export function Scene() {
                 kennelName={game?.kennelName ?? ''}
                 bowlFilled={!!game?.bowlFilled}
                 gardenRestored={!!game && hasFlag(game, 'restored:scentGarden')}
-                runNames={game?.dogs.map((d) => d.name) ?? []}
+                runNames={game?.dogs.filter((d) => !d.retired).map((d) => d.name) ?? []}
                 paddock={!!game && hasFlag(game, 'restored:whelpingRoom')}
               />
             </Suspense>
@@ -1380,6 +1393,7 @@ export function Scene() {
             {screen.kind === 'agility' && <AgilityRing center={SHOW_RING} />}
           </>
         )}
+        {place === 'trial' && screen.kind === 'agility' && <AgilityRing center={SHOW_RING} />}
         {place === 'shelter' && (
           <Suspense fallback={<Shelter field={field} />}>
             <ShelterWorld field={field} />

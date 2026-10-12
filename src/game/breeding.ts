@@ -15,7 +15,8 @@ import { describeMix, type BreedId } from '../core/genetics/breeds';
 import { deriveCoat } from '../core/genetics/coat';
 import { APTITUDES, HERITABILITY, toScore, type Aptitude } from '../core/genetics/traits';
 import { activeDog, addFlag, eventRng, hasFlag, note, type GameState } from './state';
-import { KENNEL_RUNS, passTime } from './rules';
+import { passTime } from './rules';
+import { KENNEL_RUNS, runsUsed } from './kennel';
 import { bestTalent, puppyQuality } from './reputation';
 import {
   OUTCOME_BONUS,
@@ -256,6 +257,8 @@ export interface Pregnancy {
   matedDay: number;
   dueDay: number;
   seed: number;
+  /** Puppies seen on the vet's scan, once she has had one. */
+  scanned?: number;
 }
 
 export interface PlacedPuppy {
@@ -298,6 +301,7 @@ export const isPregnant = (state: GameState, dogId: string): boolean =>
 /** Why this dog can't be a dam right now, or null if she can. */
 export function damProblem(state: GameState, dam: Dog): string | null {
   if (dam.sex !== 'female') return 'Only a female can carry a litter.';
+  if (dam.retired) return 'She is retired.';
   if (dam.ageMonths < BREEDING.damMinMonths)
     return `Too young: she should be at least ${BREEDING.damMinMonths / 12} years old.`;
   if (dam.ageMonths > BREEDING.damMaxMonths) return 'She has earned a quiet retirement.';
@@ -312,6 +316,7 @@ export function damProblem(state: GameState, dam: Dog): string | null {
 
 export function sireProblem(sire: Dog): string | null {
   if (sire.sex !== 'male') return 'The sire must be male.';
+  if (sire.retired) return 'He is retired.';
   if (sire.ageMonths < BREEDING.sireMinMonths) return 'Too young to sire a litter.';
   return null;
 }
@@ -461,6 +466,14 @@ export function breed(state: GameState, damId: string, sireId: string): Pregnanc
   return pregnancy;
 }
 
+/** How many puppies a pregnancy will bring (what a scan at the vet shows). */
+export function expectedLitter(state: GameState, pregnancy: Pregnancy): number | null {
+  const dam = state.dogs.find((d) => d.id === pregnancy.damId);
+  if (!dam) return null;
+  const [min, max] = litterRange(dam);
+  return int(createRng(pregnancy.seed), min, max);
+}
+
 /** A dam whelps: her puppies are born and join the kennel's records. */
 export function whelp(state: GameState, pregnancy: Pregnancy): Litter | null {
   const dam = state.dogs.find((d) => d.id === pregnancy.damId);
@@ -587,7 +600,7 @@ export function keepPuppy(
 ): Dog | null {
   const litter = state.litters.find((l) => l.id === litterId);
   const pup = litter?.puppies.find((p) => p.id === puppyId);
-  if (!litter || !pup || !puppyReady(pup) || state.dogs.length >= KENNEL_RUNS) return null;
+  if (!litter || !pup || !puppyReady(pup) || runsUsed(state) >= KENNEL_RUNS) return null;
   const clean = name.trim().slice(0, 16) || pup.name;
   pup.name = clean;
   litter.puppies = litter.puppies.filter((p) => p.id !== pup.id);

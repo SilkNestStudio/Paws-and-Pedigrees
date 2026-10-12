@@ -52,6 +52,11 @@ export type Panel =
   | 'breeding'
   | 'whelping'
   | 'fellTop'
+  | 'cupPick'
+  | 'vet'
+  | 'market'
+  | 'album'
+  | 'help'
   | 'menu';
 
 export interface ResultView {
@@ -86,6 +91,8 @@ export interface EventProgress {
   round: number;
   player: number[];
   rivals: number[][];
+  /** The Cup: which dog ran each round so far. */
+  team: string[];
 }
 
 export interface Toast {

@@ -44,9 +44,13 @@ export interface DogParams {
 export function conditionEffects(dog: Dog) {
   const energy = dog.energy ?? 100;
   const fullness = dog.fullness ?? 100;
+  // Old dogs slow down: from nine years a little, from eleven a good deal.
+  const age = dog.ageMonths ?? 24;
+  const oldSpeed = age >= 132 ? 0.86 : age >= 108 ? 0.93 : 1;
+  const oldStamina = age >= 132 ? 0.65 : age >= 108 ? 0.8 : 1;
   return {
-    speed: energy < 25 ? 0.88 : 1,
-    stamina: energy < 25 ? 0.7 : energy < 50 ? 0.85 : 1,
+    speed: (energy < 25 ? 0.88 : 1) * oldSpeed,
+    stamina: (energy < 25 ? 0.7 : energy < 50 ? 0.85 : 1) * oldStamina,
     attention: fullness < 30 ? -0.1 : 0,
     patience: fullness < 30 ? 0.8 : 1,
   };

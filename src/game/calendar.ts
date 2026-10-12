@@ -36,6 +36,11 @@ export const isShowDay = (day: number): boolean => day >= FIRST_SHOW_DAY && week
 export const nextShowDay = (day: number): number =>
   Math.max(day + ((5 - weekday(day) + 7) % 7), FIRST_SHOW_DAY);
 
+/** The Hollowmere Cup closes each year: the last Sunday of winter. */
+export const DAYS_PER_YEAR = DAYS_PER_SEASON * SEASONS.length;
+export const isCupDay = (day: number): boolean => day > 0 && day % DAYS_PER_YEAR === 0;
+export const nextCupDay = (day: number): number => Math.ceil(day / DAYS_PER_YEAR) * DAYS_PER_YEAR;
+
 export const seasonLabel = (day: number): string => `${seasonOf(day)}, year ${yearOf(day)}`;
 
 /** "about 2 years" / "1 year 3 months" / "9 months". */

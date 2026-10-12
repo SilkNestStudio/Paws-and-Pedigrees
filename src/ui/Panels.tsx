@@ -14,14 +14,7 @@ import {
 import { describe as describeEstimate, isKnown } from '../core/dog/knowledge';
 import { APTITUDE_LABELS, APTITUDES } from '../core/genetics/traits';
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState } from '../game/state';
-import {
-  ACTIVITY_ENERGY,
-  ADOPTION_FEE,
-  canAdoptMore,
-  KENNEL_RUNS,
-  RESTORATIONS,
-  SHOP,
-} from '../game/rules';
+import { ACTIVITY_ENERGY, ADOPTION_FEE, canAdoptMore, RESTORATIONS, SHOP } from '../game/rules';
 import { ageText, FIRST_TRIAL_DAY, nextShowDay, nextTrialDay } from '../game/calendar';
 import {
   adviceFor,
@@ -33,6 +26,19 @@ import {
   trialLevel,
 } from '../game/events';
 import { PRACTICE_COURSES } from '../sim/courses';
+import { RETIREMENT, retireProblem, runsFree } from '../game/kennel';
+import { isMarketDay } from '../game/services';
+import { legacyReady } from '../game/ledger';
+import { isCupDay } from '../game/calendar';
+import {
+  CupPickPanel,
+  CupRow,
+  FiresideNote,
+  HelpPanel,
+  MarketPanel,
+  TornPages,
+  VetPanel,
+} from './Village';
 import { PRACTICE_PASTURES } from '../sim/pastures';
 import { kennelType, REPUTATION_LEVELS, reputationName } from '../game/reputation';
 
@@ -45,6 +51,13 @@ import { BreedingPanel, PedigreeBlock, WhelpingRoomPanel } from './Breeding';
 import {
   go,
   adopt,
+  devAgeYear,
+  devPastFirstWeek,
+  devSkipToCup,
+  devSkipToSaturday,
+  devTrainUp,
+  retire,
+  showSamThePages,
   AGILITY_RUNS,
   entryProblem,
   startAgility,
@@ -94,7 +107,7 @@ export function Panels() {
   const screen = useApp((s) => s.screen);
   if (!game) return null;
   if (!panel) return screen.kind === 'shelter' ? <ShelterCards game={game} /> : null;
-  const dismissable = !['result', 'intro', 'standings', 'season'].includes(panel);
+  const dismissable = !['result', 'intro', 'standings', 'season', 'cupPick'].includes(panel);
   return (
     <div
       className="overlay"
@@ -116,6 +129,10 @@ export function Panels() {
       {panel === 'breeding' && <BreedingPanel game={game} />}
       {panel === 'whelping' && <WhelpingRoomPanel game={game} />}
       {panel === 'fellTop' && <FellTopPanel game={game} />}
+      {panel === 'cupPick' && <CupPickPanel game={game} />}
+      {panel === 'vet' && <VetPanel game={game} />}
+      {panel === 'market' && <MarketPanel game={game} />}
+      {panel === 'help' && <HelpPanel />}
       {panel === 'menu' && <Menu />}
     </div>
   );
@@ -168,9 +185,16 @@ function Office({ game }: { game: GameState }) {
         >
           Grandpa's notes
         </button>
+        <button
+          className={`tab ${tab === 'pages' ? 'active' : ''}`}
+          onClick={() => setTab('pages')}
+        >
+          Torn pages ({game.ledger.length})
+        </button>
       </div>
       {dog && <DogCard dog={dog} game={game} />}
       {tab === 'kennel' && <KennelStanding game={game} />}
+      {tab === 'pages' && <TornPages game={game} />}
       {tab === 'diary' && (
         <ul className="notes">
           {game.diary.length === 0 && <li>Nothing written yet. The pages are waiting.</li>}
@@ -280,6 +304,30 @@ function DogCard({ dog, game }: { dog: Dog; game: GameState }) {
         {breedDescription(dog)}
       </p>
       <TitleLine dog={dog} />
+      {dog.retired ? (
+        <p className="small">
+          Retired to the farmhouse. {dog.name} no longer works or needs a run, and the youngsters
+          learn faster for having {dog.sex === 'female' ? 'her' : 'him'} about.
+        </p>
+      ) : (
+        dog.ageMonths >= RETIREMENT.mayRetireMonths && (
+          <div className="button-row">
+            <button
+              className="button secondary small"
+              disabled={!!retireProblem(game, dog)}
+              onClick={() => retire(dog.id)}
+            >
+              Retire {dog.name} to the farmhouse
+            </button>
+            <span className="small">
+              {retireProblem(game, dog) ??
+                (dog.ageMonths >= RETIREMENT.slowsMonths
+                  ? `${dog.name} is slowing down with age. Retiring frees a run and helps the youngsters learn.`
+                  : 'Retiring frees a run and helps the youngsters learn. It cannot be undone.')}
+            </span>
+          </div>
+        )
+      )}
       <div className="two-col">
         <div>
           <h3>Natural talents</h3>
@@ -399,6 +447,7 @@ function VanPanel({ game }: { game: GameState }) {
       <div className="kicker">The van</div>
       <h2>Where to?</h2>
       <div className="list">
+        {hasDog && game.funDay && (isCupDay(game.day) || game.day > 14) && <CupRow game={game} />}
         {!hasDog && (
           <div className="row">
             <div className="grow">
@@ -434,8 +483,8 @@ function VanPanel({ game }: { game: GameState }) {
             <div className="grow">
               <div className="title">Larchwood Rescue</div>
               <div className="sub">
-                New arrivals every season. Room in the runs for {KENNEL_RUNS - game.dogs.length}{' '}
-                more. Adoption fee ${ADOPTION_FEE}.
+                New arrivals every season. Room in the runs for {runsFree(game)} more. Adoption fee
+                ${ADOPTION_FEE}.
               </div>
             </div>
             <button
@@ -455,7 +504,43 @@ function VanPanel({ game }: { game: GameState }) {
             Go shopping
           </button>
         </div>
-        {hasDog && (game.funDay || game.day >= FIRST_TRIAL_DAY) && <TrialRow game={game} />}
+        {hasDog && game.funDay && (
+          <>
+            <div className="row">
+              <div className="grow">
+                <div className="title">The vet</div>
+                <div className="sub">
+                  Check-ups, DNA tests, and scans for a dam in whelp. Doesn't use up the day.
+                </div>
+              </div>
+              <button
+                className="button secondary"
+                onClick={() => useApp.setState({ panel: 'vet' })}
+              >
+                Visit
+              </button>
+            </div>
+            <div className={`row ${isMarketDay(game.day) ? 'active' : ''}`}>
+              <div className="grow">
+                <div className="title">Breeders' market</div>
+                <div className="sub">
+                  {isMarketDay(game.day)
+                    ? 'On today: three youngsters by proven studs, and kibble by the sack.'
+                    : 'The first two days of each season: youngsters by proven studs.'}
+                </div>
+              </div>
+              <button
+                className="button secondary"
+                onClick={() => useApp.setState({ panel: 'market' })}
+              >
+                {isMarketDay(game.day) ? 'Go' : 'When?'}
+              </button>
+            </div>
+          </>
+        )}
+        {hasDog && (game.funDay || game.day >= FIRST_TRIAL_DAY) && !isCupDay(game.day) && (
+          <TrialRow game={game} />
+        )}
         {hasDog && game.funDay && <ShowRow game={game} sport="agility" />}
         {hasDog && game.funDay && (
           <div className="row">
@@ -764,6 +849,24 @@ function FellTopPanel({ game }: { game: GameState }) {
         left). Any dog can learn, but dogs with focus and a wish to please take to it fastest.
       </p>
       <div className="list">
+        {legacyReady(game) && (
+          <div className="row active">
+            <div className="grow">
+              <div className="title">Show Sam the torn pages</div>
+              <div className="sub">
+                Grandpa wrote that the bitch with the white toe went to Ned Pennock at Fell Top. Sam
+                is Ned's grandson.
+                {runsFree(game) <= 0 ? ' (You will need a free run.)' : ''}
+              </div>
+            </div>
+            <button
+              className="button"
+              onClick={() => go('Driving up to Fell Top…', showSamThePages)}
+            >
+              Show him
+            </button>
+          </div>
+        )}
         <div className="row">
           <div className="grow">
             <div className="title">{dog.name}'s herding skill</div>
@@ -902,6 +1005,7 @@ function Bed({ game }: { game: GameState }) {
           </li>
         </ul>
       )}
+      <FiresideNote game={game} />
       <div className="button-row">
         <button className="button" onClick={() => go('Goodnight…', goToBed)}>
           Go to bed
@@ -1049,6 +1153,13 @@ function Standings({ game }: { game: GameState }) {
           You placed {ordinal(record.placing)} of {record.entries.length}
           {record.prize > 0 ? `: $${record.prize} prize money.` : '.'}
         </li>
+        {def.kind === 'cup' && (
+          <li className={record.placing === 1 ? 'discovery' : 'info'}>
+            {record.placing === 1
+              ? `★ The Hollowmere Cup is yours. ${game.kennelName || 'Your kennel'}'s name goes on it beside Grandpa's.`
+              : 'The Cup goes to the kennel with the best total over all four rounds.'}
+          </li>
+        )}
         {def.kind === 'trial' && (
           <li className={record.qualified ? 'good' : 'warn'}>
             {record.qualified
@@ -1255,6 +1366,9 @@ function Menu() {
         <button className="button" onClick={close}>
           Resume
         </button>
+        <button className="button secondary" onClick={() => useApp.setState({ panel: 'help' })}>
+          How to play (the kennel handbook)
+        </button>
         <button
           className="button secondary"
           onClick={() => {
@@ -1274,9 +1388,32 @@ function Menu() {
           <button className="button secondary small" onClick={() => devSkipDays(1)}>
             Skip a day
           </button>
-          <button className="button secondary small" onClick={() => devSkipToSunday()}>
-            Skip to Sunday
+          <button className="button secondary small" onClick={() => devSkipToSaturday()}>
+            Skip to Saturday (shows)
           </button>
+          <button className="button secondary small" onClick={() => devSkipToSunday()}>
+            Skip to Sunday (trial)
+          </button>
+          {game && !!game.funDay && (
+            <button className="button secondary small" onClick={() => devSkipToCup()}>
+              Skip to Cup day
+            </button>
+          )}
+          {game && game.story !== 'afterFunDay' && (
+            <button className="button secondary small" onClick={devPastFirstWeek}>
+              Skip the first week
+            </button>
+          )}
+          {game && game.dogs.length > 0 && (
+            <>
+              <button className="button secondary small" onClick={devTrainUp}>
+                Train every dog to 75%
+              </button>
+              <button className="button secondary small" onClick={devAgeYear}>
+                Age every dog a year
+              </button>
+            </>
+          )}
           {game && game.pregnancies.length > 0 && (
             <button className="button secondary small" onClick={() => devSkipToLitter()}>
               Skip to the litter
@@ -1420,7 +1557,7 @@ function ShelterCards({ game }: { game: GameState }) {
 // ---------------------------------------------------------------------------
 
 function KennelPanel({ game }: { game: GameState }) {
-  const inRuns = game.dogs.filter((d) => d.id !== game.activeDogId);
+  const inRuns = game.dogs.filter((d) => d.id !== game.activeDogId && !d.retired);
   const hungry = inRuns.filter((d) => d.fullness < 70).length;
   return (
     <div className="panel card">
@@ -1430,36 +1567,39 @@ function KennelPanel({ game }: { game: GameState }) {
         One dog comes out with you; the others wait in their runs. {game.food} meals in the pantry.
       </p>
       <div className="list">
-        {game.dogs.map((d) => {
-          const out = d.id === game.activeDogId;
-          return (
-            <div key={d.id} className={`row ${out ? 'active' : ''}`}>
-              <div className="grow">
-                <div className="title">{dogWithTitles(d)}</div>
-                <div className="sub">
-                  {ageText(d.ageMonths)} · {coatOf(d).name}
+        {game.dogs
+          .filter((d) => !d.retired)
+          .map((d) => {
+            const out = d.id === game.activeDogId;
+            return (
+              <div key={d.id} className={`row ${out ? 'active' : ''}`}>
+                <div className="grow">
+                  <div className="title">{dogWithTitles(d)}</div>
+                  <div className="sub">
+                    {ageText(d.ageMonths)} · {coatOf(d).name}
+                  </div>
+                  <div className="needs-row">
+                    <span>Energy</span>
+                    <Bar value={d.energy / 100} />
+                    <span>Fed</span>
+                    <Bar value={d.fullness / 100} />
+                  </div>
                 </div>
-                <div className="needs-row">
-                  <span>Energy</span>
-                  <Bar value={d.energy / 100} />
-                  <span>Fed</span>
-                  <Bar value={d.fullness / 100} />
-                </div>
+                {out ? (
+                  <span className="badge good">With you</span>
+                ) : (
+                  <button
+                    className="button secondary"
+                    onClick={() => go(`Fetching ${d.name}…`, () => takeOut(d.id))}
+                  >
+                    Take out
+                  </button>
+                )}
               </div>
-              {out ? (
-                <span className="badge good">With you</span>
-              ) : (
-                <button
-                  className="button secondary"
-                  onClick={() => go(`Fetching ${d.name}…`, () => takeOut(d.id))}
-                >
-                  Take out
-                </button>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
+      <FiresideNote game={game} />
       <div className="button-row">
         {inRuns.length > 0 && (
           <button className="button" disabled={hungry === 0} onClick={feedRunDogs}>
