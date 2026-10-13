@@ -193,3 +193,31 @@ describe('handling skill matters', () => {
     expect(skilled).toBeLessThan(passive * 0.7);
   });
 });
+
+describe('finding a fall in the open', () => {
+  // Stands the dog upwind of the fall (so its nose gets nothing) at a given distance and mode.
+  function beside(mode: 'hunt' | 'run', metres: number) {
+    const s = createRetrieveSession(testDog({ nose: 30 }, { stay: 1 }), setupById('first-mark'), 5);
+    callForThrows(s);
+    runUntil(s, (x) => x.items[0]!.state === 'lying', 10);
+    const item = s.items[0]!;
+    const { dir } = windAt(s.wind, s.time);
+    s.dog.pos = add(item.pos, { x: -dir.x * metres, z: -dir.z * metres });
+    s.dog.heading = headingOf(sub(s.dog.pos, item.pos));
+    s.dog.mode = mode;
+    s.dog.huntCenter = { ...s.dog.pos };
+    s.dog.target = add(s.dog.pos, { x: -dir.x * 30, z: -dir.z * 30 });
+    stepSession(s, FIXED_DT);
+    return s;
+  }
+
+  it('a dog hunting with its head down spots a dummy a few metres off', () => {
+    expect(beside('hunt', 4).dog.mode).toBe('scent');
+    expect(beside('hunt', 7).dog.mode).toBe('hunt');
+  });
+
+  it('a dog galloping past only sees what is nearly under its feet', () => {
+    expect(beside('run', 4).dog.mode).toBe('run');
+    expect(beside('run', 2).dog.mode).toBe('scent');
+  });
+});

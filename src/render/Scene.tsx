@@ -525,19 +525,27 @@ function Items() {
     });
   }, []);
 
-  useFrame(() => {
+  useFrame((state) => {
     const items = live.field?.items ?? [];
     const lesson = live.lesson;
     pool.forEach((p, i) => {
       const item = items[i];
       if (item && (item.state === 'flying' || item.state === 'lying')) {
-        p.g.position.set(item.pos.x, heightAt(item.pos.x, item.pos.z) + item.y + 0.09, item.pos.z);
+        const ground = heightAt(item.pos.x, item.pos.z);
+        // Drawn larger the further away it is, so a fall 40 m out can still be seen.
+        const far = state.camera.position.distanceTo(
+          new THREE.Vector3(item.pos.x, ground, item.pos.z),
+        );
+        const size = item.kind === 'ball' ? 1 : Math.min(4, Math.max(1, far / 11));
+        p.g.scale.setScalar(size);
+        p.g.position.set(item.pos.x, ground + item.y + 0.09 * size, item.pos.z);
         p.g.rotation.y = i * 1.3;
         p.g.visible = true;
         p.ball.visible = item.kind === 'ball';
         p.dummy.visible = p.band.visible = item.kind !== 'ball';
       } else if (!item && lesson && i === 0 && lesson.scene.ball.visible) {
         const b = lesson.scene.ball;
+        p.g.scale.setScalar(1);
         p.g.position.set(b.pos.x, heightAt(b.pos.x, b.pos.z) + b.y + 0.09, b.pos.z);
         p.g.visible = true;
         p.ball.visible = lesson.lesson === 'stop';
@@ -596,7 +604,11 @@ function FallFlags() {
         return;
       }
       g.visible = true;
-      g.position.set(m.landing.x, heightAt(m.landing.x, m.landing.z), m.landing.z);
+      // The flag stands where the dummy lies now, and grows with distance like the dummy.
+      const y = heightAt(m.pos.x, m.pos.z);
+      g.position.set(m.pos.x, y, m.pos.z);
+      const far = state.camera.position.distanceTo(new THREE.Vector3(m.pos.x, y, m.pos.z));
+      g.scale.setScalar(Math.min(3, Math.max(1, far / 16)));
       g.children[1]!.rotation.y = Math.sin(state.clock.elapsedTime * 3 + i) * 0.3;
     });
   });

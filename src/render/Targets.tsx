@@ -38,7 +38,7 @@ export function currentTargets(): Target[] {
   if (f && !f.setup.free) {
     f.items.forEach((i) => {
       if (i.kind === 'mark' && i.state === 'lying')
-        out.push({ id: `m${i.id}`, label: 'Fall', pos: i.landing, colour: '#ffffff' });
+        out.push({ id: `m${i.id}`, label: 'Fall', pos: i.pos, colour: '#ffffff' });
       if (i.kind === 'blind' && i.state === 'lying')
         out.push({
           id: `b${i.id}`,

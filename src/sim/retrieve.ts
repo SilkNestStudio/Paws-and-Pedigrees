@@ -360,7 +360,13 @@ export function blowWhistle(s: RetrieveSession): void {
     s.stats.ignoredWhistles++;
   } else {
     dog.tell = { ears: 'flick', tail: 'high', noseDown: false, text: 'Ignored the whistle' };
-    log(s, `${s.dogName} ignored the whistle.`, 'warn');
+    log(
+      s,
+      params.skills.stop < 0.2
+        ? `${s.dogName} ignored the whistle: the "Stop whistle" lesson teaches it.`
+        : `${s.dogName} ignored the whistle.`,
+      'warn',
+    );
     s.stats.ignoredWhistles++;
   }
 }
@@ -847,7 +853,11 @@ function checkForScent(s: RetrieveSession): void {
   const threshold = params.scentThreshold * speedPenalty;
   for (const item of s.items) {
     if (item.state !== 'lying') continue;
-    const sight = distance(nose, item.pos) < (item.hiddenInCover ? 1.2 : 3);
+    // A dog hunting with its head down spots what lies close by; one at a
+    // gallop only sees what is nearly under its feet. Cover hides things.
+    const careful = dog.mode === 'hunt';
+    const sight =
+      distance(nose, item.pos) < (item.hiddenInCover ? (careful ? 2 : 1.2) : careful ? 5 : 3);
     const strength = scentStrength(nose, item.pos, s.wind, s.time);
     if (sight || strength > threshold) {
       dog.scentItem = item.id;

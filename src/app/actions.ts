@@ -16,7 +16,7 @@ import { callDog, greetDog, reachable } from '../sim/home';
 import { callHere, easy, goOn } from '../sim/agility';
 import { command, type HerdCommand } from '../sim/herding';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
-import { live, useApp } from './store';
+import { live, toast, useApp } from './store';
 import { runTarget } from './input';
 import { MARA_POS, petDog, talkToMara, talkToVisitor, activateSpot } from './flow';
 import { visitorToday } from '../game/visitors';
@@ -25,6 +25,8 @@ import { visitorToday } from '../game/visitors';
  * Everything the player can do with keys, buttons or taps, routed to
  * whichever activity is running.
  */
+
+let lastSignalTip = -99999;
 
 /** Click-to-walk target at home (mainly for phones). */
 export const walkTarget: { point: Vec2 | null } = { point: null };
@@ -169,6 +171,16 @@ export function tapGround(point: Vec2): void {
       } else if (s.phase !== 'throwing') {
         playCue();
         sendDog(s, point);
+      }
+    } else if (!s.setup.free && (mode === 'run' || mode === 'line' || mode === 'hunt')) {
+      // Out working, the dog isn't looking at you: say how to get its attention.
+      const now = performance.now();
+      if (now - lastSignalTip > 5000) {
+        lastSignalTip = now;
+        toast(
+          `${s.dogName} is busy and not looking at you. Blow the whistle (Space) to stop it first, then click where to go.`,
+          'info',
+        );
       }
     }
     return;
