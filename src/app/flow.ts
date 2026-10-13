@@ -117,6 +117,7 @@ import {
 import { CUES } from '../core/dog/dog';
 import { greetVisitor, visitorToday } from '../game/visitors';
 import { requestPhoto } from './photo';
+import { runTarget } from './input';
 import {
   agilityLearning,
   buildAgilityReport,
@@ -415,6 +416,7 @@ export const INTROS: Record<string, { title: string; lines: string[] }> = {
     title: 'How agility works',
     lines: [
       'Run the numbered obstacles in order, as fast and as cleanly as you can. Your dog takes the obstacle you are running toward, so the line you run is everything.',
+      'To run: click the ground where you want to go (or hold the mouse button down and move it to steer), use W, A and D, or use the stick on a phone. You always run in the ring.',
       'Press "Go!" (Space) to start, then run ahead of your dog toward the next number. A dog that cannot see where you are heading runs past, or picks an obstacle for itself.',
       '"Here" (R) calls your dog off a wrong obstacle. "Easy" (F) steadies it for a tight turn or the A-frame, where it must touch the yellow at the bottom. "Go on" (Space) sends it ahead to the obstacle in front of it.',
       'A bar down, a refusal, a missed contact or popping out of the weave poles costs 5 points. A wrong obstacle costs 20. Each second over the standard time costs 2.',
@@ -878,6 +880,7 @@ export function startAgility(
   const dog = activeDog(g)!;
   const place = opts.place ?? 'home';
   clearLive();
+  runTarget.point = null;
   live.agility = createAgilitySession(
     dog,
     course,

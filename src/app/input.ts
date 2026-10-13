@@ -8,6 +8,12 @@ export const input = {
   runHeld: false,
 };
 
+/**
+ * Where the handler is running to in the agility ring, set by clicking,
+ * tapping or holding on the ground. The keys and the stick take over at once.
+ */
+export const runTarget: { point: Vec2 | null } = { point: null };
+
 /** Camera orbit shared by the camera rig, controls and movement. */
 export const cameraState = {
   /** Heading the camera looks along (0 = +z). Starts looking north up the field. */

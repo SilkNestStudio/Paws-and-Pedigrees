@@ -17,6 +17,7 @@ import { callHere, easy, goOn } from '../sim/agility';
 import { command, type HerdCommand } from '../sim/herding';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
 import { live, useApp } from './store';
+import { runTarget } from './input';
 import { MARA_POS, petDog, talkToMara, talkToVisitor, activateSpot } from './flow';
 import { visitorToday } from '../game/visitors';
 
@@ -150,6 +151,11 @@ export function pat(): void {
 
 /** A tap or click on the ground. */
 export function tapGround(point: Vec2): void {
+  // In the ring: run there.
+  if (live.agility) {
+    runTarget.point = { ...point };
+    return;
+  }
   const s = live.field;
   if (s) {
     const mode = s.dog.mode;

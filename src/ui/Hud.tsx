@@ -31,7 +31,7 @@ export function Hud() {
     <div className="hud">
       <TopBar snap={snap} />
       {snap.kind === 'home' ? <ObjectiveCard /> : <ActivityCard snap={snap} />}
-      {(snap.field || snap.search || snap.agility || snap.herding) && <TargetLabels />}
+      {!busy && (snap.field || snap.search || snap.agility || snap.herding) && <TargetLabels />}
       {snap.kind === 'home' && !busy && <SpotNameLabels />}
       <TopRight snap={snap} />
       {snap.lesson?.feedback && snap.lesson.time - snap.lesson.feedback.time < 3 && (
@@ -904,7 +904,7 @@ function Keys({ snap }: { snap: HudSnapshot }) {
       : snap.kind === 'herding'
         ? "A: Come by (left) · D: Away (right) · W: Walk up · Space or S: Lie down · R: That'll do"
         : snap.kind === 'agility'
-          ? 'WASD run (hold Shift) · Space: Go / Go on · R: Here · F: Easy'
+          ? 'Run: click the ground, or W A D · Space: Go / Go on · R: Here · F: Easy'
           : snap.kind === 'lesson'
             ? 'Space: Yes! · F: cue · drag to look around'
             : snap.kind === 'puppies'

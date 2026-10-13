@@ -25,7 +25,7 @@ import {
 } from '../sim/home';
 import { windAt } from '../sim/scent';
 import { live, useApp, type Place } from '../app/store';
-import { cameraState } from '../app/input';
+import { cameraState, runTarget } from '../app/input';
 import { driveKeeper, framingReach, steerState } from './steer';
 import { TargetBeacons, TargetTracker } from './Targets';
 import { SpotRings, SpotTracker } from './Spots';
@@ -120,7 +120,22 @@ function Runner() {
     }
     if (live.field) driveKeeper(live.field.keeper, dt, paused);
     if (live.search) driveKeeper(live.search.keeper, dt, paused);
-    if (live.agility) driveKeeper(live.agility.keeper, dt, paused);
+    if (live.agility) {
+      const k = live.agility.keeper;
+      const steered = driveKeeper(k, dt, paused);
+      // In the ring you always run.
+      k.running = true;
+      // Click-to-run: head for the clicked point until there or the keys take over.
+      const target = runTarget.point;
+      if (steered || paused || live.agility.phase === 'complete') runTarget.point = null;
+      else if (target) {
+        const dx = target.x - k.pos.x;
+        const dz = target.z - k.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.5) runTarget.point = null;
+        else k.input = { x: dx / d, z: dz / d };
+      }
+    }
 
     if (!paused) {
       acc.current += Math.min(dt, 0.1);
@@ -241,6 +256,11 @@ function CameraRig() {
         moved: false,
         button: e.button,
       };
+      // In the agility ring, pressing on the ground starts you running there at once.
+      if (live.agility && e.button === 0 && !useApp.getState().panel && !useApp.getState().dialog) {
+        const point = groundPoint(e, el, camera, raycaster);
+        if (point) tapGround(point);
+      }
     };
     const move = (e: PointerEvent) => {
       if (e.pointerType === 'mouse') aim.point = groundPoint(e, el, camera, raycaster);
@@ -250,6 +270,12 @@ function CameraRig() {
       const dy = e.clientY - p.y;
       if (!p.moved && Math.hypot(dx, dy) < 10) return;
       p.moved = true;
+      // Holding and moving in the ring steers your run instead of turning the view.
+      if (live.agility && p.button === 0) {
+        const point = groundPoint(e, el, camera, raycaster);
+        if (point && !useApp.getState().panel && !useApp.getState().dialog) tapGround(point);
+        return;
+      }
       cameraState.yaw -= dx * 0.006;
       cameraState.pitch = Math.min(1.1, Math.max(0.12, cameraState.pitch + dy * 0.004));
       cameraState.manualAt = performance.now() / 1000;
@@ -998,6 +1024,27 @@ function keeperView(): KeeperView {
   };
 }
 
+/** Where you are running to in the ring, when you clicked to get there. */
+function RunMarker() {
+  const ring = useMemo(() => {
+    const m = new THREE.Mesh(
+      new THREE.RingGeometry(0.35, 0.5, 28),
+      new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.85 }),
+    );
+    m.rotation.x = -Math.PI / 2;
+    m.visible = false;
+    return m;
+  }, []);
+  useFrame((state) => {
+    const p = live.agility ? runTarget.point : null;
+    ring.visible = !!p;
+    if (!p) return;
+    ring.position.set(p.x, heightAt(p.x, p.z) + 0.06, p.z);
+    ring.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 8) * 0.1);
+  });
+  return <primitive object={ring} />;
+}
+
 /** Takes a photograph when one has been asked for: the 3D view alone, scaled down. */
 function Shutter() {
   const { gl, scene, camera } = useThree();
@@ -1533,6 +1580,7 @@ export function Scene() {
       <SpotRings />
       <SpotTracker />
       <AimLine />
+      <RunMarker />
       <DogBeacon />
       <GoalBeacon />
       <PersonModel view={keeperView} />

@@ -204,7 +204,8 @@ export function migrate(raw: unknown): GameState | null {
     return null;
   if (![1, 2, 3, 4, 5].includes(s.version ?? 0)) return null;
   const state = s as unknown as GameState;
-  for (const dog of [...state.dogs, ...(state.shelter ?? [])]) {
+  const pups = (state.litters ?? []).flatMap((l) => l.puppies ?? []);
+  for (const dog of [...state.dogs, ...(state.shelter ?? []), ...pups]) {
     dog.titles ??= [];
     dog.qualifiers ??= {};
     dog.dnaTested ??= false;

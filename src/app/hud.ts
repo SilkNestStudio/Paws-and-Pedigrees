@@ -241,7 +241,7 @@ function lessonHint(t: TrainingSession): string {
 function agilityHint(s: AgilitySession): string {
   const name = s.dogName;
   if (s.phase === 'ready')
-    return `Look over the numbers, then press "Go!" (Space). ${name} takes whatever you run toward.`;
+    return `Press "Go!" (Space), then run: click the ground where you want to go, or use W, A and D. ${name} takes whatever you run toward.`;
   if (s.phase === 'complete') return 'Home!';
   const next = s.course.obstacles[s.next]!;
   const n = s.next + 1;
