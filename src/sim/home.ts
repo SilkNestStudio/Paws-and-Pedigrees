@@ -170,6 +170,12 @@ function collide(p: Vec2, radius: number): Vec2 {
   return out;
 }
 
+/**
+ * The nearest place to `p` a walker can stand: inside the yard fence and
+ * clear of the buildings. A tap on or beyond a fence means "walk up to it".
+ */
+export const reachable = (p: Vec2): Vec2 => collide(collide(p, 0.5), 0.5);
+
 function insideBox(p: Vec2, b: Block2, pad: number): boolean {
   return p.x > b.minX - pad && p.x < b.maxX + pad && p.z > b.minZ - pad && p.z < b.maxZ + pad;
 }

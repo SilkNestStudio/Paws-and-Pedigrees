@@ -81,6 +81,12 @@ function Runner() {
   const acc = useRef(0);
   const hudTimer = useRef(0);
   const finished = useRef<object | null>(null);
+  // Click-to-walk gives up if you stop getting any closer (something is in the way).
+  const walk = useRef<{ target: Vec2 | null; best: number; since: number }>({
+    target: null,
+    best: Infinity,
+    since: 0,
+  });
 
   useFrame((_, dt) => {
     const app = useApp.getState();
@@ -94,7 +100,14 @@ function Runner() {
         const dx = target.x - live.home.keeper.pos.x;
         const dz = target.z - live.home.keeper.pos.z;
         const d = Math.hypot(dx, dz);
-        if (d < 0.6) walkTarget.point = null;
+        const now = performance.now() / 1000;
+        const w = walk.current;
+        if (w.target !== target) walk.current = { target, best: d, since: now };
+        else if (d < w.best - 0.05) {
+          w.best = d;
+          w.since = now;
+        }
+        if (d < 0.6 || now - walk.current.since > 0.7) walkTarget.point = null;
         else {
           // Walk round buildings rather than into them.
           const next = routeAround(live.home.keeper.pos, target);
@@ -1464,7 +1477,7 @@ export function Scene() {
             <WindFlag x={30} z={-40} heading={wind.heading} strength={strength} />
             {ringRestored && <AgilityRing center={HOME_RING} />}
             {ringRestored && screen.kind !== 'agility' && (
-              <AgilityCourseView course={PRACTICE_COURSES[0]!} />
+              <AgilityCourseView course={PRACTICE_COURSES[0]!} idle />
             )}
           </>
         )}

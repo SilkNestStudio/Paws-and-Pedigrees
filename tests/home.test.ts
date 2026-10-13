@@ -5,7 +5,9 @@ import {
   fillHomeBowl,
   setHomeInput,
   stepHome,
+  HOME_BOUNDS,
   HOME_SOLIDS,
+  reachable,
 } from '../src/sim/home';
 import { FIXED_DT } from '../src/sim/retrieve';
 import { testDog } from './helpers';
@@ -54,5 +56,26 @@ describe('home', () => {
     const s = createHomeSession(null, 4, { x: 5, z: 49 }, false);
     stepHome(s, FIXED_DT);
     expect(s.nearSpot).toBe('noticeboard');
+  });
+
+  it('a tap on or beyond a fence means walk up to it, and you get there', () => {
+    // Out in the training field, north of the yard fence.
+    const target = reachable({ x: 20, z: 30 });
+    expect(target.z).toBeGreaterThan(HOME_BOUNDS.minZ);
+    expect(target.x).toBe(20);
+    const s = createHomeSession(null, 1, { x: 20, z: 50 }, false);
+    for (let i = 0; i < 6 / FIXED_DT; i++) {
+      const dx = target.x - s.keeper.pos.x;
+      const dz = target.z - s.keeper.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.6) break;
+      setHomeInput(s, { x: dx / d, z: dz / d }, false);
+      stepHome(s, FIXED_DT);
+    }
+    expect(Math.hypot(target.x - s.keeper.pos.x, target.z - s.keeper.pos.z)).toBeLessThan(0.6);
+    // A tap on a building lands beside it, not inside it.
+    const house = HOME_SOLIDS[0]!;
+    const beside = reachable({ x: (house.minX + house.maxX) / 2, z: house.minZ + 0.5 });
+    expect(beside.z).toBeLessThan(house.minZ);
   });
 });

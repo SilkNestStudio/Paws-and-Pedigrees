@@ -160,7 +160,15 @@ function Frame() {
   );
 }
 
-function ObstacleView({ obstacle, index }: { obstacle: Obstacle; index: number }) {
+function ObstacleView({
+  obstacle,
+  index,
+  numbered,
+}: {
+  obstacle: Obstacle;
+  index: number;
+  numbered: boolean;
+}) {
   const sprite = useRef<THREE.Sprite>(null);
   const texture = useMemo(() => numberTexture(index + 1), [index]);
   useFrame((state) => {
@@ -182,23 +190,43 @@ function ObstacleView({ obstacle, index }: { obstacle: Obstacle; index: number }
       {kind === 'tunnel' && <Tunnel />}
       {kind === 'weave' && <Weave />}
       {kind === 'frame' && <Frame />}
-      <sprite
-        ref={sprite}
-        position={[kind === 'jump' ? 1.25 : 1.05, kind === 'frame' ? 1.1 : 1.75, back]}
-      >
-        <spriteMaterial map={texture} transparent depthWrite={false} />
-      </sprite>
+      {numbered && (
+        <sprite
+          ref={sprite}
+          position={[kind === 'jump' ? 1.25 : 1.05, kind === 'frame' ? 1.1 : 1.75, back]}
+        >
+          <spriteMaterial map={texture} transparent depthWrite={false} />
+        </sprite>
+      )}
     </group>
   );
 }
 
-/** A course standing in its ring. */
-export function AgilityCourseView({ course }: { course: AgilityCourse }) {
+/**
+ * A course standing in its ring. `idle` is the equipment seen from the yard
+ * between sessions: no numbers and no start circle, so nothing looks like a
+ * place to walk to.
+ */
+export function AgilityCourseView({
+  course,
+  idle = false,
+}: {
+  course: AgilityCourse;
+  idle?: boolean;
+}) {
   return (
     <>
       {course.obstacles.map((o, i) => (
-        <ObstacleView key={`${course.id}-${i}`} obstacle={o} index={i} />
+        <ObstacleView key={`${course.id}-${i}`} obstacle={o} index={i} numbered={!idle} />
       ))}
+      {idle ? null : <StartCircle course={course} />}
+    </>
+  );
+}
+
+function StartCircle({ course }: { course: AgilityCourse }) {
+  return (
+    <>
       <mesh
         position={[course.start.x, heightAt(course.start.x, course.start.z) + 0.04, course.start.z]}
         rotation={[-Math.PI / 2, 0, 0]}

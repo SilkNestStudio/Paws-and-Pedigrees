@@ -12,7 +12,7 @@ import {
 } from '../sim/retrieve';
 import { callBack, doubtAlert, searchHere, trustAlert } from '../sim/search';
 import { giveCue, mark, type CueChoice } from '../sim/training';
-import { callDog, greetDog } from '../sim/home';
+import { callDog, greetDog, reachable } from '../sim/home';
 import { callHere, easy, goOn } from '../sim/agility';
 import { command, type HerdCommand } from '../sim/herding';
 import { playCue, playMark, playRecall, playThrow, playWhistle } from './audio';
@@ -182,7 +182,8 @@ export function tapGround(point: Vec2): void {
     if (distance(pile.pos, point) < 7) lessonCue(pile.id);
     return;
   }
-  if (live.home) walkTarget.point = { ...point };
+  // Walk to the nearest spot you can actually stand on: up to a fence, not into it.
+  if (live.home) walkTarget.point = reachable(point);
 }
 
 // Development builds let test scripts tap the ground at a world point.

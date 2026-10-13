@@ -136,8 +136,9 @@ export function HomeWorld({
   const fences = useMemo(
     () => [
       // Along the field side of the yard, either side of the gate.
-      ...along([1.9, 44], [28.9, 44], 3),
-      ...along([-1.9, 44], [-28.9, 44], 3),
+      // (Right out to the corners: a fence wherever you cannot walk through.)
+      ...along([1.9, 44], [40, 44], 3),
+      ...along([-1.9, 44], [-40, 44], 3),
       // Round the yard.
       ...along([-40, 46], [-40, 82], 3),
       ...along([40, 46], [40, 82], 3),
