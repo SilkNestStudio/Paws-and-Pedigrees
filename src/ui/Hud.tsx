@@ -299,7 +299,9 @@ function windWords(strength: number): string {
 }
 
 function Events({ snap }: { snap: HudSnapshot }) {
-  const toasts = useApp((s) => s.toasts);
+  // With a panel open, messages are shown on top of it instead (see Panels).
+  const panelOpen = useApp((s) => s.panel !== null);
+  const toasts = useApp((s) => s.toasts).filter(() => !panelOpen);
   const rel = snap.wind ? wrapAngle(snap.wind.heading - snap.cameraYaw) : 0;
   const recent = snap.events.filter((e) => e.text).slice(-2);
   return (

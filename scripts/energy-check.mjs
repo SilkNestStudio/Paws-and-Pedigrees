@@ -119,10 +119,20 @@ for (let i = 0; i < 10; i++) {
   await page.keyboard.press('KeyE');
   await wait(400);
   if ((await panel()) !== 'fieldGate') break;
-  await page
+  const train = page
     .locator('.row', { hasText: 'Sit on cue' })
-    .getByRole('button', { name: 'Train' })
-    .click();
+    .getByRole('button', { name: 'Train' });
+  // Worn out: the button is off and the panel says why.
+  if (await train.isDisabled()) {
+    await shot('worn-out');
+    console.log(
+      'blocked',
+      JSON.stringify(await info()),
+      await page.locator('.panel .blocked').textContent(),
+    );
+    break;
+  }
+  await train.click();
   await wait(1700);
   await closeIntro();
   const now = await info();

@@ -18,6 +18,8 @@ import {
   ACTIVITY_ENERGY,
   ADOPTION_FEE,
   canAdoptMore,
+  canStartActivity,
+  type ActivityKind,
   restedToday,
   RESTORATIONS,
   SHOP,
@@ -122,6 +124,7 @@ export function Panels() {
       className="overlay"
       onPointerDown={(e) => e.target === e.currentTarget && dismissable && close()}
     >
+      <Messages />
       {panel === 'office' && <Office game={game} />}
       {panel === 'noticeboard' && <Noticeboard game={game} />}
       {panel === 'van' && <VanPanel game={game} />}
@@ -148,6 +151,29 @@ export function Panels() {
     </div>
   );
 }
+
+/** Messages, shown above an open panel so they are never hidden behind it. */
+function Messages() {
+  const toasts = useApp((s) => s.toasts);
+  if (!toasts.length) return null;
+  return (
+    <div className="panel-messages">
+      {toasts.map((t) => (
+        <div key={t.id} className={`event card ${t.tone}`}>
+          {t.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Why the dog with you can't do this kind of work right now, said in the panel itself. */
+function Blocked({ game, kind }: { game: GameState; kind: ActivityKind }) {
+  const check = canStartActivity(game, kind);
+  return check.ok ? null : <p className="blocked">{check.reason}</p>;
+}
+
+const cannot = (game: GameState, kind: ActivityKind) => !canStartActivity(game, kind).ok;
 
 function Close({ label = 'Close' }: { label?: string }) {
   return (
@@ -407,6 +433,7 @@ function Noticeboard({ game }: { game: GameState }) {
       <p className="lead">
         Each job uses some of your dog's energy. You'll travel there in the van.
       </p>
+      {game.dogs.length > 0 && <Blocked game={game} kind="search" />}
       <div className="list">
         {game.jobs.length === 0 && (
           <div className="row">No new notices today. Check again tomorrow.</div>
@@ -430,7 +457,13 @@ function Noticeboard({ game }: { game: GameState }) {
             <span className="badge good">${job.pay}</span>
             <button
               className="button"
-              disabled={!game.dogs.length}
+              disabled={
+                !game.dogs.length ||
+                cannot(
+                  game,
+                  job.kind === 'search' ? 'search' : job.kind === 'blind' ? 'blind' : 'mark',
+                )
+              }
               onClick={() =>
                 go(
                   job.place === 'orchard'
@@ -725,9 +758,11 @@ function FieldGate({ game }: { game: GameState }) {
       <p className="lead">
         Each choice uses some of {dog.name}'s energy ({Math.round(dog.energy)}% left). A dog can
         work until it is tired, and every dog has its own energy.
-        {dog.energy < ACTIVITY_ENERGY.lesson &&
-          ` ${dog.name} is worn out for today: take another dog out at the kennel runs, or go to bed.`}
       </p>
+      <Blocked
+        game={game}
+        kind={tab === 'lessons' ? 'lesson' : tab === 'field' ? 'mark' : 'agility'}
+      />
       <div className="tabs">
         <button
           className={`tab ${tab === 'lessons' ? 'active' : ''}`}
@@ -763,6 +798,7 @@ function FieldGate({ game }: { game: GameState }) {
               <span className="badge">-{ACTIVITY_ENERGY.lesson} energy</span>
               <button
                 className="button"
+                disabled={cannot(game, 'lesson')}
                 onClick={() => go('Setting up the lesson…', () => startLesson(l))}
               >
                 Train
@@ -798,6 +834,7 @@ function FieldGate({ game }: { game: GameState }) {
                 {!s.free && <span className="badge">-{ACTIVITY_ENERGY.mark} energy</span>}
                 <button
                   className="button"
+                  disabled={!s.free && cannot(game, 'mark')}
                   onClick={() => go('Out to the training field…', () => startFieldWork(s))}
                 >
                   {s.free ? 'Play' : 'Go'}
@@ -843,6 +880,7 @@ function FieldGate({ game }: { game: GameState }) {
                     <span className="badge">-{ACTIVITY_ENERGY.agility} energy</span>
                     <button
                       className="button"
+                      disabled={cannot(game, 'agility')}
                       onClick={() => go('Out to the agility ring…', () => startAgility(c))}
                     >
                       Run it
@@ -885,6 +923,7 @@ function BeachPanel({ game }: { game: GameState }) {
         Water work without a pond of your own. A first visit each day lifts {dog.name}'s bond a
         little, whatever you do there.
       </p>
+      <Blocked game={game} kind="mark" />
       <div className="list">
         <div className="row">
           <div className="grow">
@@ -917,6 +956,7 @@ function BeachPanel({ game }: { game: GameState }) {
               <span className="badge">-{ACTIVITY_ENERGY.mark} energy</span>
               <button
                 className="button"
+                disabled={cannot(game, 'mark')}
                 onClick={() =>
                   go('Driving to Sandy Cove…', () => startFieldWork(s, { place: 'beach' }))
                 }
@@ -951,6 +991,7 @@ function FellTopPanel({ game }: { game: GameState }) {
         Each run uses some of {dog.name}'s energy ({Math.round(dog.energy)}% left). Any dog can
         learn, but dogs with focus and a wish to please take to it fastest.
       </p>
+      <Blocked game={game} kind="herding" />
       <div className="list">
         {legacyReady(game) && (
           <div className="row active">
@@ -997,6 +1038,7 @@ function FellTopPanel({ game }: { game: GameState }) {
               <span className="badge">-{ACTIVITY_ENERGY.herding} energy</span>
               <button
                 className="button"
+                disabled={cannot(game, 'herding')}
                 onClick={() => go('Driving up to Fell Top…', () => startHerding(p))}
               >
                 Go
