@@ -66,7 +66,7 @@ on past it with seasons, three sports, breeding, the Hollowmere Cup, retirement 
 
 ## Raising puppies, your stud dogs and the kennel's name (added October 12)
 
-- **Raising sessions:** once a day per litter (it uses part of the day), from the litter screen at the puppy paddock.
+- **Raising sessions:** once a day per litter, from the litter screen at the puppy paddock.
   Choose new sights and sounds (confidence), gentle handling (cooperation), first fetch (drive), follow me (focus),
   or, with the duck pond restored, a paddling pool (water). One puppy at a time shows whether it is keen, unsure or
   worried. Space praises; X makes it easier. Praise the moment a puppy does the brave thing; help a worried one first;
@@ -96,7 +96,7 @@ on past it with seasons, three sports, breeding, the Hollowmere Cup, retirement 
 - **Scoring:** 100, less 5 for each bar down, refusal, missed contact or popped weave, 20 for a wrong obstacle, and 2
   for each second over the standard time.
 - **Practice:** three courses (four jumps; jump, tunnel and turn; a full ten-obstacle course). A session is three
-  runs and uses one part of the day. Obstacles taken cleanly build the Obstacles skill; simple courses stop teaching
+  runs and costs 20 energy. Obstacles taken cleanly build the Obstacles skill; simple courses stop teaching
   once outgrown (35% and 60%).
 - **Shows:** every Saturday from day 13 on the village green: two rounds, the second over the mirrored course.
   A qualifying run is 50+ in each round and 110+ in total; two earn the title (AN, AO, AX). Entry $8, $15, $25.
@@ -167,10 +167,16 @@ on past it with seasons, three sports, breeding, the Hollowmere Cup, retirement 
 
 ## Systems in the slice
 
-- **Time:** each day has morning, afternoon and evening. Lessons, field work, jobs and competitions each use one part
-  (a competition takes the rest of the day). Bed starts the next day; every seventh day the season turns.
-- **Care:** fullness falls through the day; filling the bowl uses a meal from the pantry. Energy is used by work and
-  restored by sleep. Hungry dogs listen less and give up sooner; tired dogs run slower and tire sooner.
+- **Time and energy (changed October 12):** energy is the only limit on a day's work, and every dog has its own.
+  A dog works until it is worn out: about six lessons, or four pieces of field work, from full (lesson 15, mark or
+  blind 24, search 22, agility session 20, sheep run 22). When one dog is done, take another out at the kennel runs.
+  The clock (morning, afternoon, evening) still moves on with the first two things you do, but it never stops you;
+  the earlier rule of three activities a day for the whole kennel is gone. A dog can enter one competition a day.
+  "Rest together a while" at the farmhouse gives the dog with you 15 energy back, once a day. Bed starts the next
+  day; every seventh day the season turns.
+- **Care:** fullness falls as the clock moves and a little with each piece of work; filling the bowl uses a meal from
+  the pantry. A night's sleep restores 70 energy (40 for a hungry dog), so a dog worked to nothing every day starts
+  the next one short. Hungry dogs listen less and give up sooner; tired dogs run slower and tire sooner.
 - **Money:** start with $40 and 4 meals. Jobs pay $15 to $34. A bag of kibble (8 meals) costs $24. The scent garden
   costs $90 and the duck pond $150. Trial entry is $10 to $30; prizes $15 to $160. Later adoptions cost $40.
 - **Getting to know your dog:** aptitudes start unknown. Watching your dog work narrows each one to a range shown in

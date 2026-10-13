@@ -378,9 +378,7 @@ function RaisingRow({ game, litter }: { game: GameState; litter: Litter }) {
         <b>Raising the litter.</b>{' '}
         {today
           ? 'Choose one session for today. Each builds a different talent, and how you handle each puppy decides how much.'
-          : game.block === 'night'
-            ? "It's late: the puppies are asleep."
-            : "Today's session is done. Puppies need their rest: one a day."}
+          : "Today's session is done. Puppies need their rest: one a day."}
       </div>
       {today && (
         <div className="button-row">

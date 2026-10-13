@@ -49,7 +49,7 @@ export function CupRow({ game }: { game: GameState }) {
       </div>
       <button
         className="button"
-        disabled={!today || !!problem || game.block === 'night'}
+        disabled={!today || !!problem}
         onClick={() => go('Driving to Larkspur…', () => travel('cup'))}
       >
         Enter
@@ -428,8 +428,9 @@ export function HelpPanel() {
         <summary>The week, the seasons and the year</summary>
         <ul className="steps">
           <li>
-            Each day has a morning, afternoon and evening; a lesson, practice, job or event uses
-            one. Go to bed at the farmhouse door to start the next day.
+            A dog can work until it is tired, and every dog has its own energy: when one is worn
+            out, take another out at the kennel runs. A night's sleep restores most of it (less for
+            a hungry dog). Go to bed at the farmhouse door to start the next day.
           </li>
           <li>
             Saturday: agility show and sheepdog trial. Sunday: field trial at Larkspur. The first

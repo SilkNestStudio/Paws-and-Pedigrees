@@ -128,17 +128,17 @@ export type ActivityKind =
   'lesson' | 'mark' | 'blind' | 'search' | 'free' | 'funday' | 'agility' | 'herding';
 
 export const ACTIVITY_ENERGY: Record<ActivityKind, number> = {
-  lesson: 12,
-  mark: 22,
-  blind: 22,
-  search: 20,
+  lesson: 15,
+  mark: 24,
+  blind: 24,
+  search: 22,
   free: 0,
   funday: 0,
-  agility: 18,
-  herding: 20,
+  agility: 20,
+  herding: 22,
 };
 
-/** Activities that use up the current part of the day. */
+/** Activities that move the clock on (morning, afternoon, evening). */
 const TAKES_TIME: Record<ActivityKind, boolean> = {
   lesson: true,
   mark: true,
@@ -167,22 +167,27 @@ export function canStartActivity(
     };
   if (hard && dog.ageMonths < 9)
     return { ok: false, reason: `${dog.name} is still a puppy: lessons only until 9 months old.` };
-  if (TAKES_TIME[kind] && state.block === 'night') {
-    return { ok: false, reason: "It's dark. Time for bed; the day starts fresh tomorrow." };
-  }
+  // Energy is the only limit on a day's work, and each dog has its own.
   if (dog.energy < ACTIVITY_ENERGY[kind]) {
+    const fresh = state.dogs.some(
+      (d) => d.id !== dog.id && !d.retired && d.energy >= ACTIVITY_ENERGY[kind],
+    );
     return {
       ok: false,
-      reason: `${dog.name} is worn out. Let ${dog.sex === 'female' ? 'her' : 'him'} rest until tomorrow.`,
+      reason: `${dog.name} is worn out for today. ${fresh ? 'Take another dog out at the kennel runs, or let' : 'Let'} ${dog.sex === 'female' ? 'her' : 'him'} rest until tomorrow.`,
     };
   }
   return { ok: true };
 }
 
-/** Moves on to the next part of the day. */
+/**
+ * Moves the clock on: morning, afternoon, then evening, where it stays until
+ * bed. The time of day is only a clock; it never stops you working.
+ */
 export function passTime(state: GameState): void {
   const index = BLOCKS.indexOf(state.block);
-  state.block = BLOCKS[Math.min(BLOCKS.length - 1, index + 1)]!;
+  if (index >= BLOCKS.indexOf('evening')) return;
+  state.block = BLOCKS[index + 1]!;
   for (const dog of state.dogs) dog.fullness = clamp(dog.fullness - 12, 0, 100);
 }
 
@@ -339,11 +344,16 @@ export function endSeason(state: GameState, lastDay: number): SeasonRecap {
   return recap;
 }
 
-/** An evening at home recovers a little energy. */
-export function restAtHome(state: GameState): void {
+export const restedToday = (state: GameState): boolean => hasFlag(state, `rested:${state.day}`);
+
+/** A quiet hour together gives a little energy back, once a day. */
+export function restAtHome(state: GameState): boolean {
   const dog = activeDog(state);
-  if (dog) dog.energy = clamp(dog.energy + 15, 0, 100);
-  passTime(state);
+  if (!dog || restedToday(state)) return false;
+  state.flags = state.flags.filter((f) => !f.startsWith('rested:'));
+  addFlag(state, `rested:${state.day}`);
+  dog.energy = clamp(dog.energy + 15, 0, 100);
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -464,7 +474,11 @@ export interface ActivityOutcome {
 export function finishActivity(state: GameState, outcome: ActivityOutcome): Discovery[] {
   const dog = activeDog(state);
   if (!dog) return [];
-  if (!outcome.extra) dog.energy = clamp(dog.energy - ACTIVITY_ENERGY[outcome.kind], 0, 100);
+  if (!outcome.extra) {
+    dog.energy = clamp(dog.energy - ACTIVITY_ENERGY[outcome.kind], 0, 100);
+    // Work makes a dog hungry.
+    if (outcome.kind !== 'free') dog.fullness = clamp(dog.fullness - 3, 0, 100);
+  }
   if (outcome.skill) dog.skills[outcome.skill.cue] = outcome.skill.value;
   if (outcome.score > 0 && outcome.kind !== 'lesson') dog.bond = clamp(dog.bond + 1, 0, 100);
   if (outcome.pay) state.money += outcome.pay;

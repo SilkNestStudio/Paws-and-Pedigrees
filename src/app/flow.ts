@@ -23,6 +23,7 @@ import {
 } from '../game/state';
 import { firstJob, type Job } from '../game/jobs';
 import {
+  ACTIVITY_ENERGY,
   adoptDog,
   ADOPTION_FEE,
   brushDog,
@@ -90,7 +91,14 @@ import {
   SEASON_EFFECTS,
   seasonOf,
 } from '../game/calendar';
-import { ageRetirements, mentorBonus, retireDog, retireProblem, runsFree } from '../game/kennel';
+import {
+  ageRetirements,
+  mentorBonus,
+  retireDog,
+  retireProblem,
+  runsFree,
+  workingDogs,
+} from '../game/kennel';
 import {
   bringLegacyHome,
   checkLedger,
@@ -349,7 +357,7 @@ export const INTROS: Record<string, { title: string; lines: string[] }> = {
       "One puppy at a time meets today's challenge. Watch its body: tail up and trotting in is keen; stopping halfway is unsure; backing away with its tail tucked is worried.",
       'Press Space ("Good pup!") the moment a puppy does the brave thing. Praise when it gets there, not before.',
       'Press X to make it easier for a puppy that needs help. An unsure puppy with a wagging tail may do it alone if you wait, which is worth more. Never praise a frightened puppy.',
-      'Handled well, each session nudges that talent for life (up to about +9 points in total). One session a day, and each uses part of the day.',
+      'Handled well, each session nudges that talent for life (up to about +9 points in total). One session a day for each litter.',
     ],
   },
   evaluation: {
@@ -437,7 +445,7 @@ export const INTROS: Record<string, { title: string; lines: string[] }> = {
     lines: [
       'Lessons are marker training. Give the cue, then press "Yes!" (Space) at the exact moment your dog does the right thing.',
       'On time teaches fast. Late teaches little. Rewarding the wrong thing teaches the wrong thing.',
-      'Each lesson uses one part of the day. Skills you build here make field work and jobs easier.',
+      "Each lesson uses some of your dog's energy; a dog can work until it is tired. Skills you build here make field work and jobs easier.",
     ],
   },
   shelter: {
@@ -1329,8 +1337,17 @@ export function closeResult(): void {
       ? 'van'
       : 'fieldGate',
   );
-  if (g.block === 'night')
-    toast("It's getting dark. Time to head to bed (the farmhouse door).", 'info');
+  // Say so when the dog has nothing left, and what can still be done.
+  const out = activeDog(g);
+  if (out && out.energy < ACTIVITY_ENERGY.lesson) {
+    const fresh = workingDogs(g).some((d) => d.id !== out.id && d.energy >= ACTIVITY_ENERGY.lesson);
+    toast(
+      fresh
+        ? `${out.name} is worn out for today. Another dog can come out at the kennel runs.`
+        : `${out.name} is worn out for today. Bed is at the farmhouse door.`,
+      'info',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1338,7 +1355,7 @@ export function closeResult(): void {
 // ---------------------------------------------------------------------------
 
 export function canGoToFunDay(g: GameState): boolean {
-  return g.day >= FUN_DAY && !g.funDay && g.dogs.length > 0 && g.block !== 'night';
+  return g.day >= FUN_DAY && !g.funDay && g.dogs.length > 0;
 }
 
 /** Today's trial, if there is one and the active dog can still enter it. */
@@ -1375,7 +1392,7 @@ export function entryProblem(g: GameState): string | null {
 export function beginShow(sport: ExtraSport): void {
   const g = game();
   const def = todaysShow(g, sport);
-  if (!def || g.block === 'night') {
+  if (!def) {
     toast('There is no show for you to enter right now. Shows run every Saturday.', 'info');
     goHome('van');
     return;
@@ -1423,7 +1440,7 @@ export function beginShow(sport: ExtraSport): void {
 function beginCup(): void {
   const g = game();
   const problem = cupProblem(g);
-  if (problem || g.block === 'night') {
+  if (problem) {
     toast(problem ?? 'The Cup is over for today.', 'info');
     goHome('van');
     return;
@@ -1484,7 +1501,7 @@ function beginFunDay(): void {
 function beginTrial(): void {
   const g = game();
   const def = todaysTrial(g);
-  if (!def || g.block === 'night') {
+  if (!def) {
     toast('There is no trial for you to enter right now. Trials run every Sunday.', 'info');
     goHome('van');
     return;
@@ -2089,9 +2106,17 @@ export function closeRecap(): void {
 }
 
 export function restEvening(): void {
-  commit((g) => restAtHome(g));
+  let rested = false;
+  commit((g) => {
+    rested = restAtHome(g);
+  });
   useApp.setState({ panel: null });
-  toast('A quiet hour together. Your dog stretches out in the sun.', 'good');
+  toast(
+    rested
+      ? 'A quiet hour together. Your dog stretches out in the sun, and has a little more to give.'
+      : 'One rest a day: you have had it.',
+    rested ? 'good' : 'info',
+  );
 }
 
 export function buyItem(id: string): void {

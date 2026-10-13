@@ -4,7 +4,7 @@ import { generateRescue, titlesIn, type Dog } from '../src/core/dog/dog';
 import { addFlag, newGame, update, type GameState } from '../src/game/state';
 import { agilityShow, recordEvent, rivalScore, trialLevel } from '../src/game/events';
 import { isShowDay, nextShowDay } from '../src/game/calendar';
-import { canStartActivity, finishActivity } from '../src/game/rules';
+import { ACTIVITY_ENERGY, canStartActivity, finishActivity } from '../src/game/rules';
 import {
   agilityLearning,
   buildAgilityReport,
@@ -228,7 +228,7 @@ describe('the Saturday agility show', () => {
       });
     });
     expect(s.block).toBe('afternoon');
-    expect(s.dogs[0]!.energy).toBe(before - 18);
+    expect(s.dogs[0]!.energy).toBe(before - ACTIVITY_ENERGY.agility);
     expect(s.dogs[0]!.skills.agility).toBeCloseTo(0.08);
     s = update(s, (d) => {
       d.dogs[0]!.ageMonths = 6;

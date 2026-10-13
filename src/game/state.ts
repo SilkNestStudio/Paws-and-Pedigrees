@@ -243,6 +243,8 @@ export function migrate(raw: unknown): GameState | null {
   );
   state.letters ??= [];
   state.studBookings ??= [];
+  // The day no longer runs out of time: a save left at "night" wakes up in the evening.
+  if (state.block === 'night') state.block = 'evening';
   state.ledger ??= [];
   state.photos ??= [];
   state.version = 5;

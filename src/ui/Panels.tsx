@@ -14,7 +14,14 @@ import {
 import { describe as describeEstimate, isKnown } from '../core/dog/knowledge';
 import { APTITUDE_LABELS, APTITUDES } from '../core/genetics/traits';
 import { activeDog, dayName, FUN_DAY, hasFlag, type GameState } from '../game/state';
-import { ACTIVITY_ENERGY, ADOPTION_FEE, canAdoptMore, RESTORATIONS, SHOP } from '../game/rules';
+import {
+  ACTIVITY_ENERGY,
+  ADOPTION_FEE,
+  canAdoptMore,
+  restedToday,
+  RESTORATIONS,
+  SHOP,
+} from '../game/rules';
 import { ageText, FIRST_TRIAL_DAY, nextShowDay, nextTrialDay } from '../game/calendar';
 import {
   adviceFor,
@@ -397,7 +404,9 @@ function Noticeboard({ game }: { game: GameState }) {
     <div className="panel card">
       <div className="kicker">The noticeboard</div>
       <h2>Jobs and requests</h2>
-      <p className="lead">Each job uses one part of the day. You'll travel there in the van.</p>
+      <p className="lead">
+        Each job uses some of your dog's energy. You'll travel there in the van.
+      </p>
       <div className="list">
         {game.jobs.length === 0 && (
           <div className="row">No new notices today. Check again tomorrow.</div>
@@ -421,7 +430,7 @@ function Noticeboard({ game }: { game: GameState }) {
             <span className="badge good">${job.pay}</span>
             <button
               className="button"
-              disabled={game.block === 'night' || !game.dogs.length}
+              disabled={!game.dogs.length}
               onClick={() =>
                 go(
                   job.place === 'orchard'
@@ -706,7 +715,6 @@ function FieldGate({ game }: { game: GameState }) {
   );
   const best = (title: string) =>
     game.results.filter((r) => r.title === title).reduce((b, r) => Math.max(b, r.score), -1);
-  const night = game.block === 'night';
   const lessons = (Object.keys(LESSONS) as Lesson[]).filter(
     (l) => l !== 'indicate' || hasFlag(game, 'restored:scentGarden'),
   );
@@ -715,9 +723,10 @@ function FieldGate({ game }: { game: GameState }) {
       <div className="kicker">Grandpa's training field · {game.block}</div>
       <h2>What shall we work on?</h2>
       <p className="lead">
-        Each choice uses one part of the day and some of {dog.name}'s energy (
-        {Math.round(dog.energy)}% left).
-        {night && " It's dark now: only free play until tomorrow."}
+        Each choice uses some of {dog.name}'s energy ({Math.round(dog.energy)}% left). A dog can
+        work until it is tired, and every dog has its own energy.
+        {dog.energy < ACTIVITY_ENERGY.lesson &&
+          ` ${dog.name} is worn out for today: take another dog out at the kennel runs, or go to bed.`}
       </p>
       <div className="tabs">
         <button
@@ -754,7 +763,6 @@ function FieldGate({ game }: { game: GameState }) {
               <span className="badge">-{ACTIVITY_ENERGY.lesson} energy</span>
               <button
                 className="button"
-                disabled={night}
                 onClick={() => go('Setting up the lesson…', () => startLesson(l))}
               >
                 Train
@@ -790,7 +798,6 @@ function FieldGate({ game }: { game: GameState }) {
                 {!s.free && <span className="badge">-{ACTIVITY_ENERGY.mark} energy</span>}
                 <button
                   className="button"
-                  disabled={night && !s.free}
                   onClick={() => go('Out to the training field…', () => startFieldWork(s))}
                 >
                   {s.free ? 'Play' : 'Go'}
@@ -836,7 +843,6 @@ function FieldGate({ game }: { game: GameState }) {
                     <span className="badge">-{ACTIVITY_ENERGY.agility} energy</span>
                     <button
                       className="button"
-                      disabled={night}
                       onClick={() => go('Out to the agility ring…', () => startAgility(c))}
                     >
                       Run it
@@ -871,7 +877,6 @@ function BeachPanel({ game }: { game: GameState }) {
   if (!dog) return null;
   const best = (title: string) =>
     game.results.filter((r) => r.title === title).reduce((b, r) => Math.max(b, r.score), -1);
-  const night = game.block === 'night';
   return (
     <div className="panel card">
       <div className="kicker">Sandy Cove · {game.block}</div>
@@ -884,7 +889,7 @@ function BeachPanel({ game }: { game: GameState }) {
         <div className="row">
           <div className="grow">
             <div className="title">A run on the sand</div>
-            <div className="sub">Throw the ball, paddle, enjoy your dog. Uses no time.</div>
+            <div className="sub">Throw the ball, paddle, enjoy your dog. Costs no energy.</div>
           </div>
           <button
             className="button"
@@ -912,7 +917,6 @@ function BeachPanel({ game }: { game: GameState }) {
               <span className="badge">-{ACTIVITY_ENERGY.mark} energy</span>
               <button
                 className="button"
-                disabled={night}
                 onClick={() =>
                   go('Driving to Sandy Cove…', () => startFieldWork(s, { place: 'beach' }))
                 }
@@ -939,14 +943,13 @@ function FellTopPanel({ game }: { game: GameState }) {
   if (!dog) return null;
   const best = (title: string) =>
     game.results.filter((r) => r.title === title).reduce((b, r) => Math.max(b, r.score), -1);
-  const night = game.block === 'night';
   return (
     <div className="panel card">
       <div className="kicker">Fell Top Farm · {game.block}</div>
       <h2>Work Sam's sheep</h2>
       <p className="lead">
-        Each run uses one part of the day and some of {dog.name}'s energy ({Math.round(dog.energy)}%
-        left). Any dog can learn, but dogs with focus and a wish to please take to it fastest.
+        Each run uses some of {dog.name}'s energy ({Math.round(dog.energy)}% left). Any dog can
+        learn, but dogs with focus and a wish to please take to it fastest.
       </p>
       <div className="list">
         {legacyReady(game) && (
@@ -994,7 +997,6 @@ function FellTopPanel({ game }: { game: GameState }) {
               <span className="badge">-{ACTIVITY_ENERGY.herding} energy</span>
               <button
                 className="button"
-                disabled={night}
                 onClick={() => go('Driving up to Fell Top…', () => startHerding(p))}
               >
                 Go
@@ -1078,7 +1080,7 @@ function Bed({ game }: { game: GameState }) {
   return (
     <div className="panel card narrow">
       <div className="kicker">The farmhouse</div>
-      <h2>{game.block === 'night' ? 'Time for bed' : `It's ${game.block}`}</h2>
+      <h2>It's {game.block}</h2>
       <div className="button-row">
         <button className="button secondary" onClick={() => useApp.setState({ panel: 'office' })}>
           Grandpa's office (the ledger)
@@ -1113,8 +1115,12 @@ function Bed({ game }: { game: GameState }) {
         <button className="button" onClick={() => go('Goodnight…', goToBed)}>
           Go to bed
         </button>
-        {dog && game.block === 'evening' && (
-          <button className="button secondary" onClick={restEvening}>
+        {dog && !restedToday(game) && dog.energy < 100 && (
+          <button
+            className="button secondary"
+            onClick={restEvening}
+            title="A little energy back, once a day"
+          >
             Rest together a while
           </button>
         )}
@@ -1364,7 +1370,6 @@ function TrialRow({ game }: { game: GameState }) {
   const rules = TRIAL_RULES[level];
   const ranToday = game.trials.some((t) => t.day === game.day && t.dogId === dog.id);
   const days = nextTrialDay(game.day) - game.day;
-  const night = game.block === 'night';
   return (
     <div className="row">
       <div className="grow">
@@ -1384,7 +1389,7 @@ function TrialRow({ game }: { game: GameState }) {
       </div>
       <button
         className="button"
-        disabled={!today || night || game.money < (today?.entryFee ?? 0)}
+        disabled={!today || game.money < (today?.entryFee ?? 0)}
         onClick={() => go('Driving to Larkspur…', () => travel('trial'))}
       >
         {today && game.money < today.entryFee ? `Need $${today.entryFee}` : 'Enter'}
@@ -1402,7 +1407,6 @@ function ShowRow({ game, sport }: { game: GameState; sport: ExtraSport }) {
   const rules = SHOW_RULES[level];
   const ranToday = game.trials.some((t) => t.day === game.day && t.dogId === dog.id);
   const days = nextShowDay(game.day) - game.day;
-  const night = game.block === 'night';
   const problem = days === 0 && !ranToday ? entryProblem(game) : null;
   const what =
     sport === 'agility'
@@ -1429,7 +1433,7 @@ function ShowRow({ game, sport }: { game: GameState; sport: ExtraSport }) {
       </div>
       <button
         className="button"
-        disabled={!today || night || game.money < (today?.entryFee ?? 0)}
+        disabled={!today || game.money < (today?.entryFee ?? 0)}
         onClick={() =>
           go(
             sport === 'agility' ? 'Driving to the village green…' : 'Driving up to Fell Top…',

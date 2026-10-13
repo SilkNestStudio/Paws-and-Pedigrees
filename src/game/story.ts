@@ -179,7 +179,7 @@ function trialObjective(state: GameState): Objective {
         },
         { text: 'Agility show and sheepdog trial: Saturdays. Field trials: Sundays', done: false },
       ],
-      target: !problem && !ran && state.block !== 'night' ? 'van' : null,
+      target: !problem && !ran ? 'van' : null,
     };
   }
   const steps = [
@@ -246,7 +246,7 @@ function trialObjective(state: GameState): Objective {
     title: today && !entered ? 'Trial day at Larkspur' : `${dog.name}'s ${rules.name} title`,
     steps,
     target:
-      today && !entered && state.block !== 'night'
+      today && !entered
         ? 'van'
         : state.food < 2
           ? 'van'
@@ -406,7 +406,7 @@ export const LINES: Record<string, (state: GameState) => Line[]> = {
   dayStartHint: (s) => [
     {
       speaker: 'Mara',
-      text: `${dayName(s.day)}. Remember: each part of the day fits one main job, lesson or practice. Use them well, and keep ${dogName(s)} fed.`,
+      text: `${dayName(s.day)}. Remember: a dog can work until it is tired, and every dog has its own energy. Keep ${dogName(s)} fed.`,
     },
   ],
 };

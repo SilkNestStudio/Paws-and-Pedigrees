@@ -648,13 +648,10 @@ export function raisingActivities(state: GameState): PupActivity[] {
 }
 
 export const canRaiseToday = (state: GameState, litter: Litter): boolean =>
-  litter.puppies.length > 0 && litter.lastSessionDay !== state.day && state.block !== 'night';
+  litter.puppies.length > 0 && litter.lastSessionDay !== state.day;
 
-export const canEvaluate = (state: GameState, litter: Litter): boolean =>
-  litter.puppies.length > 0 &&
-  !litter.evaluated &&
-  litter.puppies.every(puppyReady) &&
-  state.block !== 'night';
+export const canEvaluate = (_state: GameState, litter: Litter): boolean =>
+  litter.puppies.length > 0 && !litter.evaluated && litter.puppies.every(puppyReady);
 
 /** What the session needs to know about each puppy. */
 export function pupInputs(litter: Litter): PupInput[] {

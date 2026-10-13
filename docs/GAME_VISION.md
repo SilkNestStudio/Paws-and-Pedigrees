@@ -95,6 +95,13 @@ Do not build start to finish. Each phase must pass a playtest gate with the owne
   touched". **Not built** (still in the vision): accounts, cloud saves, real purchases and leagues; the show ring,
   tracking and the other sports; regional events; keeper skills; a Hall of Fame. All numbers remain proposals, and
   none of this is validated as fun until testers have played it.
+- **Owner decision (October 12): energy, not the clock, limits a day.** The owner found that training stopped with
+  half the dog's energy unused, and saw that three activities a day shared by the whole kennel would not work with
+  several dogs. The three-parts-of-the-day limit is removed: each dog works until it is tired, each dog has its own
+  energy, and the player goes to bed when they choose. The time of day remains as a clock only. Energy costs were
+  raised a little (lesson 15, field work 22 to 24, agility 20, sheep 22) so one dog gives about four to six pieces of
+  work a day; these are proposals. Consequence to watch in testing: a day with several dogs is longer, so a season
+  takes more real playing time.
 - **Visual inheritance intro is kept.** Recommended form: a short illustrated letter from Grandpa (existing illustrations reusable at first), then the arrival played in 3D — through the gate at dusk, into the trophy room with his photos and ledger, past the empty runs — with kennel naming at the gate sign. Built in Phase 2, after the core mechanics are proven.
 
 ## Read this first

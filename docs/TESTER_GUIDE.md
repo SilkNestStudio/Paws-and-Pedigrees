@@ -71,6 +71,9 @@ Other things to look out for: the seasons change how the place looks; neighbours
 Grandpa's ledger appear as you restore the kennel and tell a story that ends with a new arrival; the **Photo** button
 (top right) saves a picture to your album.
 
+How a day works: a dog can work until it is worn out (the Energy bar, top left), and every dog has its own energy.
+When one is tired, take another out at the kennel runs, or go to bed at the farmhouse door to start the next day.
+
 ## What we would most like to know
 
 1. In the first ten minutes, did you know what to do? Where did you get stuck?

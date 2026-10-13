@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { addFlag, newGame, update, type GameState } from '../src/game/state';
+import { addFlag, migrate, newGame, update, type GameState } from '../src/game/state';
 import { objective, progressStory } from '../src/game/story';
 import {
+  ACTIVITY_ENERGY,
   buy,
   canStartActivity,
   dogAte,
   fillBowl,
   finishActivity,
   petDog,
+  restAtHome,
   restore,
   sleep,
 } from '../src/game/rules';
@@ -81,14 +83,71 @@ describe('the first week', () => {
     });
     expect(s.food).toBe(start - 1);
     expect(s.block).toBe('afternoon');
-    expect(s.dogs[0]!.energy).toBe(78);
-    s = update(s, (d) => {
-      d.block = 'night';
-    });
-    expect(canStartActivity(s, 'mark').ok).toBe(false);
+    expect(s.dogs[0]!.energy).toBe(100 - ACTIVITY_ENERGY.mark);
     s = update(s, (d) => sleep(d));
     expect(s.block).toBe('morning');
     expect(s.bowlFilled).toBe(false); // eaten overnight
+  });
+
+  it('a dog works until it is tired: energy, not the clock, ends its day', () => {
+    let s = adopt(update(newGame(1), (d) => (d.story = 'toShelter')));
+    s = update(s, (d) => {
+      d.dogs[0]!.energy = 100;
+      d.dogs[0]!.fullness = 100;
+      d.block = 'morning';
+    });
+    // Lessons go on well past three, and the clock stops at evening.
+    let lessons = 0;
+    while (canStartActivity(s, 'lesson').ok) {
+      s = update(s, (d) => {
+        finishActivity(d, { kind: 'lesson', title: 'Sit on cue', score: 50, grade: 'Good' });
+      });
+      lessons++;
+    }
+    expect(lessons).toBe(Math.floor(100 / ACTIVITY_ENERGY.lesson));
+    expect(lessons).toBeGreaterThan(3);
+    expect(s.block).toBe('evening');
+    const tired = canStartActivity(s, 'lesson');
+    expect(tired.ok).toBe(false);
+    expect(!tired.ok && tired.reason).toMatch(/worn out/);
+    expect(!tired.ok && tired.reason).not.toMatch(/another dog/);
+    // Work makes a dog hungry.
+    expect(s.dogs[0]!.fullness).toBeLessThan(80);
+    // A second dog has its own energy.
+    s = update(s, (d) => {
+      const other = structuredClone(d.dogs[0]!);
+      other.id = 'second';
+      other.name = 'Second';
+      other.energy = 100;
+      d.dogs.push(other);
+    });
+    const withFresh = canStartActivity(s, 'lesson');
+    expect(!withFresh.ok && withFresh.reason).toMatch(/another dog/);
+    s = update(s, (d) => {
+      d.activeDogId = 'second';
+    });
+    expect(canStartActivity(s, 'mark').ok).toBe(true);
+    // One quiet rest a day gives a little back.
+    s = update(s, (d) => {
+      d.activeDogId = d.dogs[0]!.id;
+      const before = d.dogs[0]!.energy;
+      expect(restAtHome(d)).toBe(true);
+      expect(d.dogs[0]!.energy).toBe(before + 15);
+      expect(restAtHome(d)).toBe(false);
+    });
+    s = update(s, (d) => void sleep(d));
+    expect(update(s, (d) => void expect(restAtHome(d)).toBe(true))).toBeTruthy();
+  });
+
+  it('a save left at night under the old rule wakes up in the evening', () => {
+    const old = adopt(update(newGame(1), (d) => (d.story = 'toShelter'))) as unknown as Record<
+      string,
+      unknown
+    >;
+    old.block = 'night';
+    const s = migrate(structuredClone(old))!;
+    expect(s.block).toBe('evening');
+    expect(canStartActivity(s, 'lesson').ok).toBe(true);
   });
 
   it('money buys food and the scent garden', () => {
