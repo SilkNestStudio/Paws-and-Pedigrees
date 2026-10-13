@@ -28,6 +28,9 @@ const walkTo = async (x, z) => {
   }
 };
 const menu = async (button) => {
+  // A torn page of Grandpa's ledger may be read out first; let it finish.
+  await wait(1200);
+  await dialogs();
   await page.keyboard.press('Escape');
   await wait(300);
   await clickButton(button);
@@ -118,7 +121,11 @@ await dialogs();
 await wait(500);
 await page.screenshot({ path: '.browser.local/rep-02-season-news.png' });
 if ((await panel()) === 'season') await clickButton('On to');
-await wait(400);
+// Torn pages found along the way are read out one at a time: let them all finish.
+for (let i = 0; i < 6; i++) {
+  await wait(1100);
+  await dialogs();
+}
 await walkTo(-16, 56.4);
 await page.keyboard.press('KeyE');
 await wait(600);

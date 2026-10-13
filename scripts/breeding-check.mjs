@@ -56,6 +56,9 @@ const walkTo = async (x, z) => {
   }
 };
 const menu = async (button) => {
+  // A torn page of Grandpa's ledger may be read out first; let it finish.
+  await wait(1200);
+  await finishDialogs();
   await page.keyboard.press('Escape');
   await wait(300);
   await clickButton(button);

@@ -56,7 +56,9 @@ function Title() {
             {game && game.story !== 'letter' ? 'New game' : 'Begin'}
           </button>
         </div>
-        <div className="title-note">The first week · an early test version</div>
+        <div className="title-note">
+          Test build · October 2026 · Menu has a handbook and tester shortcuts
+        </div>
       </div>
     </div>
   );

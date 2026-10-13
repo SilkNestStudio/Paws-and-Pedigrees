@@ -78,6 +78,23 @@ Do not build start to finish. Each phase must pass a playtest gate with the owne
   Earlier the same week: the spinning head was traced to bone overlays accumulating in still poses and fixed; every
   usable place at home is marked; lessons were retuned so beginner dogs offer something to reward, with coaching
   until 40% skill; the goal card spells out qualifying runs and which lessons to train. Numbers are proposals.
+- **Build finished for outside testing (October 12):** the owner asked for the rest of the approved list to be
+  finished so the game can go to testers. Built, in addition to the items above: agility (Grandpa's ring, three
+  practice courses, a Saturday show, titles AN/AO/AX) where the dog takes the obstacle the handler runs toward;
+  sheep work at Fell Top Farm (flocking sheep, five commands from a post, gates and a pen, a Saturday trial, titles
+  HN/HO/HX); the Hollowmere Cup as a yearly kennel event (four rounds, one of each kind of work, the player chooses
+  which dog runs each, at most two rounds per dog); old age, retirement to the farmhouse and mentoring; Grandpa's
+  torn ledger pages, ending with Wren, the last of his line, coming home from Fell Top; the vet, the breeders'
+  market and Sandy Cove; seasons that change the look of every place and nudge scent and stamina; visitors at the
+  gate, dogs that greet you from their runs, a photo album and a trophy shelf; a handbook of every how-to card and
+  more tester shortcuts. Rules and details: [The first week, and everything after it](FIRST_WEEK.md); a guide for
+  testers: [TESTER_GUIDE.md](TESTER_GUIDE.md). **Decisions made while building, for the owner to confirm or change:**
+  each sport keeps its own titles and a dog enters one event a day; the Cup is by invitation (reputation 25 or an
+  Open title) and needs two dogs; dogs may retire from seven, slow from nine and retire themselves at twelve; a
+  retired dog cannot breed; market dogs are bought with in-game money and marked "purchased" but not "premium
+  touched". **Not built** (still in the vision): accounts, cloud saves, real purchases and leagues; the show ring,
+  tracking and the other sports; regional events; keeper skills; a Hall of Fame. All numbers remain proposals, and
+  none of this is validated as fun until testers have played it.
 - **Visual inheritance intro is kept.** Recommended form: a short illustrated letter from Grandpa (existing illustrations reusable at first), then the arrival played in 3D — through the gate at dusk, into the trophy room with his photos and ledger, past the empty runs — with kennel naming at the gate sign. Built in Phase 2, after the core mechanics are proven.
 
 ## Read this first

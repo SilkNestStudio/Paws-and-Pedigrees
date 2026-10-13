@@ -1,8 +1,9 @@
-# The first week
+# The first week, and everything after it
 
-Status: playable test build, updated October 3, 2026. The first week is a shallow but complete slice of the real
-day-to-day game; since October 3 play carries on past it, with seasons, weekly trials, more dogs and water work (see
-"After the first week" below). It replaces the earlier Phase 1 field test.
+Status: test build for outside testers, updated October 12, 2026. The first week is the guided opening; play carries
+on past it with seasons, three sports, breeding, the Hollowmere Cup, retirement and the story of Grandpa's torn pages
+(sections below, in the order they were added). A short guide written for testers is in
+[TESTER_GUIDE.md](TESTER_GUIDE.md).
 
 ## What happens
 
@@ -84,6 +85,86 @@ day-to-day game; since October 3 play carries on past it, with seasons, weekly t
   run for that kennel at Larkspur, with genes that really are half his.
 - **Kennel type:** once five puppies have been bred, the ledger says what the kennel's dogs are becoming known for.
 
+## Agility (added October 12)
+
+- **Start:** restore Grandpa's agility ring ($110) from the field gate's Agility tab. It stands in the east corner of
+  the training field.
+- **How it plays:** you run the numbered obstacles with your dog. The dog takes the obstacle you are running toward,
+  so the line you run decides the round. "Go!" / "Go on" (Space) starts the run and sends the dog ahead to the
+  obstacle in front of it; "Here" (R) calls it off a wrong one; "Easy" (F) steadies it for a tight turn or the
+  A-frame's yellow contact. A course map shows the numbers, you and your dog.
+- **Scoring:** 100, less 5 for each bar down, refusal, missed contact or popped weave, 20 for a wrong obstacle, and 2
+  for each second over the standard time.
+- **Practice:** three courses (four jumps; jump, tunnel and turn; a full ten-obstacle course). A session is three
+  runs and uses one part of the day. Obstacles taken cleanly build the Obstacles skill; simple courses stop teaching
+  once outgrown (35% and 60%).
+- **Shows:** every Saturday from day 13 on the village green: two rounds, the second over the mirrored course.
+  A qualifying run is 50+ in each round and 110+ in total; two earn the title (AN, AO, AX). Entry $8, $15, $25.
+
+## Sheep work (added October 12)
+
+- **Where:** Fell Top Farm, by van, any day after the Fun Day. No restoration needed.
+- **How it plays:** you stand at the post and work the dog by command: "Come by" (A) sends it round the sheep to the
+  left, "Away" (D) to the right, "Walk up" (W) straight onto them, "Lie down" (Space or S) stops it, "That'll do" (R)
+  calls it back. Sheep move away from the dog and bunch as they go, so the dog belongs on the far side of the sheep
+  from where you want them. Rushing in close scatters the flock.
+- **A run:** send the dog round behind the sheep (the outrun), bring them through each pair of gates in order, and
+  pen them. The tip at the bottom of the screen says what a good handler would ask for, and that button glows.
+- **Scoring (of 100):** outrun 10, gates 40, pen 30, straight lines 10, pace 10, less 4 each time the sheep scatter.
+- **Courses:** Gather and pen (3 sheep); Gather, drive and pen (4); the full course with a cross-drive (5, flightier
+  sheep, narrower gates). Every run builds the Herding skill: a green dog ignores stops, takes the wrong side and
+  creeps; a trained one stops first time and keeps wide.
+- **Trials:** every Saturday at Fell Top: two runs, the second mirrored; titles HN, HO, HX. A dog can enter one event
+  a day.
+
+## The Hollowmere Cup (added October 12)
+
+- **When:** the last Sunday of winter each year (day 28, 56, …), at Larkspur, in place of the ordinary trial.
+- **Entry:** by invitation: reputation 25 or an Open title in any sport, two dogs fit to run, and $40.
+- **Format:** four rounds, one of each kind of work: a double mark, a water blind, an agility round, and sheep. Before
+  each round you choose which of your dogs runs it; no dog may run more than two. Four rival kennels, each with its
+  own strengths, run the same rounds.
+- **Prizes:** $400, $220, $120; a win adds 15 reputation and is recorded in the ledger and on the trophy shelf.
+
+## Old age and retirement (added October 12)
+
+- Dogs slow down from nine years (speed and stamina) and more from eleven. Nobody dies.
+- From seven a dog can be retired from its page in the office ledger; at twelve it retires itself at the change of
+  season. A retired dog lives at the farmhouse, frees its run, and cannot work, compete or breed.
+- **Mentoring:** with retired dogs about, working dogs learn faster in lessons, agility and herding: 10% for each
+  titled veteran, 4% for others, up to 25%.
+
+## Grandpa's torn pages (added October 12)
+
+- Five pages are missing from the ledger. Each turns up after something you do: restoring the whelping room; a first
+  title in any sport; two of the other three restorations; reputation 25; breeding a first litter. They are read
+  aloud at the next quiet moment at home and kept under "Torn pages" in the office.
+- With all five, and after working Sam Pennock's sheep at least once, "Show Sam the torn pages" appears at Fell Top.
+  It brings home Wren, a young black bitch with one white toe: the last of Grandpa's Tam and Nell line, with her
+  pedigree recorded. She needs a free run.
+
+## The village and Sandy Cove (added October 12)
+
+- **The vet:** a check-up ($15) measures speed, agility, stamina and power exactly; DNA tests ($25); a scan ($20)
+  counts the puppies a dam is carrying. Visits use no time.
+- **Breeders' market:** on the first two days of each season, three youngsters (six or nine months old) by stud-book
+  sires, $120 to $480, with pedigrees; and kibble by the sack (20 meals, $50). Bought dogs are marked as purchased.
+- **Sandy Cove:** the beach. A run on the sand (free play, no time used), and two water marks in the sea. The first
+  visit each day adds a little bond.
+
+## Seasons, visitors, photos and trophies (added October 12)
+
+- **Seasons look different:** spring is fresh with blossom on the apple trees, autumn turns the leaves and grass
+  gold, winter frosts everything. Each also nudges the work: summer heat tires dogs sooner and carries less scent,
+  autumn's damp air holds scent, winter dogs keep going longer. The season recap says so.
+- **Visitors at the gate:** Mara every third day with a tip (and two meals if the pantry is nearly empty); Sam on a
+  Friday with an invitation to Fell Top; Dora about the agility ring; Victor Sterling the day you have a titled dog.
+  A toast says who is at the gate; walk up and press E.
+- **Dogs in the runs** get up, turn to watch you and wag as you come near, and settle when you leave.
+- **Photos:** the Photo button (top right) saves the view to an album of twelve at the farmhouse.
+- **Trophy shelf:** at the farmhouse, everything the kennel has won or restored.
+- **The handbook:** Menu → How to play gathers every how-to card.
+
 ## Systems in the slice
 
 - **Time:** each day has morning, afternoon and evening. Lessons, field work, jobs and competitions each use one part
@@ -117,8 +198,10 @@ day-to-day game; since October 3 play carries on past it, with seasons, weekly t
 
 ## Tester tools
 
-Menu → Tester tools: +$200 and food, skip a day, skip to Sunday (trial day), adopt instantly, delete the save, and the
-dog's hidden aptitudes.
+Menu → Tester tools: +$200 and food; skip a day, to Saturday (shows), to Sunday (trial) or to Cup day; skip the first
+week (gives a dog and opens everything after the Fun Day); train every dog to 75%; age every dog a year; skip to the
+litter or until the puppies can leave (when relevant); adopt instantly; delete the save; and the dog's hidden
+aptitudes.
 
 ## Lessons and trial guidance (added October 7)
 
@@ -152,16 +235,24 @@ dog's hidden aptitudes.
 
 - Buildings, trees, hedges, fences and yard items are Blender-made (`public/models/props.glb`, laid out in `src/render/world/PropWorld.tsx`). Foliage is smooth blobs that don't sway yet, windows and doors are solid, and props have no collision except the buildings at home.
 - Characters are Blender-made but still procedural art: no blinking or facial expressions yet, and some foot sliding at unusual speeds. A hired artist could replace the base models later without changing the game.
-- Retirement, old age, puppy training classes, regional and national events, and other disciplines (agility, herding)
-  are not built yet. Trial and breeding rules and prices are first proposals, open to tuning. Whether a puppy inherits
-  a parent's "premium touched" record is set to yes for now; the fair-league rule is still open.
-- Dogs in the runs are shown resting; they don't move about yet.
-- Saves are local to the browser (IndexedDB database `paws-rebuild`).
+- Not built: accounts, cloud saves, purchases and leagues; the show ring, tracking and the other sports in the
+  vision; regional events; keeper skills; a Hall of Fame. Every rule, price and score is a first proposal, open to
+  tuning. Whether a puppy inherits a parent's "premium touched" record is set to yes for now; the fair-league rule is
+  still open.
+- The handler does not move during sheep work, and sheep and agility equipment are simple code-built shapes.
+- Photographs are stored inside the save (about 30 KB each, twelve at most); a cloud version should store them apart.
+- Saves are local to the browser (IndexedDB database `paws-rebuild`, version 5; older saves upgrade on load).
 
 ## Checking it
 
-- `npm test`: rules, simulations, story, rivals, seasons, trials, adoption, water, breeding, puppy raising and
-  reputation (81 tests).
+- `npm test`: rules, simulations, story, rivals, seasons, trials, adoption, water, breeding, puppy raising,
+  reputation, agility, herding, the Cup, retirement, the torn pages, the vet, the market, visitors and trophies
+  (123 tests).
+- `node scripts/agility-check.mjs`, `herding-check.mjs`: practise each sport with real key presses or button taps,
+  then enter the Saturday event.
+- `node scripts/latergame-check.mjs`: the Cup's four rounds, the vet, the market, a torn page, retirement and Wren.
+- `node scripts/seasons-check.mjs`, `life-check.mjs [label] [--phone]`: home in each season and a beach mark; a
+  visitor, the runs, a photograph, the album, the handbook and the van.
 - `node scripts/week-playthrough.mjs [label] [phone]`: plays the first week, the season change, a Larkspur trial and a
   second adoption in Edge, with screenshots in `.browser.local/` (dev server on port 5180).
 - `node scripts/water-check.mjs [label]`: restores the pond, runs the three water set-ups and an Open water round.
