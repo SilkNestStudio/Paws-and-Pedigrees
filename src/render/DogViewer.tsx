@@ -97,13 +97,20 @@ export default function DogViewer() {
   const [poseIndex, setPoseIndex] = useState(Number(params.get('pose') ?? 0));
   const [spin, setSpin] = useState(false);
   const dogs = useMemo(() => generateShelterTrio(createRng(seed)), [seed]);
+  // cam=head&dog=0..2 frames one dog's head, for checking faces.
+  const headX = (Number(params.get('dog') ?? 1) - 1) * 1.4;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#dfe7d8' }}>
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
         camera={{
-          position: params.get('cam') === 'close' ? [0.9, 0.55, 1.3] : [0, 1.4, 4.2],
+          position:
+            params.get('cam') === 'head'
+              ? [headX + 0.75, 0.72, 1.15]
+              : params.get('cam') === 'close'
+                ? [0.9, 0.55, 1.3]
+                : [0, 1.4, 4.2],
           fov: 40,
         }}
       >
@@ -137,7 +144,15 @@ export default function DogViewer() {
             />
           )}
         </Turntable>
-        <OrbitControls target={params.get('cam') === 'close' ? [0, 0.35, 0] : [0, 0.4, 0]} />
+        <OrbitControls
+          target={
+            params.get('cam') === 'head'
+              ? [headX + 0.3, 0.5, 0]
+              : params.get('cam') === 'close'
+                ? [0, 0.35, 0]
+                : [0, 0.4, 0]
+          }
+        />
       </Canvas>
       <div
         style={{

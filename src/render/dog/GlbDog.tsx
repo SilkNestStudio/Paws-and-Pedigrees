@@ -162,8 +162,11 @@ function morphsFor(b: BodyShape): Record<string, number> {
     body_long: clamp01((b.bodyRatio - 1.12) / 0.23),
     body_short: clamp01((1.12 - b.bodyRatio) / 0.17),
     chest_deep: clamp01((b.chestDepth - 0.5) / 0.45),
-    muzzle_long: clamp01((b.muzzle - 0.85) / 0.4),
-    muzzle_short: clamp01((0.85 - b.muzzle) / 0.5),
+    // The model's own muzzle is a short-faced dog's (about half the skull's
+    // length), so every dog gets some of the long-muzzle shape: none for the
+    // shortest faces, a little over 1 for a typical dog, up to 2 for the longest.
+    muzzle_long: Math.max(0, Math.min(2, ((b.muzzle - 0.35) / 0.9) * 2)),
+    muzzle_short: 0,
     head_wide: clamp01((b.headWidth - 1) / 0.25),
     stocky: clamp01((b.headWidth - 1) / 0.25 + (b.chestDepth - 0.5)) * 0.7,
     slim: clamp01((1 - b.headWidth) / 0.18) * 0.7,
@@ -262,6 +265,8 @@ function buildRig(
     for (let i = 0; i < rest.length; i += 3)
       centre.add(new THREE.Vector3(rest[i], rest[i + 1], rest[i + 2]));
     centre.divideScalar(rest.length / 3).add(new THREE.Vector3(0, -0.07, -0.06));
+    // A longer muzzle carries the nose forward; the grip moves part of the way with it.
+    centre.add(new THREE.Vector3(0, -0.006, 0.033).multiplyScalar(morphs.muzzle_long ?? 0));
     mouth.position.copy(headBone.worldToLocal(centre));
   }
   headBone.add(mouth);

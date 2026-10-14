@@ -11,10 +11,12 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 for (const pose of poses) {
   await page.goto(
-    `http://127.0.0.1:5180/?view=dogs&seed=${seed}&pose=${pose}${process.env.KEEPER ? '&keeper=1' : ''}${process.env.CAM ? `&cam=${process.env.CAM}` : ''}`,
+    `http://127.0.0.1:5180/?view=dogs&seed=${seed}&pose=${pose}${process.env.KEEPER ? '&keeper=1' : ''}${process.env.CAM ? `&cam=${process.env.CAM}` : ''}${process.env.DOG ? `&dog=${process.env.DOG}` : ''}`,
   );
   await page.waitForTimeout(1800);
-  await page.screenshot({ path: `.browser.local/${label}-s${seed}-p${pose}.png` });
+  await page.screenshot({
+    path: `.browser.local/${label}-s${seed}-p${pose}${process.env.DOG ? `-d${process.env.DOG}` : ''}.png`,
+  });
 }
 await browser.close();
 console.log(errors.length ? errors.join('\n') : 'ok');
