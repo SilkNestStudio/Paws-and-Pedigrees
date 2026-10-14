@@ -54,7 +54,7 @@ import {
   placePuppy,
   register as registerDog,
 } from '../game/breeding';
-import { formatGenotype } from '../core/genetics/loci';
+import { dnaInWords } from '../core/genetics/explain';
 import { setAtStud, studFee, studProblem, studPupDue } from '../game/reputation';
 import type { RaisingLine } from '../game/breeding';
 import {
@@ -382,7 +382,8 @@ export const INTROS: Record<string, { title: string; lines: string[] }> = {
     title: 'Breeding',
     lines: [
       'Pick a dam (one of your females, 18 months or older) and a sire: one of your own males, or a stud from the stud book for a fee.',
-      'The forecast shows what the puppies are likely to be. Talent ranges come from what you know about the parents, so dogs you have worked a lot give clearer forecasts. A DNA test reveals coat genes, so you can see likely colours.',
+      'The forecast shows what the puppies are likely to be. Talent ranges come from what you know about the parents, so dogs you have worked a lot give clearer forecasts.',
+      'DNA is about looks only: colour, pattern and coat length. A dog can carry a colour without showing it, and it appears in puppies only when both parents carry it. With both parents DNA tested, the forecast shows the chance of each colour.',
       'Puppies arrive five days after mating, each with its own mix of genes. At three months, keep the best (each needs a run) and place the rest in good homes.',
     ],
   },
@@ -1828,8 +1829,7 @@ export function runDnaTest(dogId: string): void {
     ok = dnaTest(g, dogId);
   });
   const dog = game().dogs.find((d) => d.id === dogId);
-  if (ok && dog)
-    toast(`${dog.name}'s coat genes are in: ${formatGenotype(dog.genome.loci)}.`, 'good');
+  if (ok && dog) toast(`${dog.name}'s DNA results are in. ${dnaInWords(dog.genome.loci)}`, 'good');
   else toast('Could not test: check your money.', 'warn');
 }
 

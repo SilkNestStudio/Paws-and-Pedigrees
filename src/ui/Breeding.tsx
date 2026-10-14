@@ -4,6 +4,7 @@ import { describe as describeEstimate } from '../core/dog/knowledge';
 import { deriveCoat } from '../core/genetics/coat';
 import { describeMix } from '../core/genetics/breeds';
 import { formatGenotype } from '../core/genetics/loci';
+import { dnaInWords } from '../core/genetics/explain';
 import { APTITUDE_LABELS, type Aptitude } from '../core/genetics/traits';
 import { PUP_ACTIVITIES } from '../sim/puppies';
 import { ageText } from '../game/calendar';
@@ -210,6 +211,12 @@ function PlanTab({ game }: { game: GameState }) {
           </div>
 
           <h4>Likely coats</h4>
+          {f.coats && (
+            <p className="small">
+              The chance of each colour for any one puppy. Looks only: colour doesn't change how a
+              dog works.
+            </p>
+          )}
           {f.coats ? (
             <div className="coat-odds">
               {f.coats.map((c) => (
@@ -225,8 +232,9 @@ function PlanTab({ game }: { game: GameState }) {
             </div>
           ) : (
             <div className="small">
-              Coat genes can hide. A DNA test on both parents shows the likely puppy colours (studs
-              are already tested).
+              A dog can carry a colour it doesn't show: two black dogs can have chocolate or yellow
+              puppies. A DNA test on both parents shows the likely puppy colours (studs are already
+              tested). Colour is looks only; it doesn't change how a dog works.
               <div className="button-row">
                 {[dam, sire]
                   .filter((d) => !d.dnaTested)
@@ -534,9 +542,10 @@ function StudsTab({ game }: { game: GameState }) {
     <div className="list">
       <OwnStuds game={game} />
       <p className="small">
-        Proven dogs from other kennels. Their owners publish DNA results and what the dogs have
-        shown in trials.
+        Proven dogs from other kennels. Their owners publish what the dogs have shown in trials and
+        their DNA results.
       </p>
+      <DnaExplained />
       {studs.map((s) => {
         const best = Object.entries(s.known)
           .map(([a, e]) => ({ a, mid: (e!.lo + e!.hi) / 2 }))
@@ -560,12 +569,44 @@ function StudsTab({ game }: { game: GameState }) {
                   )
                   .join(', ')}
               </div>
-              <div className="sub mono">DNA: {formatGenotype(s.dog.genome.loci)}</div>
+              <DnaResult dog={s.dog} />
             </div>
             <span className="badge">${s.fee}</span>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** What a DNA test is for, said once at the top of the stud book. */
+function DnaExplained() {
+  return (
+    <div className="dna-explained small">
+      <b>What the DNA line means.</b> DNA here is about looks only: colour, pattern and coat length.
+      It says nothing about ability (that is the Strengths line). A dog can carry a colour without
+      showing it. A carried colour appears in puppies only when the other parent has it too, shown
+      or carried; with two carriers, about one puppy in four shows it. So the DNA line matters if
+      you want, or want to avoid, a particular colour. Pick a pairing on the Plan tab and the odds
+      are worked out for you.
+    </div>
+  );
+}
+
+/** A dog's DNA result in plain words, with the breeders' codes folded away. */
+function DnaResult({ dog }: { dog: Dog }) {
+  return (
+    <div className="sub dna-result">
+      <b>DNA:</b> {dnaInWords(dog.genome.loci)}
+      <details>
+        <summary>Gene codes</summary>
+        <span className="mono">{formatGenotype(dog.genome.loci)}</span>
+        <div>
+          For breeders who know them, two copies of each gene: E yellow or red, K solid or brindle,
+          A pattern, B chocolate, D dilute, M merle, S white, T ticking, L coat length, F beard, Cu
+          curl. A small letter is the hidden (recessive) form.
+        </div>
+      </details>
     </div>
   );
 }
@@ -626,7 +667,7 @@ export function PedigreeBlock({ game, dog }: { game: GameState; dog: Dog }) {
         </p>
       )}
       {dog.dnaTested ? (
-        <p className="small mono">DNA (coat): {formatGenotype(dog.genome.loci)}</p>
+        <DnaResult dog={dog} />
       ) : (
         hasFlag(game, 'restored:whelpingRoom') && (
           <button className="link" onClick={() => runDnaTest(dog.id)}>

@@ -160,7 +160,7 @@ export function VetPanel({ game }: { game: GameState }) {
                   className="button secondary small"
                   disabled={d.dnaTested || game.money < BREEDING.dnaTestCost}
                   onClick={() => runDnaTest(d.id)}
-                  title="Shows the coat genes this dog carries"
+                  title="Shows any colours this dog carries without showing them"
                 >
                   {d.dnaTested ? 'DNA tested' : `DNA test $${BREEDING.dnaTestCost}`}
                 </button>
@@ -179,8 +179,9 @@ export function VetPanel({ game }: { game: GameState }) {
         })}
       </div>
       <p className="small">
-        A check-up measures speed, agility, stamina and power exactly. A DNA test shows coat genes,
-        for forecasting puppies' colours. A scan counts the puppies on the way.
+        A check-up measures speed, agility, stamina and power exactly. A DNA test shows any colours
+        a dog carries without showing, for forecasting puppies' colours. A scan counts the puppies
+        on the way.
       </p>
       <div className="button-row">
         <button className="button secondary" onClick={close}>

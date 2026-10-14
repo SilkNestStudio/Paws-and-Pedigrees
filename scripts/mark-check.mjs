@@ -54,7 +54,6 @@ const walkTo = async (x, z) => {
   }
 };
 
-
 await page.goto('http://127.0.0.1:5180/');
 await page.evaluate(() => indexedDB.deleteDatabase('paws-rebuild'));
 await page.reload();
@@ -91,7 +90,10 @@ for (const seed of [11, 222, 3333, 44444, 555555, 6666666]) {
   await walkTo(24, 69);
   await page.keyboard.press('KeyE');
   await wait(500);
-  await page.locator('.row', { hasText: 'Larkspur trial ground' }).getByRole('button', { name: 'Enter' }).click();
+  await page
+    .locator('.row', { hasText: 'Larkspur trial ground' })
+    .getByRole('button', { name: 'Enter' })
+    .click();
   await wait(2400);
   await finishDialogs();
   await closeIntro();
@@ -104,7 +106,16 @@ for (const seed of [11, 222, 3333, 44444, 555555, 6666666]) {
     item = await page.evaluate(() => {
       const f = window.__game.live.field;
       const it = f?.items.find((i) => i.kind === 'mark');
-      return it ? { state: it.state, pos: it.pos, landing: it.landing, hidden: it.hiddenInCover, phase: f.phase, mode: f.dog.mode } : null;
+      return it
+        ? {
+            state: it.state,
+            pos: it.pos,
+            landing: it.landing,
+            hidden: it.hiddenInCover,
+            phase: f.phase,
+            mode: f.dog.mode,
+          }
+        : null;
     });
     if (item?.state === 'lying') break;
   }
@@ -124,7 +135,14 @@ for (const seed of [11, 222, 3333, 44444, 555555, 6666666]) {
       const f = window.__game.live.field;
       if (!f) return null;
       const it = f.items.find((i) => i.kind === 'mark');
-      return { phase: f.phase, mode: f.dog.mode, state: it.state, t: f.time, d: Math.hypot(f.dog.pos.x - it.pos.x, f.dog.pos.z - it.pos.z), events: f.events.slice(-3).map((e) => e.text) };
+      return {
+        phase: f.phase,
+        mode: f.dog.mode,
+        state: it.state,
+        t: f.time,
+        d: Math.hypot(f.dog.pos.x - it.pos.x, f.dog.pos.z - it.pos.z),
+        events: f.events.slice(-3).map((e) => e.text),
+      };
     });
     if (!s) break;
     modes.add(s.mode);

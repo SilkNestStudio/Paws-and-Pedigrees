@@ -108,6 +108,14 @@ if ((await panel()) === 'intro') {
   await wait(400);
 }
 await shot('plan-empty');
+await clickButton('Stud book');
+await wait(300);
+await shot('stud-book');
+await page.locator('.dna-result summary').first().click();
+await wait(200);
+await shot('stud-book-codes');
+await clickButton('Plan a litter');
+await wait(300);
 await page.locator('.pick', { hasText: 'Hartley Rowan' }).click();
 await wait(300);
 await shot('plan-stud');

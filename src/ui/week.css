@@ -1020,3 +1020,22 @@ details.help .steps {
   padding: 10px 14px;
   margin: 0 0 12px;
 }
+
+/* DNA in plain words */
+.dna-explained {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+.dna-result details {
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.dna-result summary {
+  cursor: pointer;
+  text-decoration: underline;
+  width: max-content;
+}

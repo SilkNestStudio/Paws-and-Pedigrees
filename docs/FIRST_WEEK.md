@@ -60,6 +60,10 @@ on past it with seasons, three sports, breeding, the Hollowmere Cup, retirement 
 - **Puppies' futures:** at three months (the next season) keep a puppy (it needs one of the six runs; field work
   from nine months) or place it with a family for a fee that rises with the parents' titles, the puppy's quality and
   your trial record. Puppies still undecided at six months are placed for half the fee.
+- **DNA in plain words (October 13):** a DNA result is shown as what the dog carries without showing ("Carries
+  without showing: chocolate and a long coat", or "Carries nothing hidden"), with the breeders' gene codes folded
+  away under "Gene codes". The stud book explains that DNA is about looks only and that a carried colour shows in
+  puppies only when the other parent has it too.
 - **Records:** every dog's sire, dam and grandparents, the breeder, its litters and (once tested) its coat genotype
   appear in the office ledger.
 - **Tester tools:** "Skip to the litter" and "Skip until the puppies can leave" appear in the menu when relevant.

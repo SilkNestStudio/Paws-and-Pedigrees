@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRng, gaussian } from '../src/core/rng';
 import { createFounderGenome, inheritGenome, type Genome } from '../src/core/genetics/genome';
 import { deriveCoat } from '../src/core/genetics/coat';
+import { dnaInWords, hiddenTraits } from '../src/core/genetics/explain';
 import { formatGenotype, type Genotype } from '../src/core/genetics/loci';
 import { HERITABILITY, traitZ } from '../src/core/genetics/traits';
 import { aptitude, coatOf, generateShelterTrio } from '../src/core/dog/dog';
@@ -166,5 +167,69 @@ describe('shelter dogs', () => {
       expect(coats.size).toBe(3);
       for (const dog of trio) expect(aptitude(dog, 'nose')).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+describe('DNA in plain words', () => {
+  const base = createFounderGenome(createRng(1), 'labrador').loci;
+  const with_ = (change: Partial<typeof base>) => ({ ...base, ...change });
+  const black = with_({
+    E: ['E', 'E'],
+    K: ['KB', 'KB'],
+    B: ['B', 'B'],
+    D: ['D', 'D'],
+    S: ['S', 'S'],
+    L: ['L', 'L'],
+    M: ['m', 'm'],
+  });
+
+  it('a dog with nothing hidden says so', () => {
+    expect(hiddenTraits(black)).toEqual([]);
+    expect(dnaInWords(black)).toMatch(/nothing hidden/);
+  });
+
+  it('names the colours a dog carries without showing, with no gene codes', () => {
+    const carrier = with_({ ...black, E: ['E', 'e'], B: ['B', 'b'], L: ['L', 'l'] });
+    expect(hiddenTraits(carrier)).toEqual(['yellow or red', 'chocolate', 'a long coat']);
+    const words = dnaInWords(carrier);
+    expect(words).toBe('Carries without showing: yellow or red, chocolate and a long coat.');
+    expect(words).not.toMatch(/[A-Za-z]+\/[A-Za-z]+/);
+  });
+
+  it('a yellow coat hides the dark colour underneath', () => {
+    expect(hiddenTraits(with_({ ...black, E: ['e', 'e'] }))).toContain(
+      'black (under the yellow or red coat)',
+    );
+    expect(hiddenTraits(with_({ ...black, E: ['e', 'e'], B: ['b', 'b'] }))).toContain(
+      'chocolate (under the yellow or red coat)',
+    );
+  });
+
+  it('a solid coat with one pattern gene underneath can pass the pattern on', () => {
+    const hides = with_({ ...black, K: ['KB', 'ky'], A: ['at', 'at'] });
+    expect(hiddenTraits(hides)).toContain('tan points (as in black and tan)');
+    // Two copies of solid: every puppy is solid, so nothing shows.
+    expect(hiddenTraits(with_({ ...black, A: ['at', 'at'] }))).toEqual([]);
+    // A pattern that shows is not hidden; the weaker gene behind it is.
+    const sable = with_({ ...black, K: ['ky', 'ky'], A: ['ay', 'at'] });
+    expect(hiddenTraits(sable)).toEqual(['tan points (as in black and tan)']);
+  });
+
+  it('what it says is carried really does turn up in puppies', () => {
+    // Two black chocolate-carriers: about a quarter of the puppies are chocolate.
+    const rng = createRng(9);
+    const parent = createFounderGenome(rng, 'labrador');
+    parent.loci = with_({ ...black, B: ['B', 'b'] });
+    expect(hiddenTraits(parent.loci)).toEqual(['chocolate']);
+    let chocolate = 0;
+    for (let i = 0; i < 400; i++)
+      if (deriveCoat(inheritGenome(rng, parent, parent, 0)).name.includes('chocolate')) chocolate++;
+    expect(chocolate).toBeGreaterThan(70);
+    expect(chocolate).toBeLessThan(130);
+    // With a mate who doesn't carry it: none.
+    const clear = createFounderGenome(rng, 'labrador');
+    clear.loci = black;
+    for (let i = 0; i < 100; i++)
+      expect(deriveCoat(inheritGenome(rng, parent, clear, 0)).name).not.toContain('chocolate');
   });
 });
