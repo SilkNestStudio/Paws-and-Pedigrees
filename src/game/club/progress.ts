@@ -1,4 +1,5 @@
 import { useGameStore } from '../../stores/gameStore';
+import type { Dog } from '../../types';
 import { activityRestriction } from '../../utils/dogDevelopment';
 import { checkBondLevelUp } from '../../utils/bondSystem';
 import { checkLevelUp, getLevelFromXP } from '../../utils/levelProgression';
@@ -37,11 +38,21 @@ export function leaveClubRun() {
   const s = useGameStore.getState(), progress = s.tutorialProgress.fieldClub;
   if (progress) useGameStore.setState({ tutorialProgress: { ...s.tutorialProgress, fieldClub: { ...progress, active: undefined } } });
 }
+/** Use the same readiness rules before playing and before charging a saved round. */
+export function clubRoundRestriction(dog: Dog | undefined): string | null {
+  if (!dog) return 'Choose a dog who is still in your kennel.';
+  const reason = activityRestriction(dog);
+  if (reason) return `${dog.name}: ${reason}`;
+  if (dog.energy_stat < 26) return `${dog.name} needs 26% energy for this round. Rest before playing.`;
+  if (dog.training_points < 4) return `${dog.name} needs 4 training points for this round. Come back after recovery.`;
+  return null;
+}
 export function completeClubRound(runId: string, index: number, score: number) {
   const s = useGameStore.getState(), progress = s.tutorialProgress.fieldClub, run = progress?.active;
   if (s.syncEnabled || !s.user || !progress || !run || run.id !== runId || index !== run.results.length || !run.rounds[index] || !Number.isFinite(score) || score < 0 || score > 100) return { success: false, message: 'This round has already been saved or is no longer active.' };
   const round = run.rounds[index], dog = s.dogs.find(d => d.id === round.dogId);
-  if (!dog || activityRestriction(dog) || dog.training_points < 4 || dog.energy_stat < 26) return { success: false, message: 'Your dog needs care before this round can be saved. Return to the club.' };
+  const reason = clubRoundRestriction(dog);
+  if (!dog || reason) return { success: false, message: reason ?? 'Choose a dog who is still in your kennel.' };
   const record = recordFor(progress, dog.id, round.discipline), gain = trainingGain(dog, round.discipline, score, s.user);
   const result = { ...round, score: Math.round(score), dogName: dog.name, gain };
   const results = [...run.results, result], finished = results.length === run.rounds.length;
@@ -65,6 +76,16 @@ export function completeClubRound(runId: string, index: number, score: number) {
     tutorialProgress: { ...s.tutorialProgress, fieldClub: next },
   });
   return { success: true, message: `${dog.name} gained ${gain} ${round.discipline} experience and you earned ${xp} keeper XP.` };
+}
+
+export interface ClubRoundAttempt { runId: string; index: number; score: number; }
+/** Keep a valid, still-current score available for an in-page retry after care. */
+export function saveClubRoundAttempt(attempt: ClubRoundAttempt) {
+  const result = completeClubRound(attempt.runId, attempt.index, attempt.score);
+  const active = useGameStore.getState().tutorialProgress.fieldClub?.active;
+  const retryable = !result.success && active?.id === attempt.runId && active.results.length === attempt.index
+    && Number.isFinite(attempt.score) && attempt.score >= 0 && attempt.score <= 100;
+  return { ...result, pendingResult: retryable ? attempt : null };
 }
 
 export function firstUntried(progress: ClubProgress | undefined, dogId: string): Discipline | undefined { return (['search', 'herding', 'water', 'agility'] as Discipline[]).find(d => !recordFor(progress, dogId, d).sessions); }

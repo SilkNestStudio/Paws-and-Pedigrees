@@ -14,8 +14,11 @@ import { calculateHealthDecay, getHealthStatus, visitVet } from '../src/utils/he
 import type { Breed, Dog } from '../src/types';
 import type { CompetitionEvent } from '../src/types/competition';
 import { aptitude, fieldAbility, recordFor, trainingGain, DISCIPLINES, newClubProgress, sampledAll, discoveredText } from '../src/game/club/model';
-import { enrollClub, startClubRun, completeClubRound, leaveClubRun } from '../src/game/club/progress';
+import { enrollClub, startClubRun, completeClubRound, leaveClubRun, clubRoundRestriction, saveClubRoundAttempt } from '../src/game/club/progress';
 import { createField, sendField, stepField, inspectField, behindSheep, recallField, fieldScore, SEARCH_STATIONS, distance } from '../src/game/club/simulation';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server.browser';
+import FieldClub from '../src/game/club/FieldClub';
 
 const breed = { id: 1, name: 'Test dog', tier: 'rescue', coat_types: ['short'],
   ...Object.fromEntries(['size', 'energy', 'friendliness', 'trainability', 'intelligence', 'speed', 'agility', 'strength', 'endurance', 'prey_drive', 'protectiveness'].flatMap(k => [[k + '_min', 60], [k + '_max', 60]])),
@@ -511,6 +514,81 @@ function setupClub() {
   useGameStore.setState(s => ({ tutorialProgress: { ...s.tutorialProgress, firstRibbon: undefined, fieldClub: undefined }, selectedDog: d }));
   enrollClub(); return d;
 }
+function renderClub() {
+  // SSR normally reads Zustand's initial snapshot. Render this isolated test save.
+  const initial = useGameStore.getInitialState(), previous = { ...initial };
+  Object.assign(initial, useGameStore.getState());
+  try { return renderToStaticMarkup(createElement(FieldClub, { onNavigate: () => {} })); }
+  finally { Object.assign(initial, previous); }
+}
+test('the club landing page renders safely without an active visit or pending result', () => {
+  setupClub();
+  assert.match(renderClub(), /Practice Scent search/);
+});
+test('resuming a club visit after fetch and a walk blocks an unsaveable round before play', () => {
+  const d = generateDog(breed, 'Fern', 'owner', true);
+  setupStore([d]);
+  useGameStore.setState(s => ({ selectedDog: d, tutorialProgress: { ...s.tutorialProgress, fieldClub: newClubProgress() } }));
+  assert.equal(d.energy_stat, 70);
+  assert.equal(startClubRun('practice', [{ discipline: 'search', dogId: d.id }]).success, true);
+  assert.equal(useGameStore.getState().bondWithDog(d.id, 'fetch').success, true);
+  assert.equal(useGameStore.getState().bondWithDog(d.id, 'walk').success, true);
+  assert.equal(useGameStore.getState().dogs[0].energy_stat, 25);
+  const html = renderClub();
+  const begin = html.match(/<button[^>]*>Begin Scent search round<\/button>/)?.[0];
+  assert.ok(begin, 'the saved visit offers its next round');
+  assert.match(begin, /disabled/, 'do not launch a round whose result cannot be saved');
+  assert.match(html, /needs 26% energy/);
+});
+test('round launch checks energy and TP boundaries and prepares the assigned team dog', () => {
+  const d = setupClub(), other = dog('Oak');
+  const rounds = DISCIPLINES.map((discipline, i) => ({ discipline, dogId: i % 2 ? other.id : d.id }));
+  useGameStore.setState(s => ({ dogs: [d, other], selectedDog: other,
+    tutorialProgress: { ...s.tutorialProgress, fieldClub: { ...newClubProgress(), completedAt: new Date().toISOString() } } }));
+  assert.equal(startClubRun('team', rounds).success, true);
+  for (let energy = 20; energy < 26; energy++) {
+    useGameStore.getState().updateDog(d.id, { energy_stat: energy });
+    assert.match(clubRoundRestriction(useGameStore.getState().dogs[0])!, /needs 26% energy/);
+    assert.match(renderClub(), /<button[^>]*disabled[^>]*>Begin Agility round<\/button>/);
+  }
+  useGameStore.getState().updateDog(d.id, { energy_stat: 26, training_points: 3 });
+  assert.match(renderClub(), /needs 4 training points/);
+  assert.match(renderClub(), /<button[^>]*disabled[^>]*>Begin Agility round<\/button>/);
+  useGameStore.getState().updateDog(d.id, { training_points: 4 });
+  useGameStore.getState().updateDog(other.id, { energy_stat: 10, training_points: 0 });
+  assert.equal(clubRoundRestriction(useGameStore.getState().dogs[0]), null);
+  const html = renderClub();
+  assert.match(html, /<button class="journey-primary">Begin Agility round<\/button>/);
+  assert.match(html, /<summary>Prepare Fern/);
+  assert.match(html, /Fern: 26% energy · 4 TP/);
+});
+test('a failed result keeps its score for care and retry without duplicate awards or stale reuse', () => {
+  const d = setupClub();
+  assert.equal(startClubRun('practice', [{ discipline: 'search', dogId: d.id }]).success, true);
+  const run = useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  const attempt = { runId: run.id, index: 0, score: 85 };
+  useGameStore.getState().updateDog(d.id, { energy_stat: 25 });
+  const before = useGameStore.getState();
+  const failed = saveClubRoundAttempt(attempt);
+  assert.equal(failed.success, false); assert.deepEqual(failed.pendingResult, attempt);
+  assert.equal(useGameStore.getState().tutorialProgress.fieldClub!.active!.results.length, 0);
+  assert.equal(useGameStore.getState().user!.xp, before.user!.xp);
+  assert.equal(useGameStore.getState().dogs[0].training_points, before.dogs[0].training_points);
+  assert.equal(useGameStore.getState().restDog(d.id).success, true);
+  const retried = saveClubRoundAttempt(failed.pendingResult!);
+  assert.equal(retried.success, true); assert.equal(retried.pendingResult, null);
+  assert.equal(useGameStore.getState().tutorialProgress.fieldClub!.matches[0].results[0].score, 85);
+  const paid = useGameStore.getState();
+  const duplicate = saveClubRoundAttempt(attempt);
+  assert.equal(duplicate.success, false); assert.equal(duplicate.pendingResult, null);
+  assert.equal(useGameStore.getState().user!.xp, paid.user!.xp);
+  assert.equal(useGameStore.getState().dogs[0].training_points, paid.dogs[0].training_points);
+  assert.equal(startClubRun('practice', [{ discipline: 'water', dogId: d.id }]).success, true);
+  assert.equal(saveClubRoundAttempt(attempt).pendingResult, null);
+  const cancelled = useGameStore.getState().tutorialProgress.fieldClub!.active!;
+  leaveClubRun();
+  assert.equal(saveClubRoundAttempt({ ...attempt, runId: cancelled.id }).pendingResult, null);
+});
 test('club visits reject invalid rosters and lock later events; leaving and duplicate results never pay', () => {
   const d = setupClub(), rounds = DISCIPLINES.map(discipline => ({ discipline, dogId: d.id }));
   assert.equal(startClubRun('combined', rounds).success, false);

@@ -4,6 +4,7 @@ import { build } from 'esbuild';
 const result = await build({
   entryPoints: ['tests/game.test.ts'], bundle: true, platform: 'node', format: 'esm',
   write: false, logLevel: 'silent',
+  loader: { '.css': 'empty' }, jsx: 'automatic',
   plugins: [{ name: 'isolate-cloud', setup(build) {
     build.onLoad({ filter: /localDatabase\.ts$/ }, () => ({ contents: `export const cleanSnapshot = state => state; export const localDatabase = { getItem: () => null, setItem: () => {}, removeItem: () => {} };`, loader: 'js' }));
     build.onLoad({ filter: /[\\/]lib[\\/]supabaseService\.ts$/ }, () => ({ contents: `
@@ -21,4 +22,5 @@ const result = await build({
 });
 const memory = new Map();
 globalThis.localStorage = { getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: key => memory.delete(key) };
-await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+// Keep failed assertions readable instead of printing the entire bundled data URL.
+await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text + '\n//# sourceURL=paws-game-tests.mjs').toString('base64')}`);
