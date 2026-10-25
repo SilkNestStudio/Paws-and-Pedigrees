@@ -1,3 +1,4 @@
+import { energyActivityCheckpoint } from '../../utils/energyRegeneration';
 import { useGameStore } from '../../stores/gameStore';
 import type { Dog } from '../../types';
 import { activityRestriction } from '../../utils/dogDevelopment';
@@ -57,7 +58,7 @@ export function completeClubRound(runId: string, index: number, score: number) {
   const result = { ...round, score: Math.round(score), dogName: dog.name, gain };
   const results = [...run.results, result], finished = results.length === run.rounds.length;
   const bond = dog.bond_xp + 4, levelUp = checkBondLevelUp({ ...dog, bond_xp: bond });
-  const updatedDog = { ...dog, energy_stat: Math.max(0, dog.energy_stat - 6), training_points: dog.training_points - 4, training_sessions_today: dog.training_sessions_today + 1, happiness: Math.min(100, dog.happiness + 2), bond_xp: bond, ...levelUp };
+  const updatedDog = { ...dog, ...energyActivityCheckpoint(dog, Math.max(0, dog.energy_stat - 6)), energy_stat: Math.max(0, dog.energy_stat - 6), training_points: dog.training_points - 4, training_sessions_today: dog.training_sessions_today + 1, happiness: Math.min(100, dog.happiness + 2), bond_xp: bond, ...levelUp };
   const next: ClubProgress = { ...progress, records: { ...progress.records, [dog.id]: { ...progress.records[dog.id], [round.discipline]: { xp: Math.min(1000, record.xp + gain), sessions: record.sessions + 1, best: Math.max(record.best, Math.round(score)), last: Math.round(score) } } }, active: { ...run, results } };
   let cash = 0, xp = record.sessions === 0 ? 35 : 15;
   if (finished) {

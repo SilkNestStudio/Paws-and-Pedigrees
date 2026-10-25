@@ -8,7 +8,7 @@ import Handler3D from '../yard/Handler3D';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 import type { Dog } from '../../types';
 import { DISCIPLINE_INFO, type FieldDiscipline } from './model';
-import { createField, sendField, recallField, inspectField, behindSheep, stepField, fieldScore, SEARCH_STATIONS, SHORE, type FieldState, type Point } from './simulation';
+import { createField, sendField, recallField, inspectField, behindSheep, createFieldClock, pauseFieldClock, resumeFieldClock, advanceFieldFrame, fieldScore, SEARCH_STATIONS, SHORE, type FieldState, type FieldClock, type Point } from './simulation';
 import './club.css';
 
 const snapshot = (s: FieldState): FieldState => ({ ...s, dog: { ...s.dog }, target: { ...s.target }, found: [...s.found], checked: [...s.checked], sheep: s.sheep.map(v => ({ ...v })) });
@@ -25,12 +25,13 @@ function SheepModel({ x, z, penned, panic }: FieldState['sheep'][number]) {
     {[-.24, .24].flatMap(dx => [-.32, .32].map(dz => <Box key={`${dx}:${dz}`} at={[dx, -.07, dz]} size={[.09, .4, .1]} color="#655a4a"/>))}
   </group>;
 }
-function World({ run, dog, paused, onSnapshot, onReady }: { run: MutableRefObject<FieldState>; dog: Dog; paused: boolean; onSnapshot: (s: FieldState) => void; onReady: (ready: boolean) => void }) {
+function World({ run, clock, dog, paused, onSuspend, onSnapshot, onReady }: { run: MutableRefObject<FieldState>; clock: MutableRefObject<FieldClock>; dog: Dog; paused: boolean; onSuspend: () => void; onSnapshot: (s: FieldState) => void; onReady: (ready: boolean) => void }) {
   const avatar = useRef<Group>(null), timer = useRef(0), [s, setS] = useState(snapshot(run.current));
   useEffect(() => { onReady(true); }, [onReady]);
   useFrame(({ camera, size }, dt) => {
     if (camera instanceof OrthographicCamera) { const zoom = Math.min(size.width / 21.5, size.height / 19); if (camera.zoom !== zoom) { camera.zoom = zoom; camera.updateProjectionMatrix(); } camera.lookAt(0, 0, 0); }
-    if (!paused) stepField(run.current, dt);
+    if (document.hidden) { pauseFieldClock(clock.current); onSuspend(); }
+    if (!paused && advanceFieldFrame(run.current, clock.current, dt) === 'suspended') onSuspend();
     const state = run.current;
     avatar.current?.position.set(state.dog.x, state.mode === 'water' && state.dog.z < 3.6 ? -.27 : .1, state.dog.z);
     if (avatar.current) avatar.current.rotation.y = state.heading;
@@ -71,35 +72,41 @@ function World({ run, dog, paused, onSnapshot, onReady }: { run: MutableRefObjec
       {s.dummies.map((p, i) => !s.found.includes(i) && !(s.carrying && i === s.found.length) && <group key={i} position={[p.x, .2, p.z]}><mesh rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[.13, .13, .65, 10]}/><meshStandardMaterial color={i === s.found.length ? '#f3c261' : '#dae2dc'}/></mesh><Html position={[0, .7, 0]} center zIndexRange={[2, 1]} style={{ pointerEvents: 'none' }}><span className="field-number">{i + 1}</span></Html></group>)}
       <Tree x={-7.5} z={5.4}/><Tree x={7.5} z={4.8}/>
     </>}
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .1, 0]} onPointerDown={e => { e.stopPropagation(); if (!paused) sendField(run.current, { x: e.point.x, z: e.point.z }); }}><planeGeometry args={[17, 14]}/><meshBasicMaterial transparent opacity={0} depthWrite={false}/></mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .1, 0]} onPointerDown={e => { e.stopPropagation(); if (!paused && !clock.current.paused) sendField(run.current, { x: e.point.x, z: e.point.z }); }}><planeGeometry args={[17, 14]}/><meshBasicMaterial transparent opacity={0} depthWrite={false}/></mesh>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[s.target.x, .14, s.target.z]}><ringGeometry args={[.28, .36, 28]}/><meshBasicMaterial color="#fff1c9"/></mesh>
     <group ref={avatar}><Dog3D dog={dog} position={[0,0,0]} animation={s.moving && !paused ? 'Run' : s.inspecting !== null ? 'Eat' : 'Idle'}/>{s.carrying && <Box at={[0, .78, .82]} size={[.5, .14, .14]} color="#efbb5d"/>}</group>
     <Html position={[-7, .8, 7]} center zIndexRange={[1, 0]} style={{ pointerEvents: 'none' }}><span className="field-place" style={{ color: info.color }}>{info.short}</span></Html>
   </>;
 }
 export default function FieldGame({ dog, discipline, ability, seed, onComplete, onCancel }: { dog: Dog; discipline: FieldDiscipline; ability: number; seed: number; onComplete: (score: number) => void; onCancel: () => void }) {
-  const run = useRef(createField(discipline, ability, seed)), submitted = useRef(false);
+  const run = useRef(createField(discipline, ability, seed)), submitted = useRef(false), clock = useRef(createFieldClock());
   const [s, setS] = useState(snapshot(run.current)), [started, setStarted] = useState(false), [paused, setPaused] = useState(false), [ready, setReady] = useState(false);
   const info = DISCIPLINE_INFO[discipline];
   useEffect(() => {
-    const pause = () => setPaused(true), visibility = () => { if (document.hidden) pause(); };
-    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); setPaused(v => !v); } };
+    const pause = () => { pauseFieldClock(clock.current); setPaused(true); }, visibility = () => { if (document.hidden) pause(); };
+    const key = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.repeat) return;
+      event.preventDefault();
+      if (clock.current.paused && !document.hidden) { resumeFieldClock(clock.current); setPaused(false); }
+      else pause();
+    };
     window.addEventListener('blur', pause); document.addEventListener('visibilitychange', visibility); window.addEventListener('keydown', key);
     return () => { window.removeEventListener('blur', pause); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('keydown', key); };
   }, []);
-  const command = (action: () => void) => { if (started && !paused && run.current.phase === 'playing') { action(); setS(snapshot(run.current)); } };
+  const pause = () => { pauseFieldClock(clock.current); setPaused(true); };
+  const command = (action: () => void) => { if (started && !paused && !clock.current.paused && run.current.phase === 'playing') { action(); setS(snapshot(run.current)); } };
   const finished = s.phase === 'finished', count = discipline === 'herding' ? s.sheep.filter(v => v.penned).length : s.found.length;
   return createPortal(<section className="field-game" aria-label={`${info.name} activity`} data-phase={s.phase} data-count={count} data-x={s.dog.x.toFixed(2)} data-z={s.dog.z.toFixed(2)} data-carrying={s.carrying}>
-    <header className="field-header"><div><small>{info.short} / {dog.name}</small><h1>{info.name}</h1><p>{count}/3 complete · {Math.ceil(Math.max(0, 180 - s.time))}s remaining</p></div><div><button onClick={() => setPaused(true)}>Pause</button><button onClick={onCancel}>Exit round</button></div></header>
-    <div className="field-stage"><ErrorBoundary fallback={<p className="field-load">The scene could not load. Use Exit round to return safely.</p>}><Canvas orthographic shadows dpr={[1, 1.5]} camera={{ position: [1, 18, 14], zoom: 28, near: .1, far: 100 }} fallback={<p>3D is unavailable on this device. Exit to return to the club.</p>}><Suspense fallback={<Html center><span className="field-load">Opening the grounds…</span></Html>}><World dog={dog} run={run} paused={!started || paused || finished} onReady={setReady} onSnapshot={setS}/></Suspense></Canvas></ErrorBoundary></div>
+    <header className="field-header"><div><small>{info.short} / {dog.name}</small><h1>{info.name}</h1><p>{count}/3 complete · {Math.ceil(Math.max(0, 180 - s.time))}s remaining</p></div><div><button onClick={pause}>Pause</button><button onClick={onCancel}>Exit round</button></div></header>
+    <div className="field-stage"><ErrorBoundary fallback={<p className="field-load">The scene could not load. Use Exit round to return safely.</p>}><Canvas orthographic shadows dpr={[1, 1.5]} camera={{ position: [1, 18, 14], zoom: 28, near: .1, far: 100 }} fallback={<p>3D is unavailable on this device. Exit to return to the club.</p>}><Suspense fallback={<Html center><span className="field-load">Opening the grounds…</span></Html>}><World dog={dog} run={run} clock={clock} paused={!started || paused || finished} onSuspend={pause} onReady={setReady} onSnapshot={setS}/></Suspense></Canvas></ErrorBoundary></div>
     <div className="field-feedback" role="status">{s.feedback}</div>
     <div className="field-controls"><p>Tap the ground to send your dog. You are the handler at the near-side marker.</p>
       {discipline === 'search' && <><label className="field-meter">Scent signal <meter min={0} max={1} value={s.signal}/><strong>{s.signal > .8 ? 'Right here' : s.signal > .4 ? 'Getting warmer' : s.signal > 0 ? 'Faint trail' : 'No scent yet'}</strong></label><div className="field-targets">{SEARCH_STATIONS.map((p, i) => <button key={i} aria-label={`Send to station ${i + 1}`} disabled={!started || paused || finished || s.checked.includes(i)} onClick={() => command(() => sendField(run.current, p))}>{s.found.includes(i) ? 'Found' : 'Station'} {i + 1}</button>)}</div><button className="field-main-action" disabled={!started || paused || finished || s.inspecting !== null} onClick={() => command(() => inspectField(run.current))}>{s.inspecting !== null ? 'Investigating…' : 'Investigate scent'}</button></>}
       {discipline === 'herding' && <><div className="field-targets">{s.sheep.map((v, i) => <button key={i} disabled={!started || paused || finished || v.penned} onClick={() => command(() => sendField(run.current, behindSheep(run.current, i)))}>{v.penned ? 'Penned' : 'Position behind sheep'} {i + 1}</button>)}</div><button className="field-main-action" disabled={!started || paused || finished} aria-pressed={s.gentle} onClick={() => command(() => { run.current.gentle = !run.current.gentle; })}>{s.gentle ? 'Steady handling' : 'Brisk handling'}</button><span>Follow behind as the sheep moves. Getting too close scatters it.</span></>}
       {discipline === 'water' && <><label className="field-meter">Swimming stamina <meter min={0} max={100} value={s.stamina}/><strong>{Math.round(s.stamina)}%</strong></label><div className="field-targets">{s.dummies.map((p, i) => <button key={i} disabled={!started || paused || finished || s.carrying || i !== s.found.length} onClick={() => command(() => sendField(run.current, p))}>Retrieve dummy {i + 1}</button>)}<button disabled={!started || paused || finished} onClick={() => command(() => sendField(run.current, { x: -4, z: 2 }))}>Left shore waypoint</button><button disabled={!started || paused || finished} onClick={() => command(() => sendField(run.current, { x: 4, z: 2 }))}>Right shore waypoint</button></div><button className="field-main-action" disabled={!started || paused || finished} onClick={() => command(() => recallField(run.current))}>Call back to shore</button></>}
     </div>
-    {(!started || paused || finished) && <div className="field-cover"><div className="field-brief"><small>{finished ? 'ROUND COMPLETE' : paused && started ? 'PAUSED' : 'YOUR NEXT CHALLENGE'}</small><h2>{finished ? `${fieldScore(s)} / 100` : info.verb}</h2><p>{finished ? `${count} of 3 completed · ${s.mistakes} handling mistakes. Your score reflects completed work, time, and control.` : info.detail}</p><p>{finished ? 'Save this round to develop your dog and continue your visit.' : `Your dog's ${info.effect.toLowerCase()} improve with aptitude and practice. Use the ground or the named controls below the scene.`}</p>
-      <button className="journey-primary" disabled={!ready} onClick={() => { if (finished) { if (!submitted.current) { submitted.current = true; onComplete(fieldScore(run.current)); } } else { setStarted(true); setPaused(false); } }}>{!ready ? 'Preparing your dog…' : finished ? 'Save round & continue' : started ? 'Resume round' : 'Begin round'}</button><button className="journey-text-button" onClick={onCancel}>Return to Field Club</button>
+    {(!started || paused || finished) && <div className="field-cover"><div className="field-brief"><small>{finished ? 'ROUND COMPLETE' : paused && started ? 'PAUSED' : 'YOUR NEXT CHALLENGE'}</small><h2>{finished ? `${fieldScore(s)} / 100` : info.verb}</h2><p>{finished ? `${count} of 3 completed · ${s.mistakes} handling mistakes. Your score reflects completed work, time, and control.` : info.detail}</p><p>{paused && started && !finished ? 'The round stays paused while you are away. Resume when you are ready; paused time does not count.' : finished ? 'Save this round to develop your dog and continue your visit.' : `Your dog's ${info.effect.toLowerCase()} improve with aptitude and practice. Use the ground or the named controls below the scene.`}</p>
+      <button className="journey-primary" disabled={!ready} onClick={() => { if (finished) { if (!submitted.current) { submitted.current = true; onComplete(fieldScore(run.current)); } } else if (!document.hidden) { resumeFieldClock(clock.current); setStarted(true); setPaused(false); } }}>{!ready ? 'Preparing your dog…' : finished ? 'Save round & continue' : started ? 'Resume round' : 'Begin round'}</button><button className="journey-text-button" onClick={onCancel}>Return to Field Club</button>
     </div></div>}
   </section>, document.body);
 }

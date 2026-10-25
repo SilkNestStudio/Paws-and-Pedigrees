@@ -92,7 +92,10 @@ export async function loadUserDogs(userId: string): Promise<Dog[]> {
 
 export async function saveDog(dog: Dog): Promise<boolean> {
   // Remove computed fields that don't exist in the database
-  const { age_years, ...dogData } = dog as any;
+  const dogData = { ...dog };
+  delete dogData.age_years;
+  // Local recovery uses its own clock; the legacy cloud path uses last_played.
+  delete dogData.last_energy_regeneration;
 
   // Ensure all INTEGER fields are properly rounded (database expects integers, not floats)
   const sanitizedDog = {

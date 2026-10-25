@@ -26,17 +26,16 @@ const MODERATE_ENERGY_PENALTY = 20;
 /**
  * Calculate hours since a timestamp
  */
-function getHoursSince(timestamp: string | Date): number {
+function getHoursSince(timestamp: string | Date, now = Date.now()): number {
   const then = new Date(timestamp).getTime();
-  const now = Date.now();
   return (now - then) / (60 * 60 * 1000);
 }
 
 /**
  * Calculate current hunger based on last fed time
  */
-export function calculateHunger(lastFed: string | Date): number {
-  const hoursSince = getHoursSince(lastFed);
+export function calculateHunger(lastFed: string | Date, now = Date.now()): number {
+  const hoursSince = getHoursSince(lastFed, now);
   const decay = hoursSince * DECAY_RATE_PER_HOUR;
   return Math.max(0, Math.min(100, 100 - decay));
 }
@@ -44,8 +43,8 @@ export function calculateHunger(lastFed: string | Date): number {
 /**
  * Calculate current thirst based on last watered time
  */
-export function calculateThirst(lastWatered: string | Date): number {
-  const hoursSince = getHoursSince(lastWatered);
+export function calculateThirst(lastWatered: string | Date, now = Date.now()): number {
+  const hoursSince = getHoursSince(lastWatered, now);
   const decay = hoursSince * DECAY_RATE_PER_HOUR;
   return Math.max(0, Math.min(100, 100 - decay));
 }

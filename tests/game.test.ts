@@ -1,3 +1,6 @@
+import './companionProgress.test';
+import './fieldTiming.test';
+import './dogTimeRefresh.test';
 import { bondingRestriction, nextCompanionStep, companionConditionUpdates } from '../src/utils/companionLoop';
 import test from 'node:test';
 import assert from 'node:assert/strict';

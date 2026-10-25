@@ -36,10 +36,9 @@ export interface HealthStatus {
 /**
  * Calculate how many days since last fed/watered
  */
-function getDaysSinceLastCare(dog: Dog): number {
+function getDaysSinceLastCare(dog: Dog, now = Date.now()): number {
   const lastFed = new Date(dog.last_fed).getTime();
   const lastWatered = new Date(dog.last_watered || dog.last_fed).getTime();
-  const now = Date.now();
   const lastCare = Math.min(lastFed, lastWatered);
   const hoursSince = (now - (Number.isFinite(lastCare) ? lastCare : now)) / (60 * 60 * 1000);
   return Math.max(0, Math.floor(hoursSince / HOURS_PER_DAY));
@@ -48,9 +47,9 @@ function getDaysSinceLastCare(dog: Dog): number {
 /**
  * Calculate current health based on care history
  */
-export function calculateHealthDecay(dog: Dog): number {
+export function calculateHealthDecay(dog: Dog, now = Date.now()): number {
   if (dog.is_dead) return dog.health;
-  const daysSinceLastCare = getDaysSinceLastCare(dog);
+  const daysSinceLastCare = getDaysSinceLastCare(dog, now);
 
   if (daysSinceLastCare === 0) {
     return Math.max(10, dog.health);

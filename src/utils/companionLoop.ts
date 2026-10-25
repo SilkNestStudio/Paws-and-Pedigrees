@@ -4,6 +4,8 @@ import { calculateBondXpGain, checkBondLevelUp } from './bondSystem';
 import { calculateHunger, calculateThirst } from './hungerThirstDecay';
 import { checkRecoveryComplete, completeRecovery } from './veterinarySystem';
 import { calculateHealthDecay } from './healthDecay';
+import type { ClubProgress } from '../game/club/model';
+import { clubNextStep } from './companionProgress';
 export type BondingActivity = 'pet' | 'fetch' | 'walk';
 export const BONDING_ACTIVITIES = {
  pet: { title: 'Quiet time', description: 'Slow down and build trust through gentle touch.', happiness: 15, energy: 0, xp: 10, timestamp: 'last_pet' },
@@ -36,22 +38,29 @@ export function bondingOutcome(dog: Dog, activity: BondingActivity, now = Date.n
  Object.assign(updates, checkBondLevelUp({ ...dog, ...updates }));
  return { success: true as const, updates, message: definition.title + ' with ' + dog.name + ': +' + xp + ' bond XP, +' + happiness + ' happiness.' };
 }
-export type CompanionDestination = 'dogDetail' | 'training' | 'competition' | 'vet';
-export function nextCompanionStep(dog: Dog): { title: string; detail: string; destination: CompanionDestination; priority: number } {
+export type CompanionDestination = 'dogDetail' | 'training' | 'competition' | 'vet' | 'fieldClub';
+export function nextCompanionStep(dog: Dog, progress?: ClubProgress): { title: string; detail: string; destination: CompanionDestination; priority: number } {
  if (dog.is_dead) return { title: 'Remember their story', detail: 'A lasting part of your kennel history.', destination: 'dogDetail', priority: 9 };
  if (dog.current_ailment || calculateHealthDecay(dog) < 40) return { title: 'Arrange a veterinary check', detail: 'Recovery comes before performance. Give them the care they need.', destination: 'vet', priority: 0 };
  if (dog.hunger < 50 || dog.thirst < 50) return { title: 'Start with the essentials', detail: 'A meal and fresh water help them feel comfortable again.', destination: 'dogDetail', priority: 1 };
  if (dog.recovering_from && (!dog.recovery_due || Date.parse(dog.recovery_due) > Date.now())) return { title: 'A gentle recovery day', detail: 'Quiet company is enough today. Training can wait.', destination: 'dogDetail', priority: 2 };
  if (dog.is_pregnant || dog.active_puppy_training) return { title: 'Give them time to grow', detail: dog.is_pregnant ? 'An expectant mother needs a calm routine.' : 'Their puppy program is in progress. Check in and keep them comfortable.', destination: 'dogDetail', priority: 3 };
- if (dog.energy_stat < 30) return { title: 'Make room for rest', detail: 'They will get more from training after some recovery.', destination: 'dogDetail', priority: 2 };
+ if (dog.energy_stat < (progress ? 26 : 30)) return { title: 'Make room for rest', detail: progress ? 'A Field Club round needs at least 26% energy. Rest together before returning.' : 'They will get more from training after some recovery.', destination: 'dogDetail', priority: 2 };
+ if (progress) {
+   if (dog.training_points < 4) return { title: 'Let the session sink in', detail: 'A Field Club round needs 4 training points. Let them recover and enjoy some quiet company in the meantime.', destination: 'dogDetail', priority: 6 };
+   return { ...clubNextStep(dog, progress), destination: 'fieldClub', priority: 5 };
+ }
  if (dog.bond_level < 1) return { title: 'Get to know each other', detail: 'Quiet time, play, and care build the trust that reveals their potential.', destination: 'dogDetail', priority: 4 };
  if (dog.training_points < 10) return { title: 'Let the session sink in', detail: 'Training points need to recover. Enjoy a little company in the meantime.', destination: 'dogDetail', priority: 6 };
  return { title: 'Build on your progress', detail: 'Choose a skill to practice, or look for an event that suits them.', destination: 'training', priority: 5 };
 }
 
 /** Idempotent time refresh: no per-render penalties or random illness rolls. */
-export function companionConditionUpdates(dog: Dog): Partial<Dog> {
+export function companionConditionUpdates(dog: Dog, now = Date.now()): Partial<Dog> {
  if (dog.is_dead) return {};
- const next = { hunger: Math.min(dog.hunger, calculateHunger(dog.last_fed)), thirst: Math.min(dog.thirst, calculateThirst(dog.last_watered || dog.last_fed)), health: calculateHealthDecay(dog), ...(dog.recovering_from && checkRecoveryComplete(dog) ? completeRecovery(dog) : {}) };
+ const recovery = dog.recovering_from && checkRecoveryComplete(dog, now) ? completeRecovery(dog) : {};
+ // Absence caps also apply to the final recovery boost; otherwise a second
+ // refresh could lower health again after the daily TP allowance was calculated.
+ const next = { ...recovery, hunger: Math.min(dog.hunger, calculateHunger(dog.last_fed, now)), thirst: Math.min(dog.thirst, calculateThirst(dog.last_watered || dog.last_fed, now)), health: calculateHealthDecay({ ...dog, ...recovery }, now) };
  return Object.fromEntries(Object.entries(next).filter(([key,value]) => dog[key as keyof Dog] !== value));
 }

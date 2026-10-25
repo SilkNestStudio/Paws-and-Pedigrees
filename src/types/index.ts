@@ -148,6 +148,8 @@ export interface Dog {
   last_fed: string;
   last_watered: string;
   last_played: string;
+  // Local passive recovery checkpoint; absent in legacy/cloud saves.
+  last_energy_regeneration?: string;
 
   // Individual activity cooldowns (15 min each)
   last_pet?: string;

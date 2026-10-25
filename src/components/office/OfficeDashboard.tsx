@@ -7,7 +7,7 @@ import { storyChapters } from '../../data/storyChapters';
 import InventoryPanel from './InventoryPanel';
 import NavIcon from '../layout/NavIcon';
 import heroDog from '../../assets/images/dogs/GoldenRetrieverSitting.png';
-type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet' | 'demo3d';
+type View = 'kennel' | 'dogDetail' | 'office' | 'story' | 'training' | 'competition' | 'breeding' | 'jobs' | 'shop' | 'vet' | 'demo3d' | 'fieldClub';
 interface OfficeDashboardProps { onNavigate: (view: View, options?: { shopTab?: 'breeds' | 'items' | 'pound' }) => void; }
 export default function OfficeDashboard({ onNavigate }: OfficeDashboardProps) {
  const { user, dogs, selectDog, storyProgress } = useGameStore();

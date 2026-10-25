@@ -15,24 +15,23 @@ const LOW_ENERGY_THRESHOLD = 30; // Below this gets bonus regen
 const LOW_ENERGY_BONUS = 3; // Extra regen when tired
 const REGEN_CHECK_INTERVAL_HOURS = 1; // Check every hour
 
-/**
- * Check if energy should regenerate
- */
-export function shouldRegenerateEnergy(dog: Dog): boolean {
-  // Don't regenerate if already at max
-  if (dog.energy_stat >= 100) return false;
+/** Old saves get one conservative baseline; later care and TP resets never move it. */
+export function energyRecoveryBaseline(dog: Dog, separateClock = true): number {
+  const checkpoint = Date.parse(dog.last_energy_regeneration || '');
+  if (separateClock && Number.isFinite(checkpoint)) return checkpoint;
+  const timestamps = [dog.last_played, dog.last_training_reset, dog.last_fed, dog.created_at]
+    .map(value => Date.parse(value)).filter(Number.isFinite);
+  return timestamps.length ? Math.max(...timestamps) : NaN;
+}
 
-  // Check if it's been at least 1 hour since last check
-  const lastActivity = dog.last_played ? new Date(dog.last_played).getTime() : 0;
-  const lastTraining = dog.last_training_reset ? new Date(dog.last_training_reset).getTime() : 0;
-  const lastFed = dog.last_fed ? new Date(dog.last_fed).getTime() : 0;
+export function shouldRegenerateEnergy(dog: Dog, now = Date.now()): boolean {
+  return !dog.is_dead && dog.energy_stat < 100 && now - energyRecoveryBaseline(dog) >= REGEN_CHECK_INTERVAL_HOURS * 3600000;
+}
 
-  // Use the most recent timestamp as baseline
-  const lastUpdate = Math.max(lastActivity, lastTraining, lastFed);
-  const now = Date.now();
-  const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
-
-  return hoursSinceUpdate >= REGEN_CHECK_INTERVAL_HOURS;
+/** Never bank time spent at full energy for an activity performed much later. */
+export function energyActivityCheckpoint(dog: Dog, energy: number, now = Date.now(), separateClock = true): Partial<Dog> {
+  if (energy === dog.energy_stat || (energy < 100 && dog.energy_stat < 100)) return {};
+  return separateClock ? { last_energy_regeneration: new Date(now).toISOString() } : { last_played: new Date(now).toISOString() };
 }
 
 /**
@@ -82,37 +81,27 @@ export function calculateEnergyRegenRate(dog: Dog, kennelLevel: number = 1): num
 /**
  * Regenerate energy for a dog
  */
-export function regenerateEnergy(dog: Dog, kennelLevel: number = 1): Partial<Dog> {
-  if (!shouldRegenerateEnergy(dog)) {
-    return {};
+export function regenerateEnergy(dog: Dog, kennelLevel = 1, now = Date.now(), separateClock = true): Partial<Dog> {
+  if (dog.is_dead || !Number.isFinite(now)) return {};
+  const baseline = energyRecoveryBaseline(dog, separateClock);
+  const stamp = (time: number): Partial<Dog> => separateClock
+    ? { last_energy_regeneration: new Date(time).toISOString() }
+    : { last_played: new Date(time).toISOString() };
+  // A missing clock starts now rather than granting unbounded recovery. A future
+  // checkpoint is left alone until wall time catches up, avoiding clock-rollback grants.
+  if (!Number.isFinite(baseline)) return stamp(now);
+  if (baseline > now) return {};
+  if (dog.energy_stat >= 100) return separateClock && !dog.last_energy_regeneration ? stamp(now) : {};
+  const hours = Math.floor((now - baseline) / 3600000);
+  if (hours < REGEN_CHECK_INTERVAL_HOURS) return separateClock && !dog.last_energy_regeneration ? stamp(baseline) : {};
+  let energy = dog.energy_stat;
+  // At least one point recovers each hour under the existing rates. Capping at
+  // 100 iterations keeps long absences bounded without losing possible recovery.
+  for (let i = 0; i < Math.min(hours, 100) && energy < 100; i++) {
+    energy = Math.min(100, energy + calculateEnergyRegenRate({ ...dog, energy_stat: energy }, kennelLevel));
   }
-
-  // Calculate how many hours have passed
-  const lastActivity = dog.last_played ? new Date(dog.last_played).getTime() : 0;
-  const lastTraining = dog.last_training_reset ? new Date(dog.last_training_reset).getTime() : 0;
-  const lastFed = dog.last_fed ? new Date(dog.last_fed).getTime() : 0;
-
-  const lastUpdate = Math.max(lastActivity, lastTraining, lastFed, new Date(dog.created_at).getTime());
-  const now = Date.now();
-  const hoursPassed = (now - lastUpdate) / (1000 * 60 * 60);
-
-  // Calculate total regeneration with kennel bonus
-  const regenRate = calculateEnergyRegenRate(dog, kennelLevel);
-  const totalRegen = Math.floor(hoursPassed * regenRate);
-
-  // Apply regeneration (cap at 100)
-  const newEnergy = Math.min(100, dog.energy_stat + totalRegen);
-
-  // Only update if there's actual change
-  if (newEnergy === dog.energy_stat) {
-    return {};
-  }
-
-  return {
-    energy_stat: newEnergy,
-    // Update last_played timestamp to track last regen check
-    last_played: new Date().toISOString(),
-  };
+  const checkpoint = energy >= 100 ? now : baseline + hours * 3600000;
+  return { energy_stat: energy, ...stamp(checkpoint) };
 }
 
 /**

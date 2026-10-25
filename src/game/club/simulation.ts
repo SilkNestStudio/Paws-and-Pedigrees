@@ -52,9 +52,34 @@ export function behindSheep(s: FieldState, index: number): Point {
   return { x: clamp(sheep.x + (sheep.x - goal.x) / d * 2.1, -8, 8), z: clamp(sheep.z + (sheep.z - goal.z) / d * 2.1, -6.5, 6.5) };
 }
 export function inCurrent(p: Point) { return Math.abs(p.x) < 1.8 && p.z < 1 && p.z > -5.5; }
-export function stepField(s: FieldState, delta: number) {
-  if (s.phase !== 'playing') return;
-  const dt = clamp(delta, 0, .05); s.time += dt;
+// Ordinary slow frames must not slow game time. Longer gaps represent a suspended
+// scene: require an explicit resume rather than simulating unattended play.
+export const MAX_FIELD_FRAME_SECONDS = .5;
+const MAX_FIELD_STEP_SECONDS = 1 / 60;
+export type FieldFrameResult = 'advanced' | 'idle' | 'suspended';
+export interface FieldClock { paused: boolean; freshFrame: boolean; }
+export const createFieldClock = (): FieldClock => ({ paused: true, freshFrame: true });
+export function pauseFieldClock(clock: FieldClock) { clock.paused = true; clock.freshFrame = true; }
+export function resumeFieldClock(clock: FieldClock) { clock.paused = false; clock.freshFrame = true; }
+export function advanceFieldFrame(s: FieldState, clock: FieldClock, delta: number): FieldFrameResult {
+  if (clock.paused) return 'idle';
+  // R3F's first delta can include loading time or a background/paused interval.
+  if (clock.freshFrame) { clock.freshFrame = false; return 'idle'; }
+  const result = stepField(s, delta);
+  if (result === 'suspended') pauseFieldClock(clock);
+  return result;
+}
+export function stepField(s: FieldState, delta: number): FieldFrameResult {
+  if (s.phase !== 'playing' || !Number.isFinite(delta) || delta <= 0) return 'idle';
+  if (delta > MAX_FIELD_FRAME_SECONDS) return 'suspended';
+  const steps = Math.ceil(delta / MAX_FIELD_STEP_SECONDS), dt = delta / steps;
+  for (let i = 0; i < steps && s.phase === 'playing'; i++) {
+    stepFieldSlice(s, Math.min(dt, Math.max(0, 180 - s.time)));
+  }
+  return 'advanced';
+}
+function stepFieldSlice(s: FieldState, dt: number) {
+  s.time = Math.min(180, s.time + dt);
   const d = distance(s.dog, s.target), water = s.mode === 'water' && s.dog.z < 3.6;
   const speed = s.mode === 'water' ? (water ? 1.9 + s.ability * .025 : 3.7) * (water && inCurrent(s.dog) ? .58 : 1) * (s.stamina < 20 ? .7 : 1) : (s.mode === 'herding' && s.gentle ? 2.8 : 4) + s.ability * .008;
   s.moving = d > .06 && s.inspecting === null;

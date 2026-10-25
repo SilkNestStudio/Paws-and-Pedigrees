@@ -1,3 +1,4 @@
+import { energyActivityCheckpoint } from '../utils/energyRegeneration';
 import { YARD_CARE_THRESHOLD } from '../game/yard/care';
 import { recordRibbonStep, nextRibbonStep, apprenticeshipComplete, STARTING_CASH, type RibbonStep } from '../utils/firstRibbon';
 import { bondingOutcome, type BondingActivity } from '../utils/companionLoop';
@@ -472,14 +473,17 @@ export const useGameStore = create<GameState>()(
       },
 
       updateDog: (dogId: string, updates: Partial<Dog>) => {
-        set((state: GameState) => ({
-          dogs: state.dogs.map((dog: Dog) =>
-            dog.id === dogId ? { ...dog, ...updates } : dog
-          ),
-          selectedDog: state.selectedDog?.id === dogId
-            ? { ...state.selectedDog, ...updates }
-            : state.selectedDog
-        }));
+        set((state: GameState) => {
+          const dog = state.dogs.find(d => d.id === dogId);
+          if (!dog) return {};
+          const checkpoint = updates.energy_stat === undefined || updates.last_energy_regeneration !== undefined
+            ? {} : energyActivityCheckpoint(dog, updates.energy_stat, Date.now(), !state.syncEnabled);
+          const updated = { ...dog, ...checkpoint, ...updates };
+          return {
+            dogs: state.dogs.map(d => d.id === dogId ? updated : d),
+            selectedDog: state.selectedDog?.id === dogId ? updated : state.selectedDog,
+          };
+        });
         // Save to Supabase if sync is enabled
         const state = useGameStore.getState();
         if (state.syncEnabled) {
@@ -864,6 +868,7 @@ export const useGameStore = create<GameState>()(
               if(amount!==undefined) updated[key]=key==='training_points'?updated[key]+amount:Math.min(100,updated[key]+amount);
             }
           }
+          if (updated && dog) Object.assign(updated, energyActivityCheckpoint(dog, updated.energy_stat, Date.now(), !state.syncEnabled));
           const user={...state.user,cash:state.user.cash-cashCost,gems:state.user.gems-gemCost,food_storage:storage};
           if (state.syncEnabled) {
             debouncedSave(`profile:${user.id}`,()=>saveUserProfile(user));
@@ -997,6 +1002,7 @@ export const useGameStore = create<GameState>()(
               yard_bowls: { food: false, water: dog.yard_bowls?.water ?? false },
               hunger: 100, // Reset to full (hunger decays over time)
               energy_stat: Math.min(100, d.energy_stat + energyRestored),
+              ...energyActivityCheckpoint(d, Math.min(100, d.energy_stat + energyRestored), Date.now(), !state.syncEnabled),
               last_fed: new Date().toISOString(), // Reset hunger decay timer
               bond_xp: (bondLevelUp?.bond_xp ?? newBondXp) as number,
               bond_level: (bondLevelUp?.bond_level ?? d.bond_level) as number,
@@ -1121,6 +1127,7 @@ export const useGameStore = create<GameState>()(
             return {
               ...d,
               energy_stat: Math.min(100, d.energy_stat + energyRestored),
+              ...energyActivityCheckpoint(d, Math.min(100, d.energy_stat + energyRestored), Date.now(), !state.syncEnabled),
               bond_xp: (bondLevelUp?.bond_xp ?? newBondXp) as number,
               bond_level: (bondLevelUp?.bond_level ?? d.bond_level) as number,
             };

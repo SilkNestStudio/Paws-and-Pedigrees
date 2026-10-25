@@ -1,35 +1,35 @@
-import { Dog } from '../types';
+import type { Dog } from '../types';
 
-export function shouldRegenerateTP(dog: Dog): boolean {
-  const lastReset = new Date(dog.last_training_reset);
-  const now = new Date();
-  const hoursSinceReset = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60);
-  
-  // Regenerate TP every 24 hours
-  return hoursSinceReset >= 24;
+export const TP_RESET_MS = 24 * 60 * 60 * 1000;
+export function nextTPResetAt(dog: Dog): number {
+  const lastReset = Date.parse(dog.last_training_reset);
+  const baseline = Number.isFinite(lastReset) ? lastReset : Date.parse(dog.created_at);
+  return baseline + TP_RESET_MS;
+}
+export function shouldRegenerateTP(dog: Dog, now = Date.now()): boolean {
+  return !dog.is_dead && now >= nextTPResetAt(dog);
+}
+export function regenerateTP(dog: Dog, now = Date.now()): Partial<Dog> {
+  if (!shouldRegenerateTP(dog, now)) return {};
+  // Keep the original daily phase, including after a multi-day absence. Missed
+  // days never stack refills, and a repeated refresh cannot replay a reset.
+  const due = nextTPResetAt(dog);
+  const reset = due + Math.floor((now - due) / TP_RESET_MS) * TP_RESET_MS;
+  const maxTP = Math.floor((dog.hunger + dog.happiness + dog.energy_stat + dog.health) / 4);
+  return {
+    training_points: Math.max(0, Math.min(100, maxTP)),
+    last_training_reset: new Date(reset).toISOString(),
+    training_sessions_today: 0,
+    tp_refills_today: 0,
+  };
 }
 
-export function regenerateTP(dog: Dog): Partial<Dog> {
-  if (!shouldRegenerateTP(dog)) {
-    return {};
-  }
-
-  // Calculate max TP based on care stats
-  const hungerMultiplier = dog.hunger / 100;
-  const happinessMultiplier = dog.happiness / 100;
-  const energyMultiplier = dog.energy_stat / 100;
-  const healthMultiplier = dog.health / 100;
-  
-  const maxTP = Math.floor(100 * (
-    (hungerMultiplier * 0.25) + 
-    (happinessMultiplier * 0.25) + 
-    (energyMultiplier * 0.25) + 
-    (healthMultiplier * 0.25)
-  ));
-
-  return {
-    training_points: maxTP,
-    last_training_reset: new Date().toISOString(),
-    tp_refills_today: 0, // Reset gem refill counter
-  };
+export function tpRecoveryText(dog: Dog, now = Date.now()): string {
+  if (dog.is_dead) return 'This companion is in your kennel history.';
+  const remaining = nextTPResetAt(dog) - now;
+  if (!Number.isFinite(remaining)) return 'Training points recover on the daily schedule.';
+  if (remaining <= 0) return 'Training points are due to refresh.';
+  const minutes = Math.ceil(remaining / 60000);
+  const hours = Math.floor(minutes / 60);
+  return `TP refresh in ${hours ? hours + 'h ' : ''}${minutes % 60}m · amount depends on care.`;
 }

@@ -1,6 +1,6 @@
 # Paws & Pedigrees: product vision and direction
 
-Last updated: September 29, 2026.
+Last updated: October 25, 2026.
 
 ## Read this first
 
@@ -203,6 +203,12 @@ Snapshot updated for the September 29 Field Club implementation. The preceding d
 - Future work: higher-tier combined championships, meaningful working assignments, more activity families, advanced training exercises, facility-specific activity unlocks, coherent lifetime/economy balancing, discipline inheritance beyond existing breed composition/base stats, authoritative online competition, payments, and activity-pack entitlements.
 
 Do not present the full expansion backlog as delivered. See [Field Club implementation and tester guide](FIELD_CLUB.md) for mechanics, validation, and limitations.
+
+### October 24 reliability and progress follow-through
+
+The owner approved three focused improvements after the Field Club review: reliable in-session recovery/aging, foreground frame-time correctness, and progress feedback reflecting the new club. They did not authorize rescue-stat rebalancing, graphics settings, or additional activities as part of this work. Publication was approved on October 25.
+
+Implemented: time refresh after loading, every foreground minute and on resume; idempotent TP/energy/age updates with a dedicated local energy checkpoint; bounded field substeps and explicit suspension; dog-specific Field Club discoveries, learned ability, results and next actions in companion views. Original stat training remains separate. Trial markers use the retained recent visit reports, not invented permanent titles or another dog's kennel-wide completion.
 
 ## 13. Current milestone and unresolved choices
 

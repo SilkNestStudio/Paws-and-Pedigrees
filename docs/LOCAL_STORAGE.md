@@ -82,3 +82,19 @@ results. Missing progress enrolls lazily, preserving existing dogs and old ribbo
 records. The three new simulations are storage-independent. Club entries currently
 require local mode; cloud rollout needs these records included in authenticated
 persistence and authoritative command validation. See [FIELD_CLUB.md](FIELD_CLUB.md).
+
+
+### Passive recovery checkpoint
+
+Local dogs may now carry optional `last_energy_regeneration`. Missing legacy values
+start from the latest valid existing play/training-reset/feeding/creation timestamp;
+no mass migration, reset, or dog replacement is required. Recovery changes this
+checkpoint rather than pretending a passive tick was a bonding activity. Transitions
+into or out of full energy discard capped idle credit. Existing snapshot/backup
+serialization retains the optional field automatically.
+
+The dormant Supabase mode retains its existing `last_played` recovery fallback and
+ignores the local checkpoint when calculating recovery. The serializer omits the
+new local field, so this patch does not require a remote schema change. A future
+cloud migration should persist a dedicated recovery checkpoint as part of the
+already-required versioned gameplay domain migration.

@@ -4,7 +4,7 @@ import { initialNavigation, navigateTo, navigateBack, VIEW_NAMES, type GameView 
 import ReturnNavigation from './components/layout/ReturnNavigation';
 import { lessonViewUnlocked } from './utils/firstRibbon';
 import { dailyRewardUnlocked } from './utils/dailyRewards';
-import { companionConditionUpdates } from './utils/companionLoop';
+import { dogTimeUpdates, startDogTimeRefresh } from './utils/dogTimeRefresh';
 import { isLocalMode } from './lib/storage/config';
 import LocalSaveControls from './components/layout/LocalSaveControls';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
@@ -17,14 +17,11 @@ import { useGameStore } from './stores/gameStore';
 import { generateDog } from './utils/dogGenerator';
 import SceneBackground from './components/layout/SceneBackground';
 import TrainingView from './components/training/TrainingView';
-import { regenerateTP, shouldRegenerateTP } from './utils/tpRegeneration';
-import { regenerateEnergy, shouldRegenerateEnergy } from './utils/energyRegeneration';
 import EventBoardView from './components/competitions/EventBoardView';
 import JobsBoard from './components/jobs/JobsBoard';
 import BreedingPanel from './components/breeding/BreedingPanel';
 import PuppyNursery from './components/breeding/PuppyNursery';
 import ShopView from './components/shop/ShopView';
-import { shouldAgeDog, ageDog } from './utils/puppyAging';
 import JourneyHome from './components/journey/JourneyHome';
 import AuthView from './components/auth/AuthView';
 import { useAuth } from './hooks/useAuth';
@@ -53,7 +50,7 @@ function App() {
   const [dailyRewardDismissed, setDailyRewardDismissed] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { user: authUser, loading: authLoading, signOut } = useAuth();
-  const { user, tutorialProgress, dogs, addDog, updateDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, updateGameWeather } = useGameStore();
+  const { user, tutorialProgress, addDog, hasAdoptedFirstDog, setHasAdoptedFirstDog, loadFromSupabase, loading: gameLoading, error: gameError, syncEnabled, updateGameWeather } = useGameStore();
 
   useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); }, [currentView]);
 
@@ -78,22 +75,22 @@ function App() {
     }
   }, [authUser, loadFromSupabase, isResetting]);
 
-  // Keep care status current during local and cloud sessions, without repeated penalties.
+  // Hydration/auth must finish before time rules run. Every tick reads the live
+  // snapshot so adoption, care, resets and completed rounds cannot be overwritten.
+  const authId = authUser?.id;
   useEffect(() => {
-    if (!authUser || gameLoading) return;
+    if (!authId || gameLoading || isResetting) return;
     const refresh = () => {
       const state = useGameStore.getState();
+      if (state.loading || !state.user || state.user.id !== authId) return;
+      const now = Date.now();
       for (const dog of state.dogs) {
-        const updates = companionConditionUpdates(dog);
+        const updates = dogTimeUpdates(dog, state.user.kennel_level, now, !state.syncEnabled);
         if (Object.keys(updates).length) state.updateDog(dog.id, updates);
       }
     };
-    refresh();
-    const timer = setInterval(refresh, 60000);
-    const resume = () => { if (!document.hidden) refresh(); };
-    document.addEventListener('visibilitychange', resume);
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', resume); };
-  }, [authUser?.id, gameLoading]);
+    return startDogTimeRefresh(refresh, document, window);
+  }, [authId, gameLoading, isResetting]);
 
   // Check for daily reward after game loads
   useEffect(() => {
@@ -127,36 +124,6 @@ function App() {
     const current = useGameStore.getState();
     useGameStore.setState({ activeTutorial: null, tutorialProgress: { ...current.tutorialProgress, fieldClub: newClubProgress() } });
   };
-
-  useEffect(() => {
-    // Check all dogs for TP regeneration, energy regeneration, and aging on mount
-    dogs.forEach((dog: any) => {
-      const updates: any = {};
-
-      // Check TP regeneration (every 24 hours)
-      if (shouldRegenerateTP(dog)) {
-        const tpUpdates = regenerateTP(dog);
-        Object.assign(updates, tpUpdates);
-      }
-
-      // Check energy regeneration (passive over time) with kennel bonus
-      if (shouldRegenerateEnergy(dog)) {
-        const energyUpdates = regenerateEnergy(dog, user?.kennel_level || 1);
-        Object.assign(updates, energyUpdates);
-      }
-
-      // Check puppy aging
-      if (shouldAgeDog(dog)) {
-        const ageUpdates = ageDog(dog);
-        Object.assign(updates, ageUpdates);
-      }
-
-      // Apply updates if any
-      if (Object.keys(updates).length > 0) {
-        updateDog(dog.id, updates);
-      }
-    });
-  }, []);
 
   // Read current snapshots on a stable schedule; serialize them with action saves.
   useEffect(() => {

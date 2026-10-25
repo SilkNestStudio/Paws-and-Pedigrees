@@ -396,9 +396,9 @@ export function treatAilment(dog: Dog, ailment: Ailment): Partial<Dog> {
 /**
  * Check if recovery is complete
  */
-export function checkRecoveryComplete(dog: Dog): boolean {
+export function checkRecoveryComplete(dog: Dog, now = Date.now()): boolean {
   if (!dog.recovery_due) return false;
-  return Date.now() >= new Date(dog.recovery_due).getTime();
+  return now >= new Date(dog.recovery_due).getTime();
 }
 
 /**
